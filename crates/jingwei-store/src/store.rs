@@ -8,9 +8,11 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use jingwei_jir::{
-    ArtifactId, ChangeProposal, CommitId, ExecutionId, IdempotencyKey, InvocationCorrelation,
-    ProjectId, ProposalAction, ProposalDecisionRecord, ProposalId, RequestId, RevisionCommitRecord,
-    RevisionId, RevisionSnapshot, SessionId, TaskId, WorkspaceId,
+    ApprovalAttestation, ArtifactId, AssessmentDependencyState, AssessmentId, ChangeProposal,
+    CommitId, ExecutionId, IdempotencyKey, InvocationCorrelation, MaturityAssessment, ProjectId,
+    ProposalAction, ProposalDecisionRecord, ProposalId, ReleaseId, ReleaseRecord, ReleaseRequest,
+    ReleaseRequestId, RequestId, RevisionCommitRecord, RevisionId, RevisionSnapshot, RevokeRecord,
+    SessionId, TaskId, WorkspaceId, assess_validity,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -478,6 +480,11 @@ impl WorkspaceStore {
             self.layout.revisions(&metadata.project_id),
             self.layout.commits(&metadata.project_id),
             self.layout.proposals(&metadata.project_id),
+            self.layout.assessments(&metadata.project_id),
+            self.layout.attestations(&metadata.project_id),
+            self.layout.release_requests(&metadata.project_id),
+            self.layout.releases(&metadata.project_id),
+            self.layout.revocations(&metadata.project_id),
             self.layout.journal(&metadata.project_id),
             self.layout.idempotency(&metadata.project_id),
             self.layout.current_pointers(&metadata.project_id),
@@ -894,6 +901,164 @@ impl WorkspaceStore {
             .map_or(Ok(None), |path| read_json(&path).map(Some))
     }
 
+    /// Stores an immutable, canonical maturity assessment for an existing revision.
+    pub fn put_assessment(&self, assessment: &MaturityAssessment) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        self.revision(&assessment.project_id, &assessment.revision_id)?;
+        let validity = assess_validity(
+            assessment,
+            &AssessmentDependencyState {
+                revision_id: assessment.revision_id.clone(),
+                locks: assessment.locks.clone(),
+            },
+        );
+        if !validity.current {
+            return Err(StoreError::LifecycleInvariant(
+                validity.stale_reasons.join("; "),
+            ));
+        }
+        fs::create_dir_all(self.layout.assessments(&assessment.project_id))?;
+        write_new_json(
+            &self
+                .layout
+                .assessment(&assessment.project_id, &assessment.id),
+            assessment,
+        )
+    }
+
+    /// Reads one immutable maturity assessment.
+    pub fn assessment(
+        &self,
+        project: &ProjectId,
+        assessment: &AssessmentId,
+    ) -> Result<MaturityAssessment, StoreError> {
+        read_json(&self.layout.assessment(project, assessment))
+    }
+
+    /// Stores one immutable authenticated role attestation.
+    pub fn put_attestation(
+        &self,
+        project: &ProjectId,
+        attestation: &ApprovalAttestation,
+    ) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        let assessment = self.assessment(project, &attestation.assessment_id)?;
+        if attestation.assessment_id != assessment.id
+            || !attestation.actor.role_claims.contains(&attestation.role)
+        {
+            return Err(StoreError::LifecycleInvariant(
+                "attestation assessment binding or role claim is invalid".to_owned(),
+            ));
+        }
+        fs::create_dir_all(self.layout.attestations(project))?;
+        write_new_json(
+            &self.layout.attestation(project, &attestation.id),
+            attestation,
+        )
+    }
+
+    /// Reads one immutable authenticated role attestation.
+    pub fn attestation(
+        &self,
+        project: &ProjectId,
+        attestation: &jingwei_jir::AttestationId,
+    ) -> Result<ApprovalAttestation, StoreError> {
+        read_json(&self.layout.attestation(project, attestation))
+    }
+
+    /// Stores an unsigned release request prepared by the lifecycle engine.
+    pub fn put_release_request(&self, request: &ReleaseRequest) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        let assessment = self.assessment(&request.project_id, &request.assessment_id)?;
+        if request.revision_id != assessment.revision_id {
+            return Err(StoreError::LifecycleInvariant(
+                "release request revision does not match assessment".to_owned(),
+            ));
+        }
+        fs::create_dir_all(self.layout.release_requests(&request.project_id))?;
+        write_new_json(
+            &self
+                .layout
+                .release_request(&request.project_id, &request.id),
+            request,
+        )
+    }
+
+    /// Reads one immutable release request.
+    pub fn release_request(
+        &self,
+        project: &ProjectId,
+        request: &ReleaseRequestId,
+    ) -> Result<ReleaseRequest, StoreError> {
+        read_json(&self.layout.release_request(project, request))
+    }
+
+    /// Stores an externally signed release record without treating it as verified.
+    pub fn put_release_record(&self, record: &ReleaseRecord) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        let stored = self.release_request(&record.request.project_id, &record.request.id)?;
+        if stored != record.request
+            || record.signature.is_empty()
+            || record.signer_key_id.is_empty()
+        {
+            return Err(StoreError::LifecycleInvariant(
+                "signed release does not match the stored request".to_owned(),
+            ));
+        }
+        fs::create_dir_all(self.layout.releases(&record.request.project_id))?;
+        write_new_json(
+            &self.layout.release(&record.request.project_id, &record.id),
+            record,
+        )
+    }
+
+    /// Reads one signed release record. Call the offline verifier before trusting it.
+    pub fn release_record(
+        &self,
+        project: &ProjectId,
+        release: &ReleaseId,
+    ) -> Result<ReleaseRecord, StoreError> {
+        read_json(&self.layout.release(project, release))
+    }
+
+    /// Appends an externally signed revocation record.
+    pub fn put_revocation(
+        &self,
+        project: &ProjectId,
+        record: &RevokeRecord,
+    ) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        self.release_record(project, &record.release_id)?;
+        if record.signature.is_empty() || record.signer_key_id.is_empty() {
+            return Err(StoreError::LifecycleInvariant(
+                "revocation must carry an external signer and signature".to_owned(),
+            ));
+        }
+        fs::create_dir_all(self.layout.revocations(project))?;
+        write_new_json(&self.layout.revocation(project, &record.id), record)
+    }
+
+    /// Returns all immutable revocations for one release.
+    pub fn revocations(
+        &self,
+        project: &ProjectId,
+        release: &ReleaseId,
+    ) -> Result<Vec<RevokeRecord>, StoreError> {
+        let mut records = Vec::new();
+        for path in sorted_files(&self.layout.revocations(project))? {
+            let record: RevokeRecord = read_json(&path)?;
+            if &record.release_id == release {
+                records.push(record);
+            }
+        }
+        records.sort_by(|left, right| {
+            left.issued_at
+                .cmp(&right.issued_at)
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        Ok(records)
+    }
+
     /// Appends reject/withdraw, or atomically couples accept to a project-head CAS pointer record.
     pub fn decide_proposal(
         &self,
@@ -1187,9 +1352,10 @@ fn install_immutable(source: &Path, destination: &Path) -> Result<(), StoreError
 #[cfg(test)]
 mod tests {
     use jingwei_jir::{
-        AuthenticatedActorRef, ChangeProposal, CommitId, DecisionId, InvocationCorrelation,
-        InvocationId, InvocationSourceKind, JirGraph, ProposalAction, ProposalDecisionRecord,
-        ProposalId, RevisionCommitRecord, RevisionSnapshot,
+        AuthenticatedActorRef, ChangeProposal, CommitId, DecisionId, DependencyLocks,
+        GateObservation, GateStatus, InvocationCorrelation, InvocationId, InvocationSourceKind,
+        JirGraph, ProposalAction, ProposalDecisionRecord, ProposalId, RevisionCommitRecord,
+        RevisionSnapshot, build_maturity_assessment,
     };
     use serde_json::json;
     use tempfile::tempdir;
@@ -1220,6 +1386,70 @@ mod tests {
         let (loaded, bytes) = store.artifact(&record.id).unwrap();
         assert_eq!(bytes, b"evidence");
         assert_eq!(loaded.sha256, record.sha256);
+    }
+
+    #[test]
+    fn lifecycle_assessments_are_immutable_and_canonical() {
+        let directory = tempdir().unwrap();
+        let store =
+            WorkspaceStore::create(directory.path(), WorkspaceId::new("ws-lifecycle").unwrap())
+                .unwrap();
+        let _lease = store.acquire_writer("lifecycle-test").unwrap();
+        let project = ProjectId::new("project-lifecycle").unwrap();
+        store
+            .create_project(&ProjectMetadata {
+                project_id: project.clone(),
+                name: "lifecycle".into(),
+                created_at: Utc::now(),
+            })
+            .unwrap();
+        let initial = snapshot(&project, Vec::new(), "lifecycle-initial");
+        let revision = initial.metadata.id.clone();
+        store
+            .commit(commit_request(
+                initial,
+                None,
+                1,
+                "lifecycle-initial",
+                PointerTarget::ProjectHead,
+            ))
+            .unwrap();
+        let locks = DependencyLocks {
+            intent_revision: "intent:1".into(),
+            toolchain_lock: "toolchain:1".into(),
+            rule_set_lock: "rules:1".into(),
+            manufacturer_profile_lock: "profile:1".into(),
+            evidence_set_hash: "evidence:1".into(),
+            waiver_set_hash: "waiver:1".into(),
+        };
+        let assessment = build_maturity_assessment(
+            project.clone(),
+            revision,
+            locks,
+            vec![GateObservation {
+                gate: "G0".into(),
+                status: GateStatus::Passed,
+                finding_refs: Vec::new(),
+                provider: "fixture".into(),
+            }],
+            Utc::now(),
+        )
+        .unwrap();
+        store.put_assessment(&assessment).unwrap();
+        assert_eq!(
+            store.assessment(&project, &assessment.id).unwrap(),
+            assessment
+        );
+        assert!(matches!(
+            store.put_assessment(&assessment),
+            Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::AlreadyExists
+        ));
+        let mut tampered = assessment;
+        tampered.locks.rule_set_lock = "rules:2".into();
+        assert!(matches!(
+            store.put_assessment(&tampered),
+            Err(StoreError::LifecycleInvariant(_))
+        ));
     }
 
     #[test]
@@ -1721,6 +1951,8 @@ pub enum StoreError {
     },
     #[error("commit objects do not refer to the same project, revision, key, and input")]
     CommitInvariant,
+    #[error("lifecycle record invariant failed: {0}")]
+    LifecycleInvariant(String),
     #[error("revision operation journal hash does not match the committed journal operations")]
     JournalLinkageMismatch,
     #[error("immutable store object collision at {0}")]

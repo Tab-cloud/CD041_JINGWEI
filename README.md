@@ -1,7 +1,7 @@
 # Jingwei-Agent 开发文档
 
-> 文档基线：2026-08-19  
-> 状态：Slice 0-3 与受限双层板 Slice 5 已形成真实纵向闭环；外部供应链、签名和样板门禁仍在推进
+> 文档基线：2026-08-20
+> 状态：Slice 0-6 的本地可验证设计闭环已完成；Windows Alpha 可复现打包已就绪，组织签名、实时商业数据、制造商 DFM 和样板门禁保持阻断
 > 产品中文名：精卫 Agent（取自“精卫填海”）
 > 目标：从自然语言需求生成可审查、可复现、可制造的电子设计工程与制造包。
 
@@ -57,6 +57,8 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 | [integration-2026-08-19.md](docs/handoffs/integration-2026-08-19.md) | 五会话汇总、提交映射和基础集成证据 | Foundation integration 历史基线 |
 | [slice-1-real-local-transport-2026-08-20.md](docs/handoffs/slice-1-real-local-transport-2026-08-20.md) | Runtime/daemon 正式本地 RPC、真实 UI adapter 与已安装应用验收 | Slice 1 已通过 |
 | [slice-3-5-native-eda-2026-08-20.md](docs/handoffs/slice-3-5-native-eda-2026-08-20.md) | 原生原理图、PCB、KiCad 交叉验证与 CAS 制造包 | 受限黄金板闭环通过 |
+| [slice-4-6-governance-release-2026-08-20.md](docs/handoffs/slice-4-6-governance-release-2026-08-20.md) | 供应快照、库审批、影响分析、成熟度计算与离线发布验签 | 本地确定性闭环通过 |
+| [windows-alpha-0.1.0.md](docs/release/windows-alpha-0.1.0.md) | Windows Alpha 安装包、SBOM、来源证明与剩余分发门禁 | 可复现打包基线 |
 
 ### 五会话开发任务（已归档）
 
@@ -118,10 +120,11 @@ Eval 现有 `schematic_read`、`datasheet_read`、`pin_extract` 主要解决“�
 
 ## 5. 下一步
 
-已完成 [Slice 0-3](docs/14-design-convergence-audit-and-plan.md) 的规范、真实本地协议、跨进程恢复和原生
-logical/schematic 闭环，并完成受限双层黄金板的 JIR→布局→布线→DRC→KiCad PCB→CAS 制造包纵向链路。
-当前继续收拢 Slice 4 供应链/库治理和 Slice 6 成熟度评审。商业模型凭据、Freerouting 分发法务、代码签名、
-制造商 DFM 和真实样板仍需要相应外部输入，系统不会把缺失证据伪装成 Production Release。
+已完成 [Slice 0-6](docs/14-design-convergence-audit-and-plan.md) 的规范、真实本地协议、跨进程恢复、原生
+logical/schematic、受限双层 PCB、供应链/库治理和成熟度/发布验签闭环。正式 daemon 的中央工具目录现已覆盖
+可执行的逻辑与物理 EDA operation，Runtime 不再只看到 core 工具；Windows Alpha 使用锁定 sidecar、SBOM、
+第三方 notice 与 commit 绑定的来源证明构建。商业模型凭据、实时供应商授权数据、组织身份与签名、代码签名、
+升级/回滚、制造商 DFM 和真实样板仍需要外部输入，系统不会把缺失证据伪装成 Production Release。
 
 ## 6. 外部依据
 

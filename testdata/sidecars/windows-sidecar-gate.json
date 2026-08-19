@@ -6,7 +6,7 @@
     {
       "kind": "daemon",
       "version": "0.1.0",
-      "sha256": "f22de02178e18e0874dc9a83e53d08bf73968a170d043de54c877b16b5348632"
+      "sha256": "9d705cb27b156be122881516201e0582f84092ebfc1ba43516718c79717eb12e"
     },
     {
       "kind": "runtime",
@@ -26,12 +26,12 @@
       "version": "0.1.0",
       "target": "x86_64-pc-windows-msvc",
       "health": "healthy",
-      "rpcEndpoint": "\\\\.\\pipe\\jingwei-runtime-gate-1bd6d14b-2277-4cde-9d5a-9d1c4a6038b3"
+      "rpcEndpoint": "\\\\.\\pipe\\jingwei-runtime-gate-76f7bc36-d5c1-48e8-8220-b120f9acaf7b"
     }
   },
   "runtimeToDaemon": {
     "connected": true,
-    "availableOperationCount": 28,
+    "availableOperationCount": 45,
     "requiredOperations": [
       "requirement_compile",
       "release_readiness",

@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot = ''
+    [string]$RepositoryRoot = '',
+    [string]$ReportPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -162,11 +163,16 @@ try {
         }
         productionRelease = $false
     }
-    $reportDirectory = Join-Path $repository 'testdata\sidecars'
+    if ([string]::IsNullOrWhiteSpace($ReportPath)) {
+        $ReportPath = Join-Path $repository 'testdata\sidecars\windows-sidecar-gate.json'
+    }
+    elseif (-not [IO.Path]::IsPathRooted($ReportPath)) {
+        $ReportPath = Join-Path $repository $ReportPath
+    }
+    $reportDirectory = Split-Path -Parent $ReportPath
     New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null
-    $reportPath = Join-Path $reportDirectory 'windows-sidecar-gate.json'
-    $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding utf8
-    Write-Output "Windows sidecar gate passed: $reportPath"
+    $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ReportPath -Encoding utf8
+    Write-Output "Windows sidecar gate passed: $ReportPath"
 }
 finally {
     foreach ($process in @($runtime, $daemon)) {

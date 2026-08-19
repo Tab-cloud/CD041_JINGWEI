@@ -12,7 +12,7 @@
 - **Phase 0 product exit**：真实 UI/Runtime/JDP 纵向写路径、对账、黄金板 round-trip、签名安装等退出条件全过；
 - **Production released**：制造商 DFM、样板、测试、供应链和组织签名全部有效。
 
-当前状态是第一层通过，第二层和第三层均阻断。
+当前状态是第一层通过，第二层的本地可验证设计闭环已完成、外部门禁仍阻断，第三层未达到。
 
 ## 2. 全局边界缺陷与处置
 
@@ -24,16 +24,16 @@
 | AUD-004 | P0 | Runtime 正式本地 RPC 未定义，stdio handshake/RPC 与监控混流 | bootstrap 仅走 stdin；正式 Runtime API 使用独立 pipe/UDS 与生成协议 | Slice 1 完成（Windows named pipe） |
 | AUD-005 | P0 | UI 仍直接构造 MockRuntimeClient/MockDesignClient | 建立真实 RuntimeTransport、DesignTransport 与显式 fixture mode | Slice 1 完成；原生 display-list 属 Slice 3 |
 | AUD-006 | P0 | Runtime 已有 reconciliation 抽象，真实 sidecar 却报告 false | 增加 daemon execution reconciliation operation 和真实 adapter | Slice 2 完成 |
-| AUD-007 | P0 | Revision metadata 同时承担设计内容、draft/candidate/verified/released/superseded | 分离 RevisionSnapshot、CommitRecord、DraftSession、ChangeProposal/Decision、MaturityAssessment、ReleaseRecord | 本轮设计完成，需 store migration |
+| AUD-007 | P0 | Revision metadata 同时承担设计内容、draft/candidate/verified/released/superseded | 分离 RevisionSnapshot、CommitRecord、DraftSession、ChangeProposal/Decision、MaturityAssessment、ReleaseRecord | Slice 0/6 完成：schema、migration 与不可变 lifecycle store 已落地 |
 | AUD-008 | P0 | 文档声称所有 ID 都是 UUID，并描述了已过时的 JIR entity shape | wire ID 改为 opaque；Rust schema 是唯一规范源 | 本轮文档收拢 |
 | AUD-009 | P0 | `createdBy`/actor 字符串没有生产身份与角色签名边界 | actor 来自 OS/IAM claims；发布由独立组织 signer 执行 | 本轮设计完成，待身份 adapter |
-| AUD-010 | P0 | 门禁阶段可能被当成可写工作流状态 | 阶段由 daemon 根据 assessment 计算；Runtime workflow 只能请求动作 | 本轮设计完成，待 assessment domain |
+| AUD-010 | P0 | 门禁阶段可能被当成可写工作流状态 | 阶段由 daemon 根据 assessment 计算；Runtime workflow 只能请求动作 | Slice 6 完成 assessment/invalidation；可信 IAM gate provider 待外部接入 |
 | AUD-011 | P0 | JDP/JIR/store/runtime/event/profile/toolchain 兼容策略分散 | 建立独立版本矩阵、只读/拒绝/migration 规则 | 本轮设计完成，待兼容测试 |
 | AUD-012 | P0 | 当前文档中的 Phase 0 清单有大量未完成项但缺少状态矩阵 | 建立下节统一退出矩阵与执行顺序 | 本轮完成 |
 | AUD-013 | P1 | Artifact 普通 frame、分页 cursor 和大型 display list 的传输边界未冻结 | CAS/stream ticket、revision/query-bound cursor、独立 display channel | Slice 1 设计/实现 |
 | AUD-014 | P1 | 外部格式 unknown feature 的保留与阻断粒度不够明确 | UnknownFeatureInventory + opaque只读 fragment + capability coverage | 本轮设计完成，待 adapter 实现 |
-| AUD-015 | P1 | 供应链 TTL、离线快照、许可证与替代料再验证尚未闭环 | Provider snapshot contract + data policy + impact graph | Slice 4 |
-| AUD-016 | P1 | 安装包已可安装但未签名、无升级/回滚/SBOM | 独立 release engineering gate | Slice 7 |
+| AUD-015 | P1 | 供应链 TTL、离线快照、许可证与替代料再验证尚未闭环 | Provider snapshot contract + data policy + impact graph | Slice 4 本地治理闭环完成；实时商业 provider 待授权接入 |
+| AUD-016 | P1 | 安装包已可安装但未签名、无升级/回滚/SBOM | 独立 release engineering gate | Slice 7 Alpha：SBOM/notice/provenance/锁定 sidecar 完成；签名与升级/回滚仍阻断 |
 | AUD-017 | P0 | JDP 注释称 publish 到 candidate pointer，但实现实际移动 `ProjectCurrent` | 只保留 project head；待审设计进入 ChangeProposal，接受时 CAS 移动 head | 本轮设计完成，需 kernel migration |
 | AUD-018 | P0 | RevisionId 哈希未覆盖 createdAt/actor/status/artifact/evidence，同 ID 可对应不同 metadata | canonical snapshot 与 commit/assessment/manifest 分离；ID 覆盖 snapshot 全字段 | 本轮设计完成，需 schema migration |
 | AUD-019 | P0 | 当前 revision `verify()` 只校验 graph hash，未验证完整 ID 与 journal linkage | 增加 full identity/journal verification 和 corruption fixtures | Slice 0 |
@@ -56,9 +56,9 @@ P2 的 RF/SI/PI、高压/安规、HDI/BGA、刚挠、多人协作和云端服务
 | KiCad schematic/PCB projection | Pass（声明的受限子集） | daemon CAS 投影、object map、结构 round-trip/semantic equivalence、固定 KiCad 10.0.5 ERC/DRC/渲染/制造导出通过；任意外部/unknown feature 导入仍 fail closed |
 | 原生 ERC/DRC 与 reference 差异映射 | Pass（黄金板） | native ERC/DRC 与同 revision KiCad 10.0.5 reference gate 均通过，工具版本/哈希和输入哈希留证 |
 | Freerouting DSN/SES 真实闭环 | Blocked | adapter 存在，受控可执行文件与真实 gate 未交付 |
-| 供应商与真实器件证据 | Blocked | 当前以 fixtures/本地模型为主，无已批准商业 provider snapshot |
+| 供应商与真实器件证据 | Partial pass | TTL、许可证、审批/撤销、替代料、离线冻结与影响分析已 fail closed；无已批准实时商业 provider snapshot |
 | 制造包完整格式与独立 parser | Pass（受限双层候选） | 同一物理 revision 的 Gerber/drill/BOM/CPL/IPC-356/STEP/manifest 经独立回读并进入 CAS；仍不是工厂或量产批准 |
-| Windows 签名安装、升级/回滚/卸载 | Partial pass | 安装/卸载和 sidecar 路径通过；签名、升级、回滚未完成 |
+| Windows 签名安装、升级/回滚/卸载 | Partial pass | Alpha 安装包、锁定 sidecar、SBOM、notice、provenance 与安装/卸载路径已覆盖；Authenticode、升级、回滚未完成 |
 | 商业模型真实工具调用 | Blocked by environment | 缺少 `OPENAI_API_KEY` 与 `JINGWEI_OPENAI_MODEL`，live test 明确跳过 |
 | 真实黄金板人工审查/样板 | Blocked | 尚无具名硬件/PCB 审查、工厂 DFM、实物样板和测试记录 |
 
@@ -146,6 +146,11 @@ current revision，深浅主题切换和退出零残留均通过。旧 schema v1
 
 ### Slice 4：供应链和库治理
 
+状态（2026-08-20）：**Pass（本地治理 / 离线可复现）**。`ProviderSnapshot` 绑定内容哈希、TTL、许可证、缓存
+政策、数据分类和离线冻结状态；库资产审批/拒绝/撤销按项目或组织作用域持久化，Agent 不能自批，组织级生成资产
+必须有管理员和明确人工证据。替代料、关键器件 3D 模型和错误库影响查询均按精确资产哈希 fail closed；正式
+daemon/Rust 生成目录已暴露可执行的器件、库和治理工具。实时价格、库存和商业供应商授权仍是外部输入。
+
 目标：把“能生成符号/封装”提升为可追溯且可撤销的受控库。
 
 - provider adapter、缓存 TTL、币种/数量阶梯、API ToS 与 data classification；
@@ -175,6 +180,12 @@ KiCad PCB CAS 投影。相同 revision 导出的 24 项制造制品经独立 par
 
 ### Slice 6：评审、成熟度和 Release Candidate
 
+状态（2026-08-20）：**Pass（确定性评估与离线验签）**。G0-G7 只计算 L0-L4，设计、intent、toolchain、规则、
+制造商 profile、证据或 waiver 变化会使旧 assessment 失效；assessment、attestation、release request、release 与
+revocation 进入不可变 store。Release request 仅能由当前 L4 和完整角色 attestation 生成，Ed25519 离线 verifier
+校验组织公钥、精确 manifest、依赖状态和撤销记录。L5 仍只能由独立组织 signer 产生；当前本地身份只有
+`local-jdp-client`，因此没有开放客户端自报角色的绕过接口。
+
 目标：让 UI 和 headless verifier 显示同一 gate 真相。
 
 - assessment/invalidation graph、issue/waiver 生命周期和 role claims；
@@ -185,6 +196,11 @@ KiCad PCB CAS 投影。相同 revision 导出的 24 项制造制品经独立 par
 退出条件：任一设计/profile/rule/evidence 变化都会使旧 assessment/release request 失效。
 
 ### Slice 7：Windows 发布工程
+
+状态（2026-08-20）：**Partial pass（可复现 Alpha）**。独立仓库干净 commit 才允许打包；构建前校验锁定的
+Runtime/daemon sidecar、协议与真实 Runtime→daemon capability，并生成 CycloneDX SBOM、第三方依赖 notice、
+commit/material hash 绑定的 provenance 和 Alpha gate。Authenticode 组织证书、签名 updater 与回滚通道仍是外部
+发布工程门禁，所以安装包明确标记 `productionRelease: false`。
 
 目标：从开发安装包提升为可受控分发的 Alpha 包。
 
@@ -218,5 +234,6 @@ KiCad PCB CAS 投影。相同 revision 导出的 24 项制造制品经独立 par
 
 ## 6. 下一步
 
-Slice 0-3 与受限双层板 Slice 5 已闭合；下一步收拢 Slice 4 的供应快照/库审批撤销/影响分析，以及 Slice 6 的
-assessment/invalidation/release-request。外部凭据、组织签名、工厂和样板门禁保持独立阻塞。
+Slice 0-6 的本地确定性闭环已经闭合，Slice 7 形成可复现 Windows Alpha。下一阶段只推进无法在本地伪造的真实
+门禁：商业 provider 授权与快照、生产 IAM/角色声明、组织 release/code-signing、签名更新与回滚、制造商 DFM、
+真实样板和具名测试证据；在这些证据齐备前维持 `productionRelease: false`。

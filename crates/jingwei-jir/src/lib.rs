@@ -4,6 +4,7 @@ mod canonical;
 mod graph;
 mod ids;
 mod lifecycle;
+mod lifecycle_engine;
 mod migration;
 mod quantity;
 mod revision;
@@ -23,6 +24,13 @@ pub use lifecycle::{
     EffectiveReleaseStatus, GateResult, GateStatus, InvocationCorrelation, InvocationSourceKind,
     MaturityAssessment, MaturityLevel, ProposalAction, ProposalDecisionRecord, ReleaseRecord,
     ReleaseRequest, RevisionCommitRecord, RevokeRecord,
+};
+pub use lifecycle_engine::{
+    AssessmentDependencyState, AssessmentValidity, GateObservation, LifecycleEngineError,
+    OfflineReleaseContext, OfflineReleaseVerification, ReleasePolicy, TrustedReleaseKey,
+    assess_validity, build_maturity_assessment, prepare_release_request,
+    prepare_unsigned_release_record, release_signing_bytes, revocation_signing_bytes,
+    verify_release_offline,
 };
 pub use migration::{MigrationError, MigrationRegistry, SchemaMigration};
 pub use quantity::{Dimension, Quantity, QuantityError, Unit};

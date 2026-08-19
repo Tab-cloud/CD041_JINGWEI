@@ -41,6 +41,8 @@ describe("Rust generated JDP binding integration", () => {
     expect(generated.JDP_PROTOCOL_VERSION).toBe("0.1")
     expect(generated.JIR_SCHEMA_VERSION).toBe("0.2")
     expect(catalog.length).toBeGreaterThanOrEqual(20)
+    expect(catalog.map((tool) => tool.name)).toContain("library_governance_evaluate")
+    expect(catalog.map((tool) => tool.name)).toContain("pcb_route_critical")
   })
 
   test("registers and invokes a generated write tool through the production JDP adapter", async () => {

@@ -215,6 +215,114 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
             Permission::Read,
             Effect::ReadOnly,
         ),
+        (
+            "requirement_compile",
+            "Compile a structured product intent candidate",
+            Permission::CandidateWrite,
+            Effect::ReadOnly,
+        ),
+        (
+            "risk_classify",
+            "Classify product risk from the structured intent",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "part_search",
+            "Search an authorized immutable provider snapshot",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "part_compare",
+            "Apply hard filters before auditable soft scoring",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "part_select",
+            "Create an exact-MPN part selection candidate",
+            Permission::CandidateWrite,
+            Effect::RevisionWrite,
+        ),
+        (
+            "part_substitute_validate",
+            "Validate substitute pinout, package and electrical compatibility",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "library_resolve",
+            "Resolve exact MPN and package assets by policy precedence",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "library_verify",
+            "Verify provenance, pin-pad mapping and footprint geometry",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "library_governance_evaluate",
+            "Evaluate snapshot, license, approval, revocation and exact-hash policy",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "schematic_create",
+            "Create a complete schematic graph candidate",
+            Permission::CandidateWrite,
+            Effect::RevisionWrite,
+        ),
+        (
+            "pcb_create_from_schematic",
+            "Create a PCB candidate from the exact logical netlist and footprint mapping",
+            Permission::CandidateWrite,
+            Effect::RevisionWrite,
+        ),
+        (
+            "pcb_place",
+            "Place an authoritative PCB candidate deterministically",
+            Permission::CandidateWrite,
+            Effect::RevisionWrite,
+        ),
+        (
+            "pcb_route_critical",
+            "Route critical nets through the cancellable reference router",
+            Permission::CandidateWrite,
+            Effect::RevisionWrite,
+        ),
+        (
+            "pcb_zone_fill",
+            "Fill PCB zones and return a new candidate",
+            Permission::CandidateWrite,
+            Effect::RevisionWrite,
+        ),
+        (
+            "pcb_drc",
+            "Run native PCB design-rule checks",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "design_equivalence_check",
+            "Check authoritative JIR and external projection equivalence",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "manufacturing_profile_validate",
+            "Validate a board against the pinned manufacturing profile",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            "release_readiness",
+            "Report mandatory external release gates without fabricating evidence",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
     ];
     rows.into_iter()
         .map(|(name, description, permission, effect)| ToolDescriptor {
@@ -241,9 +349,19 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
                 operation::DESIGN_COMPILE_JDL
                     | operation::DESIGN_PATCH_PROPOSE
                     | operation::DESIGN_PATCH_APPLY
+                    | "part_select"
+                    | "schematic_create"
+                    | "pcb_create_from_schematic"
+                    | "pcb_place"
+                    | "pcb_route_critical"
+                    | "pcb_zone_fill"
             ),
-            cancellable: matches!(effect, Effect::TaskControl),
-            default_timeout_ms: 30_000,
+            cancellable: matches!(effect, Effect::TaskControl) || name == "pcb_route_critical",
+            default_timeout_ms: if name == "pcb_route_critical" {
+                300_000
+            } else {
+                30_000
+            },
             protocol_version: crate::JDP_PROTOCOL_VERSION.into(),
             schema_version: jingwei_jir::JIR_SCHEMA_VERSION.into(),
         })

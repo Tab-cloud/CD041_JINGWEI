@@ -399,9 +399,10 @@ pub fn select_part(
         .collect();
     Ok(PartDecision {
         id: format!(
-            "part-decision:{}:{}",
+            "part-decision:{}:{}:{}",
             requirement.id,
-            selected_evaluation.candidate.mpn.as_str()
+            selected_evaluation.candidate.mpn.as_str(),
+            selected_evaluation.candidate.source_snapshot.content_hash
         ),
         requirement_id: requirement.id.clone(),
         selected: selected_evaluation.candidate,

@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Jingwei Agent Dev",
+  "productName": "Jingwei Agent",
   "version": "0.1.0",
-  "identifier": "com.jingweiagent.workbench.dev",
+  "identifier": "com.jingweiagent.workbench",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build && pnpm build:sidecars",
+    "beforeBuildCommand": "pnpm build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -35,7 +35,7 @@
     "active": true,
     "targets": ["nsis"],
     "category": "DeveloperTool",
-    "shortDescription": "Jingwei Agent semantic EDA workbench development build",
+    "shortDescription": "Jingwei Agent AI-native semantic EDA workbench",
     "longDescription": "AI-native semantic schematic and PCB workbench with authenticated local Runtime and JDP sidecars.",
     "resources": ["sidecars/manifest.json", "sidecars/bin/*"],
     "windows": {

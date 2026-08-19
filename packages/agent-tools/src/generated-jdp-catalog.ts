@@ -12,6 +12,7 @@ export interface RustGeneratedJdpTool {
   permission:
     | "read"
     | "candidate-write"
+    | "review-decision"
     | "external-process"
     | "waiver"
     | "release-candidate"

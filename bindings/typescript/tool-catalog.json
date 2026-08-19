@@ -576,5 +576,389 @@
       "workspace:{workspaceId}"
     ],
     "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Compile a structured product intent candidate",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "requirement_compile",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Classify product risk from the structured intent",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "risk_classify",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Search an authorized immutable provider snapshot",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "part_search",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Apply hard filters before auditable soft scoring",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "part_compare",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Create an exact-MPN part selection candidate",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "part_select",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Validate substitute pinout, package and electrical compatibility",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "part_substitute_validate",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Resolve exact MPN and package assets by policy precedence",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "library_resolve",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Verify provenance, pin-pad mapping and footprint geometry",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "library_verify",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Evaluate snapshot, license, approval, revocation and exact-hash policy",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "library_governance_evaluate",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Create a complete schematic graph candidate",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "schematic_create",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Create a PCB candidate from the exact logical netlist and footprint mapping",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "pcb_create_from_schematic",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Place an authoritative PCB candidate deterministically",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "pcb_place",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": true,
+    "defaultTimeoutMs": 300000,
+    "description": "Route critical nets through the cancellable reference router",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "pcb_route_critical",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Fill PCB zones and return a new candidate",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "pcb_zone_fill",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Run native PCB design-rule checks",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "pcb_drc",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Check authoritative JIR and external projection equivalence",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design_equivalence_check",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Validate a board against the pinned manufacturing profile",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "manufacturing_profile_validate",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Report mandatory external release gates without fabricating evidence",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "release_readiness",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
   }
 ]

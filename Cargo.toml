@@ -13,6 +13,7 @@ authors = ["Jingwei-Agent contributors"]
 async-trait = "0.1.89"
 chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde"] }
 clap = { version = "4.5.48", features = ["derive"] }
+ed25519-dalek = "2.2.0"
 fs2 = "0.4.3"
 futures-util = "0.3.31"
 hex = "0.4.3"

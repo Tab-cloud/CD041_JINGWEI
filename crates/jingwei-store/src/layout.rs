@@ -2,7 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use jingwei_jir::{ExecutionId, ProjectId, ProposalId, RevisionId, SessionId, TaskId};
+use jingwei_jir::{
+    AssessmentId, AttestationId, ExecutionId, ProjectId, ProposalId, ReleaseId, ReleaseRequestId,
+    RevisionId, RevokeId, SessionId, TaskId,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct Layout {
@@ -57,6 +60,55 @@ impl Layout {
 
     pub(crate) fn proposals(&self, project: &ProjectId) -> PathBuf {
         self.project(project).join("proposals")
+    }
+
+    pub(crate) fn assessments(&self, project: &ProjectId) -> PathBuf {
+        self.project(project).join("assessments")
+    }
+
+    pub(crate) fn assessment(&self, project: &ProjectId, assessment: &AssessmentId) -> PathBuf {
+        self.assessments(project)
+            .join(format!("{}.json", safe_component(assessment.as_str())))
+    }
+
+    pub(crate) fn attestations(&self, project: &ProjectId) -> PathBuf {
+        self.project(project).join("attestations")
+    }
+
+    pub(crate) fn attestation(&self, project: &ProjectId, attestation: &AttestationId) -> PathBuf {
+        self.attestations(project)
+            .join(format!("{}.json", safe_component(attestation.as_str())))
+    }
+
+    pub(crate) fn release_requests(&self, project: &ProjectId) -> PathBuf {
+        self.project(project).join("release-requests")
+    }
+
+    pub(crate) fn release_request(
+        &self,
+        project: &ProjectId,
+        request: &ReleaseRequestId,
+    ) -> PathBuf {
+        self.release_requests(project)
+            .join(format!("{}.json", safe_component(request.as_str())))
+    }
+
+    pub(crate) fn releases(&self, project: &ProjectId) -> PathBuf {
+        self.project(project).join("releases")
+    }
+
+    pub(crate) fn release(&self, project: &ProjectId, release: &ReleaseId) -> PathBuf {
+        self.releases(project)
+            .join(format!("{}.json", safe_component(release.as_str())))
+    }
+
+    pub(crate) fn revocations(&self, project: &ProjectId) -> PathBuf {
+        self.project(project).join("revocations")
+    }
+
+    pub(crate) fn revocation(&self, project: &ProjectId, revoke: &RevokeId) -> PathBuf {
+        self.revocations(project)
+            .join(format!("{}.json", safe_component(revoke.as_str())))
     }
 
     pub(crate) fn proposal(&self, project: &ProjectId, proposal: &ProposalId) -> PathBuf {

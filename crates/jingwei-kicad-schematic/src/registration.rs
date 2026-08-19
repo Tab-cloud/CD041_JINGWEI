@@ -1,15 +1,25 @@
 use async_trait::async_trait;
-use jingwei_components::{DesignIntent, classify_risk};
+use jingwei_components::{
+    CandidateEvaluation, DesignIntent, LocalCatalogAdapter, PartCandidate, PartRequirement,
+    PartSourceAdapter, classify_risk, compare_candidates, select_part, validate_substitution,
+};
 use jingwei_erc::{ErcContext, LibraryBindingStatus, run_native_erc};
 use jingwei_jdp::{
     DisplayList, Effect, HitTestRequest, HitTestResult, PatchOperation, Permission,
     SemanticEditCommand, ToolDescriptor, ValidationFinding, ValidationOutput, ViewRequest,
 };
-use jingwei_jir::{CanonicalValue, EntityId, SchemaDescriptor};
+use jingwei_jir::{
+    CanonicalValue, EditControl, EntityId, EntityKind, JirEntity, Provenance, SchemaDescriptor,
+};
 use jingwei_kernel::{
     DomainToolModule, ExtensionRegistryBuilder, ProjectionArtifact, ProjectionBackend,
     ProjectionRequest, ProjectionResult, RegistryError, SemanticEditHandler, ToolContext,
     ToolRequest, ToolResult, ValidationContext, ValidationProvider, ViewProvider,
+};
+use jingwei_library::{
+    GovernanceScope, LibraryAssetCandidate, LibraryGovernanceLedger, LibraryGovernancePolicy,
+    LibraryPolicy, LibraryUseClass, ProviderSnapshot, evaluate_candidate_governance,
+    resolve_library, verify_library,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -78,6 +88,11 @@ pub fn logical_module_registration() -> LogicalModuleRegistration {
             Effect::RevisionWrite,
         ),
         ("library_verify", Permission::Read, Effect::ReadOnly),
+        (
+            "library_governance_evaluate",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
         ("library_diff", Permission::Read, Effect::ReadOnly),
         (
             "schematic_create",
@@ -216,7 +231,16 @@ impl DomainToolModule for LogicalToolModule {
             .filter(|descriptor| {
                 matches!(
                     descriptor.name.as_str(),
-                    "requirement_compile" | "risk_classify" | "schematic_create"
+                    "requirement_compile"
+                        | "risk_classify"
+                        | "part_search"
+                        | "part_compare"
+                        | "part_select"
+                        | "part_substitute_validate"
+                        | "library_resolve"
+                        | "library_verify"
+                        | "library_governance_evaluate"
+                        | "schematic_create"
                 )
             })
             .collect()
@@ -242,6 +266,144 @@ impl DomainToolModule for LogicalToolModule {
                 let intent: DesignIntent = serde_json::from_value(request.input)
                     .map_err(|error| format!("invalid DesignIntent: {error}"))?;
                 serde_json::to_value(classify_risk(&intent)).map_err(|error| error.to_string())?
+            }
+            "part_search" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    requirement: PartRequirement,
+                    candidates: Vec<PartCandidate>,
+                    snapshot_id: String,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid offline part search input: {error}"))?;
+                let adapter = LocalCatalogAdapter::new(input.snapshot_id, input.candidates);
+                serde_json::to_value(
+                    adapter
+                        .search(&input.requirement)
+                        .map_err(|error| error.to_string())?,
+                )
+                .map_err(|error| error.to_string())?
+            }
+            "part_compare" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    requirement: PartRequirement,
+                    candidates: Vec<PartCandidate>,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid part comparison input: {error}"))?;
+                serde_json::to_value(compare_candidates(&input.requirement, input.candidates))
+                    .map_err(|error| error.to_string())?
+            }
+            "part_select" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    requirement: PartRequirement,
+                    evaluations: Vec<CandidateEvaluation>,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid part selection input: {error}"))?;
+                let decision = select_part(&input.requirement, input.evaluations)
+                    .map_err(|error| error.to_string())?;
+                let entity = JirEntity {
+                    id: EntityId::new(decision.id.clone()).map_err(|error| error.to_string())?,
+                    kind: EntityKind::new("logical.part").map_err(|error| error.to_string())?,
+                    schema_version: jingwei_schematic::SCHEMATIC_SCHEMA_VERSION.to_owned(),
+                    properties: CanonicalValue::new(
+                        serde_json::to_value(&decision).map_err(|error| error.to_string())?,
+                    )
+                    .map_err(|error| error.to_string())?,
+                    provenance: Provenance {
+                        source_kind: "part-selection".to_owned(),
+                        evidence_refs: decision.selected.evidence_refs.clone(),
+                        generator: Some("jingwei-components".to_owned()),
+                        generator_version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+                    },
+                    edit_control: EditControl::default(),
+                };
+                return Ok(ToolResult {
+                    candidate_operations: vec![PatchOperation::AddEntity { entity }],
+                    data: serde_json::to_value(decision).map_err(|error| error.to_string())?,
+                    artifact_refs: Vec::new(),
+                    evidence_refs: Vec::new(),
+                });
+            }
+            "part_substitute_validate" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    requirement: PartRequirement,
+                    primary: PartCandidate,
+                    substitute: PartCandidate,
+                    pinout_exact: bool,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid part substitution input: {error}"))?;
+                serde_json::to_value(validate_substitution(
+                    &input.requirement,
+                    &input.primary,
+                    &input.substitute,
+                    input.pinout_exact,
+                ))
+                .map_err(|error| error.to_string())?
+            }
+            "library_resolve" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    mpn: jingwei_components::ExactMpn,
+                    package: jingwei_components::PackageRef,
+                    policy: LibraryPolicy,
+                    candidates: Vec<LibraryAssetCandidate>,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid library resolution input: {error}"))?;
+                serde_json::to_value(resolve_library(
+                    &input.mpn,
+                    &input.package,
+                    &input.policy,
+                    &input.candidates,
+                ))
+                .map_err(|error| error.to_string())?
+            }
+            "library_verify" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    candidate: LibraryAssetCandidate,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid library verification input: {error}"))?;
+                serde_json::to_value(verify_library(&input.candidate))
+                    .map_err(|error| error.to_string())?
+            }
+            "library_governance_evaluate" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    candidate: LibraryAssetCandidate,
+                    snapshots: Vec<ProviderSnapshot>,
+                    ledger: LibraryGovernanceLedger,
+                    policy: LibraryGovernancePolicy,
+                    scopes: Vec<GovernanceScope>,
+                    use_class: LibraryUseClass,
+                    now_epoch_seconds: u64,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid library governance input: {error}"))?;
+                serde_json::to_value(evaluate_candidate_governance(
+                    &input.candidate,
+                    &input.snapshots,
+                    &input.ledger,
+                    &input.policy,
+                    &input.scopes,
+                    input.use_class,
+                    input.now_epoch_seconds,
+                ))
+                .map_err(|error| error.to_string())?
             }
             "schematic_create" => {
                 #[derive(Deserialize)]
@@ -572,6 +734,9 @@ fn logical_tool_description(name: &str) -> &'static str {
         "symbol_generate" => "Generate a project-private symbol from structured pin data",
         "footprint_generate" => "Generate a project-private footprint from structured package data",
         "library_verify" => "Validate provenance, pin-pad mapping and footprint geometry",
+        "library_governance_evaluate" => {
+            "Fail closed on stale, unlicensed, unapproved, revoked or hash-mismatched assets"
+        }
         "library_diff" => "Compare versioned library asset semantics",
         "schematic_create" => "Create a native hierarchical logical graph candidate",
         "schematic_apply_change" => "Preview and return normalized semantic schematic operations",

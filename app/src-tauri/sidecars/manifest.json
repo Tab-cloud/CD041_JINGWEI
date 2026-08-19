@@ -14,7 +14,7 @@
       "kind": "daemon",
       "relativePath": "bin/jingwei-daemon-x86_64-pc-windows-msvc.exe",
       "version": "0.1.0",
-      "sha256": "f22de02178e18e0874dc9a83e53d08bf73968a170d043de54c877b16b5348632",
+      "sha256": "9d705cb27b156be122881516201e0582f84092ebfc1ba43516718c79717eb12e",
       "bundled": true
     }
   ]

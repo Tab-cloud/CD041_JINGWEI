@@ -2,12 +2,19 @@
 
 mod datasheet;
 mod generate;
+mod governance;
 mod model;
 mod resolve;
 mod verify;
 
 pub use generate::{
     GenerationError, StructuredFootprintInput, StructuredPinInput, generate_assets,
+};
+pub use governance::{
+    GovernanceDecision, GovernanceError, GovernanceFinding, GovernanceRole, GovernanceScope,
+    LibraryGovernanceEvaluation, LibraryGovernanceLedger, LibraryGovernancePolicy,
+    LibraryGovernanceRecord, LibraryUsage, LibraryUseClass, ProviderSnapshot,
+    ProviderSnapshotStatus, evaluate_candidate_governance,
 };
 pub use model::{
     ApprovalState, AssetGeometry, AssetKind, AssetSource, FootprintDefinition, LibraryAsset,
