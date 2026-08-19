@@ -15,6 +15,7 @@ export default function App() {
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const sidecarsHealthy = state.sidecars.length > 0 && state.sidecars.every((sidecar) => sidecar.state === "healthy");
+  const realData = state.runtimeCapabilities?.mode === "real" && state.designCapabilities?.mode === "real";
 
   if (state.loading) {
     return (
@@ -22,6 +23,17 @@ export default function App() {
         <span className="boot-mark"><RefreshIcon size={24} /></span>
         <strong>正在建立工作台投影</strong>
         <p>检查 versioned clients、sidecar 状态与草稿恢复游标</p>
+      </div>
+    );
+  }
+
+  if (!state.project) {
+    return (
+      <div className="boot-screen" role="alert">
+        <span className="boot-mark"><AlertCircleIcon size={24} /></span>
+        <strong>真实工作台连接失败</strong>
+        <p>{state.error ?? "未获得 project projection"}</p>
+        <p>浏览器开发预览必须显式使用 <code>?fixture=1</code>；安装版不会自动回退 fixture。</p>
       </div>
     );
   }
@@ -44,15 +56,16 @@ export default function App() {
         sidecars={state.sidecars}
         theme={theme}
         undoAvailable={state.undoAvailable}
+        realData={realData}
       />
 
       <div className="connection-ribbon">
-        <span className="mock-ribbon-label">VERSIONED MOCK · NOT REAL DAEMON EVIDENCE</span>
-        <span>Mock Runtime {state.runtimeCapabilities?.state}</span>
-        <span>Mock JDP {state.designCapabilities?.state}</span>
+        <span className="mock-ribbon-label">{realData ? "REAL LOCAL RPC · JIR 0.2" : "EXPLICIT FIXTURE MODE · NOT DAEMON EVIDENCE"}</span>
+        <span>{state.runtimeCapabilities?.mode === "real" ? "Runtime RPC" : "Fixture Runtime"} {state.runtimeCapabilities?.state}</span>
+        <span>{state.designCapabilities?.mode === "real" ? "Daemon JDP" : "Fixture JDP"} {state.designCapabilities?.state}</span>
         <span className={`replay-state state-${state.replayState}`}><span className="status-dot" /> replay {state.replayState} · seq {state.lastRuntimeSequence}</span>
         <span className="ribbon-gap">
-          {sidecarsHealthy ? "真实 sidecar 进程已接入；画布仍使用 versioned mock adapter" : "真实 sidecar、ERC/DRC、制造能力尚未接入"}
+          {sidecarsHealthy && realData ? "真实 Runtime/daemon 与 UI transport 已连接；未实现能力会明确拒绝" : "真实 sidecar、ERC/DRC、制造能力尚未接入"}
         </span>
         <button className="ribbon-refresh" onClick={() => void actions.refreshSidecars()} title="按受控 manifest 重新检查 sidecar">
           <RefreshIcon size={12} />重检
@@ -82,6 +95,7 @@ export default function App() {
           toolMode={state.toolMode}
           theme={theme}
           viewport={state.viewports[state.activeView]}
+          realData={realData}
         />
         <InspectorPanel
           onFocusFinding={actions.focusFinding}

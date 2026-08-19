@@ -128,12 +128,8 @@ mod windows {
         daemon: Arc<Daemon>,
         pipe_name: &str,
     ) -> Result<(), DaemonError> {
-        if !pipe_name.starts_with(r"\\.\pipe\") || pipe_name.len() > 240 {
-            return Err(DaemonError::Transport(
-                "invalid Windows named pipe name".into(),
-            ));
-        }
-        let mut server = ServerOptions::new()
+        validate_pipe_name(pipe_name)?;
+        let server = ServerOptions::new()
             .first_pipe_instance(true)
             .create(pipe_name)
             .map_err(|error| DaemonError::Transport(error.to_string()))?;
@@ -141,6 +137,45 @@ mod windows {
             .connect()
             .await
             .map_err(|error| DaemonError::Transport(error.to_string()))?;
+        handle_connection(daemon, server).await
+    }
+
+    /// Serves concurrent authenticated clients on independently framed pipe instances.
+    pub async fn serve_named_pipe(daemon: Arc<Daemon>, pipe_name: &str) -> Result<(), DaemonError> {
+        validate_pipe_name(pipe_name)?;
+        let mut first = true;
+        loop {
+            let server = ServerOptions::new()
+                .first_pipe_instance(first)
+                .create(pipe_name)
+                .map_err(|error| DaemonError::Transport(error.to_string()))?;
+            first = false;
+            server
+                .connect()
+                .await
+                .map_err(|error| DaemonError::Transport(error.to_string()))?;
+            let connection_daemon = daemon.clone();
+            tokio::spawn(async move {
+                if let Err(error) = handle_connection(connection_daemon, server).await {
+                    eprintln!("jingwei-daemon connection closed with error: {error}");
+                }
+            });
+        }
+    }
+
+    fn validate_pipe_name(pipe_name: &str) -> Result<(), DaemonError> {
+        if !pipe_name.starts_with(r"\\.\pipe\") || pipe_name.len() > 240 {
+            return Err(DaemonError::Transport(
+                "invalid Windows named pipe name".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn handle_connection(
+        daemon: Arc<Daemon>,
+        mut server: tokio::net::windows::named_pipe::NamedPipeServer,
+    ) -> Result<(), DaemonError> {
         let handshake: HandshakeRequest = read_frame(&mut server, 64 * 1024)
             .await
             .map_err(|error| DaemonError::Transport(error.to_string()))?;
@@ -289,8 +324,66 @@ mod windows {
             drop(client);
             server.await.unwrap().unwrap();
         }
+
+        #[tokio::test]
+        async fn named_pipe_accepts_runtime_and_workbench_clients_concurrently() {
+            let directory = tempdir().unwrap();
+            let workspace = WorkspaceId::new("ws-pipe-multiclient").unwrap();
+            let daemon = Arc::new(
+                Daemon::create(
+                    directory.path(),
+                    workspace.clone(),
+                    ExtensionRegistryBuilder::new().build(),
+                )
+                .unwrap(),
+            );
+            let pipe_name = format!(r"\\.\pipe\jingwei-multiclient-{}", uuid::Uuid::new_v4());
+            let server_daemon = daemon.clone();
+            let server_name = pipe_name.clone();
+            let server =
+                tokio::spawn(async move { serve_named_pipe(server_daemon, &server_name).await });
+            let handshake = |name: &str| HandshakeRequest {
+                protocol_versions: vec![JDP_PROTOCOL_VERSION.into()],
+                workspace_id: workspace.clone(),
+                client_name: name.into(),
+                client_version: "0.1.0".into(),
+                session_token: daemon.bootstrap_token().into(),
+            };
+            let (runtime, _) = NamedPipeClient::connect(&pipe_name, &handshake("runtime"))
+                .await
+                .unwrap();
+            let (workbench, _) = NamedPipeClient::connect(&pipe_name, &handshake("workbench"))
+                .await
+                .unwrap();
+            for (sequence, client) in [&runtime, &workbench].into_iter().enumerate() {
+                let response: JdpResponse<WorkspaceCapabilities> = client
+                    .send(JdpRequest {
+                        protocol_version: JDP_PROTOCOL_VERSION.into(),
+                        request_id: RequestId::new(format!("request-multiclient-{sequence}"))
+                            .unwrap(),
+                        idempotency_key: IdempotencyKey::new(format!(
+                            "idem-multiclient-{sequence}"
+                        ))
+                        .unwrap(),
+                        workspace_id: workspace.clone(),
+                        project_id: ProjectId::new("project-multiclient").unwrap(),
+                        operation: operation::WORKSPACE_CAPABILITIES.into(),
+                        base_revision: None,
+                        deadline_ms: Some(5_000),
+                        dry_run: false,
+                        trace_context: None,
+                        input: serde_json::json!({}),
+                    })
+                    .await
+                    .unwrap();
+                assert!(matches!(response, JdpResponse::Success(_)));
+            }
+            drop(runtime);
+            drop(workbench);
+            server.abort();
+        }
     }
 }
 
 #[cfg(windows)]
-pub use windows::{NamedPipeClient, serve_named_pipe_once};
+pub use windows::{NamedPipeClient, serve_named_pipe, serve_named_pipe_once};

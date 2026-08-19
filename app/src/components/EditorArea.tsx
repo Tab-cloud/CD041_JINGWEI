@@ -14,6 +14,7 @@ interface EditorAreaProps {
   ghostPrimitives: DisplayList["primitives"];
   previewLatencyMs?: number;
   theme: Theme;
+  realData: boolean;
   onViewChange: (view: DesignViewKind) => void;
   onViewportChange: (viewport: Viewport) => void;
   onToolChange: (tool: ToolMode) => void;
@@ -31,6 +32,7 @@ export function EditorArea({
   ghostPrimitives,
   previewLatencyMs,
   theme,
+  realData,
   onViewChange,
   onViewportChange,
   onToolChange,
@@ -74,7 +76,9 @@ export function EditorArea({
         <span>JDP display-list projection</span>
         <span>hit-test: daemon facade</span>
         {previewLatencyMs !== undefined && <span>preview {previewLatencyMs.toFixed(1)} ms</span>}
-        <span className="mock-warning">几何与规则结果来自 mock fixture</span>
+        <span className="mock-warning">
+          {realData ? "原生 display-list adapter 尚未接入；未使用 fixture" : "显式 fixture 几何与规则投影"}
+        </span>
       </div>
     </main>
   );

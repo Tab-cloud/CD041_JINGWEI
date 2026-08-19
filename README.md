@@ -55,6 +55,7 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 | [13-authoritative-boundaries-and-lifecycle.md](docs/13-authoritative-boundaries-and-lifecycle.md) | 状态所有权、身份、事务、sidecar 生命周期、revision/成熟度/release 和兼容规则 | 最高优先级架构规范 |
 | [14-design-convergence-audit-and-plan.md](docs/14-design-convergence-audit-and-plan.md) | 全局缺陷审计、Phase 0 状态矩阵与后续统一纵向实施顺序 | 当前执行计划 |
 | [integration-2026-08-19.md](docs/handoffs/integration-2026-08-19.md) | 五会话汇总、提交映射和基础集成证据 | Foundation integration 历史基线 |
+| [slice-1-real-local-transport-2026-08-20.md](docs/handoffs/slice-1-real-local-transport-2026-08-20.md) | Runtime/daemon 正式本地 RPC、真实 UI adapter 与已安装应用验收 | Slice 1 已通过 |
 
 ### 五会话开发任务（已归档）
 
@@ -116,8 +117,8 @@ Eval 现有 `schematic_read`、`datasheet_read`、`pin_extract` 主要解决“�
 
 ## 5. 下一步
 
-已完成 [Slice 0：规范类型和迁移收拢](docs/14-design-convergence-audit-and-plan.md)，当前进入真实 Runtime
-本地 RPC 和 UI adapter（Slice 1）。商业模型凭据、Freerouting 分发法务、制造商 DFM 和真实样板仍需要相应外部输入；
+已完成 [Slice 0：规范类型和迁移收拢](docs/14-design-convergence-audit-and-plan.md) 与 Slice 1 真实 Runtime/daemon
+本地 RPC 和 UI adapter，当前进入 execution reconciliation、取消和崩溃恢复（Slice 2）。商业模型凭据、Freerouting 分发法务、制造商 DFM 和真实样板仍需要相应外部输入；
 这些外部阻塞不会再成为架构边界不清或继续实现其他安全工作项的理由。
 
 ## 6. 外部依据

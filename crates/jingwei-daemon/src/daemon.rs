@@ -658,6 +658,7 @@ fn error_detail(error: &KernelError) -> ErrorDetail {
     let (code, stage, retryable) = match error {
         KernelError::PermissionDenied(_) => ("permission_denied", "authorization", false),
         KernelError::ProjectExists(_) => ("project_exists", "precondition", false),
+        KernelError::ProjectNotFound(_) => ("project_not_found", "precondition", false),
         KernelError::StaleBase { .. } => ("stale_base", "base-revision", false),
         KernelError::IdempotencyConflict => ("idempotency_conflict", "idempotency", false),
         KernelError::Precondition(_) => ("precondition_failed", "precondition", false),

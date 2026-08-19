@@ -1,6 +1,7 @@
 # Jingwei native workbench
 
-This directory is the task-05 Tauri 2 desktop workbench. It is intentionally self-contained so it can be tested before the shared Runtime/JDP packages are merged.
+This directory is the Tauri 2 desktop workbench. The production path uses authenticated local Runtime and daemon transports;
+versioned fixtures remain available only through an explicit `?fixture=1` browser-development query.
 
 ## Layout
 
@@ -16,14 +17,15 @@ This directory is the task-05 Tauri 2 desktop workbench. It is intentionally sel
 
 Generated `node_modules/`, `dist/`, `coverage/`, and Rust `target/` directories are ignored. Standard multi-platform icon variants are kept together under `src-tauri/icons/`; application code does not use emoji as icons.
 
-## Development mode
+## Runtime modes
 
-The current build uses contract version `0.1` mock clients. In Tauri only, the mock server snapshot is kept under versioned `sessionStorage` keys so a WebView reload can exercise server-backed draft and durable-cursor recovery. Browser previews do not persist mock server state. This mechanism must be removed with the mock transport and is not a JIR store.
-
-The Windows package now pins and bundles real Runtime and daemon sidecars. The native supervisor verifies SHA-256 plus
+The Windows package pins and bundles real Runtime and daemon sidecars. The native supervisor verifies SHA-256 plus
 protocol/version/target handshakes, passes bootstrap secrets only over stdin, starts daemon before Runtime, and kills both
-children on application exit. The React workbench still uses versioned mock data adapters, so sidecar process health is never
-presented as real schematic, PCB, ERC/DRC, or manufacturing evidence.
+children on application exit. Runtime control uses its own authenticated named pipe; daemon JDP supports concurrent Runtime
+and workbench clients. Tokens stay in Rust/native state and are not exposed to the WebView.
+
+An ordinary browser preview deliberately fails with a clear transport-unavailable message. Append `?fixture=1` only when a
+versioned UI fixture is specifically required. The packaged application never silently falls back to fixture data.
 
 ## Checks
 

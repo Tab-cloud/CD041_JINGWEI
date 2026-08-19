@@ -6,12 +6,12 @@
     {
       "kind": "daemon",
       "version": "0.1.0",
-      "sha256": "cf580837946d6331e966c6545c5777ce3dc2a826787209b1e8e8bcdfdf9136c2"
+      "sha256": "07f51c9c13a8acee1564c4f60faaabf5d644aab3b58b849795d9c809cdadaeb6"
     },
     {
       "kind": "runtime",
       "version": "0.1.0",
-      "sha256": "5fda5f7162cd83bc1ecbe48d5e6457b574fd77c08f0968fe133a1b689d92167f"
+      "sha256": "e1e2077248f78d21e0f9b67a1914aafdd1475401c3e0247b5991e05a10653401"
     }
   ],
   "handshakes": {
@@ -25,12 +25,13 @@
       "protocolVersion": "0.1",
       "version": "0.1.0",
       "target": "x86_64-pc-windows-msvc",
-      "health": "healthy"
+      "health": "healthy",
+      "rpcEndpoint": "\\\\.\\pipe\\jingwei-runtime-gate-174cff4b-dc86-46ad-9443-23bdb2c00068"
     }
   },
   "runtimeToDaemon": {
     "connected": true,
-    "availableOperationCount": 23,
+    "availableOperationCount": 24,
     "requiredOperations": [
       "requirement_compile",
       "release_readiness",
@@ -43,8 +44,8 @@
     "reason": "OPENAI_API_KEY and JINGWEI_OPENAI_MODEL are not set"
   },
   "uiDataAdapter": {
-    "status": "open",
-    "reason": "workbench canvas still uses versioned UI fixtures; sidecar process health is not presented as real design data"
+    "status": "connected",
+    "reason": "production workbench selects RuntimeTransportClient and DesignTransportClient; fixture mode requires an explicit query flag"
   },
   "productionRelease": false
 }

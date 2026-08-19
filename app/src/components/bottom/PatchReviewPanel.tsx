@@ -14,7 +14,7 @@ export function PatchReviewPanel({ proposal, onGenerate, onApply }: PatchReviewP
       <div className="patch-empty">
         <span><GitCompareIcon size={24} /></span>
         <div><strong>审查 AI semantic patch</strong><p>proposal 会列出 base revision、对象、网络、规则、finding 与受保护内容。</p></div>
-        <button className="primary-button" onClick={() => onGenerate("保持 J1 锁定，只修复 RS-485 走线间距")}>生成 versioned mock proposal</button>
+        <button className="primary-button" onClick={() => onGenerate("保持锁定对象不变，只生成局部修复候选")}>生成 AI proposal</button>
       </div>
     );
   }

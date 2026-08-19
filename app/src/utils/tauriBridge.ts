@@ -9,6 +9,13 @@ interface TauriWindow extends Window {
   __TAURI_INTERNALS__?: unknown;
 }
 
+export interface TransportConfiguration {
+  protocolVersion: "0.1";
+  workspaceId: string;
+  projectId: string;
+  mode: "real";
+}
+
 export function isTauriRuntime(): boolean {
   return Boolean((window as TauriWindow).__TAURI_INTERNALS__);
 }
@@ -23,6 +30,24 @@ export async function ensureSidecars(): Promise<SidecarStatus[]> {
   if (!isTauriRuntime()) return browserFallbackStatuses();
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<SidecarStatus[]>("ensure_sidecars");
+}
+
+export async function getTransportConfiguration(): Promise<TransportConfiguration> {
+  if (!isTauriRuntime()) throw new Error("真实 transport 只在 Jingwei 桌面应用中可用");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<TransportConfiguration>("transport_configuration");
+}
+
+export async function invokeRuntimeRpc<T>(method: string, params: unknown = {}): Promise<T> {
+  if (!isTauriRuntime()) throw new Error("Runtime RPC 只在 Jingwei 桌面应用中可用");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>("runtime_rpc", { method, params });
+}
+
+export async function invokeDesignRpc<T>(request: unknown): Promise<T> {
+  if (!isTauriRuntime()) throw new Error("JDP transport 只在 Jingwei 桌面应用中可用");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>("design_rpc", { request });
 }
 
 export async function openExternalUrl(url: string): Promise<void> {

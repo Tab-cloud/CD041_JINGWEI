@@ -290,15 +290,15 @@ ProductSupportProfile
 9. unknown external feature 影响连接或制造时阻断 native export；
 10. Agent approval、Runtime allow 和 release request 均不能覆盖 daemon hard deny；
 11. Release manifest 文件被替换、签名无效或 release 被撤销时离线 verifier 失败；
-12. 工作台显示真实 sidecar health，但在真实 adapter 接通前仍明确标注 fixture 数据。
+12. 生产安装默认使用真实 Runtime/Design transport；fixture 只能显式启动，且不可伪装成 daemon 证据。
 
 ## 13. 当前实现边界
 
 五会话集成已经证明 Rust daemon、生成 binding、Runtime、领域 registry、KiCad 10 reference gate 和 Windows
 sidecar packaging 可以组合运行，但当前仍是 **foundation integration**：
 
-- 工作台设计与 Agent 数据仍来自 versioned mock clients；
-- Runtime 生产本地 RPC、OS/IAM actor claims 和真实 JDP reconciliation 尚未完成；
+- 工作台已默认使用真实 Runtime/Design transport，fixture 仅显式启用；原生 display-list 仍待 Slice 3；
+- Windows Runtime 生产 named pipe RPC 已完成；OS/IAM actor claims 和真实 JDP reconciliation 尚未完成；
 - revision/commit/proposal 与 assessment/release 规范 schema 已完成 Slice 0 迁移；assessment 计算、签名和失效图仍待 Slice 6；
 - 真实 KiCad round-trip import、供应链、DFM、样板和签名发布仍未闭环。
 

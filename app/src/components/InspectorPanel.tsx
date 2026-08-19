@@ -73,7 +73,7 @@ export function InspectorPanel({ project, selectedIds, properties, onSetProperty
           <section className="inspector-section">
             <h3>证据与 provenance</h3>
             <div className="evidence-card">
-              <span>来源</span><strong>{selectedProperties?.provenance ?? "mock display projection"}</strong>
+              <span>来源</span><strong>{selectedProperties?.provenance ?? "未返回 provenance"}</strong>
               <small>真实集成后由 JDP explain/query 返回 artifact/evidence refs。</small>
             </div>
           </section>

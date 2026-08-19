@@ -10,7 +10,7 @@ import type {
   SemanticEditCommand,
   Viewport,
 } from "../clients/contracts";
-import { MockDesignClient, MockRuntimeClient } from "../mocks/v0.1";
+import { createWorkbenchClients } from "../clients/clientFactory";
 import { loadRecovery, saveRecovery } from "../store/recovery";
 import { initialWorkbenchState, type ToolMode, workbenchReducer } from "../store/workbenchState";
 import { chooseProjectFolder, ensureSidecars, getSidecarStatuses } from "../utils/tauriBridge";
@@ -20,11 +20,13 @@ const PROJECT_ID = "project-golden-rs485";
 const SESSION_ID = "session-main";
 
 export function useWorkbenchController() {
-  const runtime: RuntimeClient = useMemo(() => new MockRuntimeClient("normal"), []);
-  const design: DesignClient = useMemo(() => new MockDesignClient("normal"), []);
+  const clients = useMemo(() => createWorkbenchClients(), []);
+  const runtime: RuntimeClient = clients.runtime;
+  const design: DesignClient = clients.design;
   const [state, dispatch] = useReducer(workbenchReducer, initialWorkbenchState);
   const stateRef = useRef(state);
   const previewSequence = useRef(0);
+  const runtimeSessionId = useRef(SESSION_ID);
 
   useEffect(() => {
     stateRef.current = state;
@@ -50,7 +52,7 @@ export function useWorkbenchController() {
     dispatch({ type: "replay-state", replayState: "reconnecting" });
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        for await (const event of runtime.events(SESSION_ID, cursor)) {
+        for await (const event of runtime.events(runtimeSessionId.current, cursor)) {
           cursor = event.sequence;
           dispatch({ type: "event", event });
         }
@@ -67,13 +69,24 @@ export function useWorkbenchController() {
     const initialize = async () => {
       try {
         const recovery = loadRecovery();
-        const [project, runtimeCapabilities, designCapabilities, approvals, sidecars] = await Promise.all([
+        let sidecars = clients.mode === "real" ? await ensureSidecars() : await getSidecarStatuses();
+        for (const delayMs of [100, 250, 500, 1_000, 2_000]) {
+          if (sidecars.every((sidecar) => sidecar.state !== "starting")) break;
+          await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
+          sidecars = await getSidecarStatuses();
+        }
+        if (clients.mode === "real" && !sidecars.every((sidecar) => sidecar.state === "healthy")) {
+          throw new Error(sidecars.map((sidecar) => `${sidecar.kind}: ${sidecar.reason ?? sidecar.state}`).join("；"));
+        }
+        const [project, runtimeCapabilities, designCapabilities] = await Promise.all([
           design.getProject(PROJECT_ID),
           runtime.capabilities(),
           design.capabilities(),
-          runtime.listApprovals(SESSION_ID),
-          getSidecarStatuses(),
         ]);
+        if (clients.mode === "real") {
+          runtimeSessionId.current = (await runtime.createSession({ projectId: project.id, title: "精卫主设计会话" })).id;
+        }
+        const approvals = await runtime.listApprovals(runtimeSessionId.current);
         const editSession = await design.openEditSession({
           projectId: project.id,
           baseRevision: project.draftRevision ?? project.candidateRevision,
@@ -90,12 +103,12 @@ export function useWorkbenchController() {
         }
         void replayRuntimeEvents(recovery?.lastRuntimeSequence ?? 0);
       } catch (error) {
-        if (!cancelled) dispatch({ type: "error", error: errorMessage(error) });
+        if (!cancelled) dispatch({ type: "boot-error", error: errorMessage(error) });
       }
     };
     void initialize();
     return () => { cancelled = true; };
-  }, [design, replayRuntimeEvents, runtime]);
+  }, [clients.mode, design, replayRuntimeEvents, runtime]);
 
   useEffect(() => {
     if (!state.project) return;
@@ -303,8 +316,8 @@ export function useWorkbenchController() {
 
   const submitAgentInput = useCallback(async (text: string, delivery: "steer" | "queue") => {
     try {
-      await runtime.admitInput({ sessionId: SESSION_ID, text, attachmentRefs: [], delivery, clientRequestId: crypto.randomUUID() });
-      const run = await runtime.resumeRun(SESSION_ID);
+      await runtime.admitInput({ sessionId: runtimeSessionId.current, text, attachmentRefs: [], delivery, clientRequestId: crypto.randomUUID() });
+      const run = await runtime.resumeRun(runtimeSessionId.current);
       dispatch({ type: "set-run", run });
       void replayRuntimeEvents(stateRef.current.lastRuntimeSequence);
     } catch (error) { dispatch({ type: "error", error: errorMessage(error) }); }
@@ -322,7 +335,7 @@ export function useWorkbenchController() {
   const replyApproval = useCallback(async (approvalId: string, decision: "approve-once" | "deny") => {
     try {
       await runtime.replyApproval({ approvalId, decision });
-      dispatch({ type: "set-approvals", approvals: await runtime.listApprovals(SESSION_ID) });
+      dispatch({ type: "set-approvals", approvals: await runtime.listApprovals(runtimeSessionId.current) });
       dispatch({ type: "notice", notice: decision === "approve-once" ? "审批已持久化；仍需 daemon 二次授权。" : "审批已拒绝；run 不会无限等待。" });
       void replayRuntimeEvents(stateRef.current.lastRuntimeSequence);
     } catch (error) { dispatch({ type: "error", error: errorMessage(error) }); }
@@ -351,14 +364,15 @@ export function useWorkbenchController() {
 
   const createProject = useCallback(async () => {
     try {
-      const session = await runtime.createSession({ projectId: PROJECT_ID, title: "新建 mock 设计会话" });
-      dispatch({ type: "notice", notice: `已创建 ${session.title}；mock client 仍指向黄金板 fixture。` });
+      const session = await runtime.createSession({ projectId: PROJECT_ID, title: "新建设计会话" });
+      runtimeSessionId.current = session.id;
+      dispatch({ type: "notice", notice: `已创建真实 Runtime 会话 ${session.title}。` });
     } catch (error) { dispatch({ type: "error", error: errorMessage(error) }); }
   }, [runtime]);
 
   const openProject = useCallback(async () => {
     const selected = await chooseProjectFolder();
-    dispatch({ type: "notice", notice: selected ? "已完成受控目录选择；mock transport 不读取该目录，继续显示黄金板 fixture。" : "已取消打开项目。" });
+    dispatch({ type: "notice", notice: selected ? "已完成受控目录选择；目录绑定将在 workspace import 操作完成后生效。" : "已取消打开项目。" });
   }, []);
 
   const refreshSidecars = useCallback(async () => {

@@ -1,48 +1,57 @@
 {
-  "schemaVersion": "jingwei-windows-installed-app-gate-v0.1",
+  "schemaVersion": "jingwei-windows-installed-app-gate-v0.2",
   "target": "x86_64-pc-windows-msvc",
   "installer": {
     "relativePath": "app/src-tauri/target/release/bundle/nsis/Jingwei Agent Dev_0.1.0_x64-setup.exe",
-    "sizeBytes": 30461443,
-    "sha256": "6b5444c3a6fc2e4cadcb85390b3b6bb77b3f2914ecb6c974a9807fa067d9ac60",
+    "sizeBytes": 30577926,
+    "sha256": "5876b005cf72d0d7cb19d5d1433eadca0d0cf99e04ccadc02137845c4f2cc823",
     "signature": "NotSigned"
   },
   "installation": {
     "mode": "isolated-silent-smoke",
     "installerExitCode": 0,
-    "manifestSha256": "bfe15da121fa315e6d436be2d5bdd562159f642820e6e8bd6d29ca41d3e30ea7",
+    "manifestSha256": "3dd75f63615a4aa4785d62da7214a3ad9e295d7244efa57150a9a8873ee4b5cd",
     "workbench": {
-      "sizeBytes": 11902976,
-      "sha256": "81615129dff4c8d416647a5e2845358ffe94c1be35563a18794404aba1918aaa"
+      "sizeBytes": 12173312,
+      "sha256": "ffcf11b168cda0a812e46cdfe2d4f0d4e0d123a0f480a4a0f9f90fbd9ad85e5f"
     },
     "runtime": {
-      "sizeBytes": 113857536,
-      "sha256": "5fda5f7162cd83bc1ecbe48d5e6457b574fd77c08f0968fe133a1b689d92167f"
+      "sizeBytes": 113859584,
+      "sha256": "e1e2077248f78d21e0f9b67a1914aafdd1475401c3e0247b5991e05a10653401"
     },
     "daemon": {
-      "sizeBytes": 3932672,
-      "sha256": "cf580837946d6331e966c6545c5777ce3dc2a826787209b1e8e8bcdfdf9136c2"
+      "sizeBytes": 4171776,
+      "sha256": "07f51c9c13a8acee1564c4f60faaabf5d644aab3b58b849795d9c809cdadaeb6"
     }
   },
   "computerUse": {
-    "windowTitle": "精卫 Agent 工作台 · MOCK DEV",
-    "singleRecheckReachedHealthy": true,
-    "runtimeAndDaemonIndicators": "healthy",
-    "installedResourcePathsUsed": true,
-    "themeToggle": "dark-to-light-confirmed",
-    "modelConfigurationUi": "confirmed",
-    "missingEnvironmentVariablesDisplayed": [
-      "OPENAI_API_KEY",
-      "JINGWEI_OPENAI_MODEL"
-    ],
-    "commercialEndpointLiveTest": "blocked-not-executed",
-    "mockDataBoundaryDisplayed": true,
+    "windowTitle": "精卫 Agent 工作台",
+    "connectionRibbon": "REAL LOCAL RPC · JIR 0.2",
+    "runtimeIndicator": "connected",
+    "daemonIndicator": "connected",
+    "replayState": "caught-up",
+    "fixtureFallback": false,
+    "currentCandidateDraftDisplayed": true,
+    "realCheckpointCreated": true,
+    "currentRevisionUnchangedByCheckpoint": true,
+    "themeToggle": "light-to-dark-confirmed",
+    "unavailableNativeDisplayAdapterDisplayed": true,
     "productionReleaseBlocked": true
+  },
+  "legacyMigration": {
+    "sourceSchemaVersion": 1,
+    "targetSchemaVersion": 2,
+    "backupCreated": true,
+    "daemonHandshakeAfterMigration": "healthy"
   },
   "exitCleanup": {
     "workbenchProcessesRemaining": 0,
     "runtimeProcessesRemaining": 0,
     "daemonProcessesRemaining": 0
+  },
+  "commercialOpenAiLiveTest": {
+    "status": "skipped",
+    "reason": "OPENAI_API_KEY and JINGWEI_OPENAI_MODEL are not set"
   },
   "productionRelease": false
 }

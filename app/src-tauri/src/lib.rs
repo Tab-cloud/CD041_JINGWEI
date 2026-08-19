@@ -56,6 +56,8 @@ struct SidecarHandshake {
     version: String,
     target: String,
     health: String,
+    #[serde(default)]
+    rpc_endpoint: Option<String>,
 }
 
 #[derive(Default)]
@@ -70,6 +72,7 @@ struct SidecarBootstrap {
     daemon_session_token: String,
     runtime_bootstrap_token: String,
     daemon_pipe_name: String,
+    runtime_pipe_name: String,
     daemon_workspace: PathBuf,
     runtime_database: PathBuf,
     workspace_id: String,
@@ -122,6 +125,7 @@ impl SidecarSupervisor {
                 uuid::Uuid::new_v4()
             ),
             daemon_pipe_name: format!(r"\\.\pipe\jingwei-desktop-{}", uuid::Uuid::new_v4()),
+            runtime_pipe_name: format!(r"\\.\pipe\jingwei-runtime-{}", uuid::Uuid::new_v4()),
             daemon_workspace: data_root.join("daemon-workspace"),
             runtime_database: data_root.join("runtime").join("runtime.sqlite"),
             workspace_id: "ws-desktop".into(),
@@ -163,6 +167,219 @@ async fn ensure_sidecars(app: AppHandle) -> Result<Vec<SidecarStatus>, String> {
         }
     }
     Ok(app.state::<SidecarSupervisor>().status_list())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TransportConfiguration {
+    protocol_version: &'static str,
+    workspace_id: String,
+    project_id: String,
+    mode: &'static str,
+}
+
+#[tauri::command]
+fn transport_configuration(app: AppHandle) -> Result<TransportConfiguration, String> {
+    let bootstrap = app.state::<SidecarSupervisor>().bootstrap(&app)?;
+    Ok(TransportConfiguration {
+        protocol_version: EXPECTED_PROTOCOL_VERSION,
+        workspace_id: bootstrap.workspace_id,
+        project_id: bootstrap.project_id,
+        mode: "real",
+    })
+}
+
+#[tauri::command]
+async fn runtime_rpc(
+    app: AppHandle,
+    method: String,
+    params: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    if !matches!(
+        method.as_str(),
+        "health"
+            | "capabilities"
+            | "session.create"
+            | "input.admit"
+            | "run.resume"
+            | "run.cancel"
+            | "approval.list"
+            | "approval.reply"
+            | "events.read"
+            | "artifact.get"
+    ) {
+        return Err("Runtime RPC method is not exposed to the workbench".into());
+    }
+    let bootstrap = app.state::<SidecarSupervisor>().bootstrap(&app)?;
+    runtime_pipe_request(&bootstrap, &method, params).await
+}
+
+#[tauri::command]
+async fn design_rpc(
+    app: AppHandle,
+    request: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let bootstrap = app.state::<SidecarSupervisor>().bootstrap(&app)?;
+    if request
+        .get("workspaceId")
+        .and_then(serde_json::Value::as_str)
+        != Some(bootstrap.workspace_id.as_str())
+        || request.get("projectId").and_then(serde_json::Value::as_str)
+            != Some(bootstrap.project_id.as_str())
+    {
+        return Err("JDP request is outside the desktop workspace/project boundary".into());
+    }
+    daemon_pipe_request(&bootstrap, request).await
+}
+
+#[cfg(windows)]
+async fn runtime_pipe_request(
+    bootstrap: &SidecarBootstrap,
+    method: &str,
+    params: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let mut pipe = open_named_pipe(&bootstrap.runtime_pipe_name).await?;
+    write_pipe_frame(
+        &mut pipe,
+        &serde_json::json!({
+            "id": format!("ui-{}", uuid::Uuid::new_v4()),
+            "token": bootstrap.runtime_bootstrap_token,
+            "method": method,
+            "params": params,
+        }),
+    )
+    .await?;
+    let response = read_pipe_frame(&mut pipe, 4 * 1024 * 1024).await?;
+    if response.get("success").and_then(serde_json::Value::as_bool) == Some(true) {
+        Ok(response
+            .get("result")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null))
+    } else {
+        Err(response
+            .pointer("/error/summary")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("Runtime RPC failed")
+            .to_string())
+    }
+}
+
+#[cfg(windows)]
+async fn daemon_pipe_request(
+    bootstrap: &SidecarBootstrap,
+    request: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let mut pipe = open_named_pipe(&bootstrap.daemon_pipe_name).await?;
+    write_pipe_frame(
+        &mut pipe,
+        &serde_json::json!({
+            "protocolVersions": [EXPECTED_PROTOCOL_VERSION],
+            "workspaceId": bootstrap.workspace_id,
+            "clientName": "jingwei-workbench",
+            "clientVersion": env!("CARGO_PKG_VERSION"),
+            "sessionToken": bootstrap.daemon_session_token,
+        }),
+    )
+    .await?;
+    let handshake = read_pipe_frame(&mut pipe, 64 * 1024).await?;
+    let negotiated = handshake.get("Ok").unwrap_or(&handshake);
+    if negotiated
+        .get("protocolVersion")
+        .and_then(serde_json::Value::as_str)
+        != Some(EXPECTED_PROTOCOL_VERSION)
+    {
+        return Err(handshake
+            .get("Err")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("daemon JDP handshake failed")
+            .to_string());
+    }
+    write_pipe_frame(&mut pipe, &request).await?;
+    read_pipe_frame(&mut pipe, 4 * 1024 * 1024).await
+}
+
+#[cfg(windows)]
+async fn open_named_pipe(
+    pipe_name: &str,
+) -> Result<tokio::net::windows::named_pipe::NamedPipeClient, String> {
+    use std::io::ErrorKind;
+    use tokio::net::windows::named_pipe::ClientOptions;
+
+    let mut last_error = None;
+    for _ in 0..200 {
+        match ClientOptions::new().open(pipe_name) {
+            Ok(pipe) => return Ok(pipe),
+            Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::WouldBlock) => {
+                last_error = Some(error.to_string());
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+            }
+            Err(error) => return Err(format!("named pipe connect failed: {error}")),
+        }
+    }
+    Err(format!(
+        "named pipe did not become available: {}",
+        last_error.unwrap_or_else(|| "unknown error".into())
+    ))
+}
+
+#[cfg(windows)]
+async fn write_pipe_frame(
+    pipe: &mut tokio::net::windows::named_pipe::NamedPipeClient,
+    value: &serde_json::Value,
+) -> Result<(), String> {
+    use tokio::io::AsyncWriteExt;
+
+    let bytes = serde_json::to_vec(value).map_err(|error| error.to_string())?;
+    if bytes.is_empty() || bytes.len() > 4 * 1024 * 1024 {
+        return Err("local RPC request exceeds frame limit".into());
+    }
+    pipe.write_u32_le(u32::try_from(bytes.len()).map_err(|_| "frame length overflow")?)
+        .await
+        .map_err(|error| error.to_string())?;
+    pipe.write_all(&bytes)
+        .await
+        .map_err(|error| error.to_string())?;
+    pipe.flush().await.map_err(|error| error.to_string())
+}
+
+#[cfg(windows)]
+async fn read_pipe_frame(
+    pipe: &mut tokio::net::windows::named_pipe::NamedPipeClient,
+    limit: usize,
+) -> Result<serde_json::Value, String> {
+    use tokio::io::AsyncReadExt;
+
+    let length = pipe
+        .read_u32_le()
+        .await
+        .map_err(|error| error.to_string())? as usize;
+    if length == 0 || length > limit {
+        return Err(format!(
+            "local RPC response frame length {length} is invalid"
+        ));
+    }
+    let mut bytes = vec![0; length];
+    pipe.read_exact(&mut bytes)
+        .await
+        .map_err(|error| error.to_string())?;
+    serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+}
+
+#[cfg(not(windows))]
+async fn runtime_pipe_request(
+    _bootstrap: &SidecarBootstrap,
+    _method: &str,
+    _params: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    Err("Runtime local RPC is currently available only on Windows".into())
+}
+
+#[cfg(not(windows))]
+async fn daemon_pipe_request(
+    _bootstrap: &SidecarBootstrap,
+    _request: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    Err("Daemon local RPC is currently available only on Windows".into())
 }
 
 #[tauri::command]
@@ -207,6 +424,7 @@ fn start_sidecar(
             &bootstrap.workspace_id,
             "--pipe-name",
             &bootstrap.daemon_pipe_name,
+            "--migrate-if-needed",
         ]);
         format!("{}\n", bootstrap.daemon_session_token)
     } else {
@@ -219,6 +437,7 @@ fn start_sidecar(
                 "databasePath": bootstrap.runtime_database,
                 "workspaceId": bootstrap.workspace_id,
                 "projectId": bootstrap.project_id,
+                "runtimePipeName": bootstrap.runtime_pipe_name,
             })
         )
     };
@@ -246,6 +465,7 @@ fn start_sidecar(
     });
 
     let monitor_app = app.clone();
+    let runtime_pipe_name = bootstrap.runtime_pipe_name.clone();
     tauri::async_runtime::spawn(async move {
         let mut handshake_complete = false;
         while let Some(event) = events.recv().await {
@@ -260,9 +480,13 @@ fn start_sidecar(
                         );
                         break;
                     }
+                    let expected_endpoint =
+                        (entry.kind == "runtime").then_some(runtime_pipe_name.as_str());
                     let parsed = serde_json::from_slice::<SidecarHandshake>(&bytes)
                         .map_err(|_| "handshake 不是有效 JSON".to_string())
-                        .and_then(|handshake| validate_handshake(&entry, &handshake));
+                        .and_then(|handshake| {
+                            validate_handshake(&entry, &handshake, expected_endpoint)
+                        });
                     match parsed {
                         Ok(()) => {
                             handshake_complete = true;
@@ -365,7 +589,11 @@ fn validate_entry(entry: &SidecarEntry, target: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_handshake(entry: &SidecarEntry, handshake: &SidecarHandshake) -> Result<(), String> {
+fn validate_handshake(
+    entry: &SidecarEntry,
+    handshake: &SidecarHandshake,
+    expected_rpc_endpoint: Option<&str>,
+) -> Result<(), String> {
     if handshake.protocol_version != EXPECTED_PROTOCOL_VERSION {
         return Err("sidecar protocol version mismatch".into());
     }
@@ -374,6 +602,11 @@ fn validate_handshake(entry: &SidecarEntry, handshake: &SidecarHandshake) -> Res
     }
     if handshake.health != "healthy" {
         return Err("sidecar handshake 未报告 healthy".into());
+    }
+    if expected_rpc_endpoint
+        .is_some_and(|expected| handshake.rpc_endpoint.as_deref() != Some(expected))
+    {
+        return Err("runtime RPC endpoint discovery mismatch".into());
     }
     Ok(())
 }
@@ -531,6 +764,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             sidecar_status,
             ensure_sidecars,
+            transport_configuration,
+            runtime_rpc,
+            design_rpc,
             open_external_url,
             validate_credential_reference,
             model_configuration_get,
@@ -616,13 +852,14 @@ mod tests {
             version: "0.1.0".into(),
             target: current_target().into(),
             health: "healthy".into(),
+            rpc_endpoint: None,
         };
-        assert!(validate_handshake(&configured, &valid).is_ok());
+        assert!(validate_handshake(&configured, &valid, None).is_ok());
         let mismatch = SidecarHandshake {
             protocol_version: "0.2".into(),
             ..valid
         };
-        assert!(validate_handshake(&configured, &mismatch).is_err());
+        assert!(validate_handshake(&configured, &mismatch, None).is_err());
     }
 
     #[test]

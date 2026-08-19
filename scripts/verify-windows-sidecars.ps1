@@ -58,12 +58,36 @@ function Read-JsonLine([Diagnostics.Process]$Process, [string]$Label) {
     return $line | ConvertFrom-Json
 }
 
+function Invoke-RuntimePipeRpc([string]$PipeName, [string]$Token, [string]$Method, [object]$Params = @{}) {
+    $shortName = $PipeName -replace '^\\\\\.\\pipe\\', ''
+    $client = [IO.Pipes.NamedPipeClientStream]::new('.', $shortName, [IO.Pipes.PipeDirection]::InOut, [IO.Pipes.PipeOptions]::Asynchronous)
+    try {
+        $client.Connect(30000)
+        $request = @{ id = "rpc-$Method"; token = $Token; method = $Method; params = $Params } | ConvertTo-Json -Compress -Depth 10
+        $bytes = [Text.Encoding]::UTF8.GetBytes($request)
+        $writer = [IO.BinaryWriter]::new($client, [Text.Encoding]::UTF8, $true)
+        $writer.Write([uint32]$bytes.Length)
+        $writer.Write($bytes)
+        $writer.Flush()
+        $reader = [IO.BinaryReader]::new($client, [Text.Encoding]::UTF8, $true)
+        $length = $reader.ReadUInt32()
+        if ($length -eq 0 -or $length -gt 4194304) { throw "Runtime RPC response length is invalid: $length" }
+        $responseBytes = $reader.ReadBytes([int]$length)
+        if ($responseBytes.Length -ne $length) { throw 'Runtime RPC response was truncated' }
+        return [Text.Encoding]::UTF8.GetString($responseBytes) | ConvertFrom-Json
+    }
+    finally {
+        $client.Dispose()
+    }
+}
+
 $daemonPath = Resolve-VerifiedSidecar $entries.daemon
 $runtimePath = Resolve-VerifiedSidecar $entries.runtime
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ("jingwei-sidecar-gate-" + [Guid]::NewGuid().ToString('N'))
 $workspace = Join-Path $temporaryRoot 'workspace'
 $database = Join-Path $temporaryRoot 'runtime\runtime.sqlite'
 $pipeName = "\\.\pipe\jingwei-sidecar-gate-$([Guid]::NewGuid())"
+$runtimePipeName = "\\.\pipe\jingwei-runtime-gate-$([Guid]::NewGuid())"
 $daemonToken = "daemon-$([Guid]::NewGuid())-$([Guid]::NewGuid())"
 $runtimeToken = "runtime-$([Guid]::NewGuid())-$([Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
@@ -89,6 +113,7 @@ try {
         databasePath = $database
         workspaceId = 'ws-sidecar-gate'
         projectId = 'project-sidecar-gate'
+        runtimePipeName = $runtimePipeName
     }
     $runtime.StandardInput.WriteLine(($bootstrap | ConvertTo-Json -Compress))
     $runtime.StandardInput.Flush()
@@ -96,14 +121,9 @@ try {
     if ($runtimeHandshake.health -ne 'healthy' -or $runtimeHandshake.protocolVersion -ne $manifest.protocolVersion) {
         throw 'Runtime sidecar handshake is not healthy or protocol-compatible'
     }
+    if ($runtimeHandshake.rpcEndpoint -ne $runtimePipeName) { throw 'Runtime sidecar RPC endpoint discovery mismatch' }
 
-    $runtime.StandardInput.WriteLine((@{
-        id = 'rpc-capabilities'
-        token = $runtimeToken
-        method = 'capabilities'
-    } | ConvertTo-Json -Compress))
-    $runtime.StandardInput.Flush()
-    $capabilityResponse = Read-JsonLine $runtime 'runtime capabilities'
+    $capabilityResponse = Invoke-RuntimePipeRpc $runtimePipeName $runtimeToken 'capabilities'
     if (-not $capabilityResponse.success) { throw 'Runtime capabilities RPC failed' }
     $operations = @($capabilityResponse.result.jdp.operations)
     foreach ($required in @('requirement_compile', 'release_readiness', 'workspace.capabilities')) {
@@ -137,8 +157,8 @@ try {
             reason = 'OPENAI_API_KEY and JINGWEI_OPENAI_MODEL are not set'
         }
         uiDataAdapter = [ordered]@{
-            status = 'open'
-            reason = 'workbench canvas still uses versioned UI fixtures; sidecar process health is not presented as real design data'
+            status = 'connected'
+            reason = 'production workbench selects RuntimeTransportClient and DesignTransportClient; fixture mode requires an explicit query flag'
         }
         productionRelease = $false
     }

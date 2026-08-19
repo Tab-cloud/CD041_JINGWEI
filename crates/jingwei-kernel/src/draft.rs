@@ -464,6 +464,25 @@ impl Kernel {
                     key: input.key,
                     value: CanonicalValue::new(input.value)?,
                 });
+            } else if command.kind == "core.set_edit_policy" {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    entity_ids: Vec<jingwei_jir::EntityId>,
+                    policy: jingwei_jir::EditPolicy,
+                }
+                let input: Input = serde_json::from_value(command.payload.clone())?;
+                if input.entity_ids.is_empty() {
+                    return Err(KernelError::InvalidPatch(
+                        "edit policy command requires at least one entity".into(),
+                    ));
+                }
+                operations.extend(input.entity_ids.into_iter().map(|entity_id| {
+                    PatchOperation::SetEditPolicy {
+                        entity_id,
+                        policy: input.policy,
+                    }
+                }));
             } else if let Some(handler) = self.registry.edit_handler(&command.kind) {
                 operations.extend(
                     handler

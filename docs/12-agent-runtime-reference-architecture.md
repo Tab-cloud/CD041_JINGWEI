@@ -302,7 +302,8 @@ runtime.capabilities
 ```
 
 生产 transport 使用独立 versioned named pipe/UDS endpoint，schema 由 `agent-protocol` 维护；stdin 只用于
-bootstrap。当前 sidecar 的 JSON-lines stdio dispatcher 是集成 harness，尚不能作为工作台正式 Runtime API。
+bootstrap。Windows Slice 1 已实现独立认证 named pipe RPC，stdout 只保留版本化 endpoint handshake；stdio
+不再承载工作台 Runtime 方法。UDS 与其他平台安装门禁仍需分别实现和验收。
 
 事件至少包括：
 

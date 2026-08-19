@@ -2,7 +2,7 @@
   "name": "@jingwei-agent/workbench",
   "version": "0.1.0-dev.1",
   "private": true,
-  "description": "Jingwei Agent native semantic workbench (versioned mock/dev build)",
+  "description": "Jingwei Agent native semantic workbench with authenticated local transports",
   "type": "module",
   "scripts": {
     "dev": "vite",

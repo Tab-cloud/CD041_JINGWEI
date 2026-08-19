@@ -1855,6 +1855,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tauri-plugin-shell",
+ "tokio",
  "url",
  "uuid",
  "windows-sys 0.61.2",

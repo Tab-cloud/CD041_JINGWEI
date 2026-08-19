@@ -36,6 +36,9 @@ enum Command {
         workspace_id: String,
         #[arg(long)]
         pipe_name: String,
+        /// Explicitly migrate an older supported workspace before serving it.
+        #[arg(long)]
+        migrate_if_needed: bool,
     },
 }
 
@@ -60,11 +63,24 @@ async fn run(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             workspace,
             workspace_id,
             pipe_name,
+            migrate_if_needed,
         } => {
             let mut token = String::new();
             std::io::stdin().lock().read_line(&mut token)?;
             let token = token.trim().to_owned();
             let metadata = workspace.join(".jingwei").join("workspace.json");
+            if metadata.is_file() && migrate_if_needed {
+                match jingwei_store::WorkspaceStore::migrate(&workspace) {
+                    Ok(report) => eprintln!(
+                        "jingwei-daemon: migrated workspace schema {} -> {} with backup {}",
+                        report.source_version,
+                        report.target_version,
+                        report.backup_path.display()
+                    ),
+                    Err(jingwei_store::StoreError::MigrationNotRequired(_)) => {}
+                    Err(error) => return Err(error.into()),
+                }
+            }
             let daemon = Arc::new(if metadata.is_file() {
                 jingwei_daemon::Daemon::open_with_token(
                     &workspace,
@@ -89,9 +105,7 @@ async fn run(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                 })?
             );
             std::io::stdout().flush()?;
-            loop {
-                jingwei_daemon::serve_named_pipe_once(daemon.clone(), &pipe_name).await?;
-            }
+            jingwei_daemon::serve_named_pipe(daemon, &pipe_name).await?;
         }
     }
     Ok(())

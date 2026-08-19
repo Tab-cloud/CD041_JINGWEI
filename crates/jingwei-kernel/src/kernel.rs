@@ -223,6 +223,9 @@ impl Kernel {
         context: &RequestContext,
     ) -> Result<ProjectInfo, KernelError> {
         require(context, "design.read")?;
+        if !self.store.project_exists(project_id) {
+            return Err(KernelError::ProjectNotFound(project_id.clone()));
+        }
         let project = self.store.project(project_id)?;
         let current_revision = self
             .store
@@ -853,6 +856,8 @@ pub enum KernelError {
     PermissionDenied(String),
     #[error("project already exists: {0}")]
     ProjectExists(ProjectId),
+    #[error("project does not exist: {0}")]
+    ProjectNotFound(ProjectId),
     #[error("stale base revision: expected {expected}, current is {actual}")]
     StaleBase {
         expected: RevisionId,

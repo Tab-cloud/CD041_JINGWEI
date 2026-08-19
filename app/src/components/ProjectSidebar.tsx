@@ -17,6 +17,8 @@ export function ProjectSidebar({ project, activeView, visibleLayerIds, onToggleL
     () => project?.sheets.filter((sheet) => sheet.name.toLowerCase().includes(search.toLowerCase())) ?? [],
     [project, search],
   );
+  const ercFindings = project?.findings.filter((finding) => finding.status === "open" && finding.view === "schematic") ?? [];
+  const drcFindings = project?.findings.filter((finding) => finding.status === "open" && finding.view === "pcb") ?? [];
   const toggleSection = (section: string) => setExpanded((current) => ({ ...current, [section]: !current[section] }));
 
   return (
@@ -27,16 +29,11 @@ export function ProjectSidebar({ project, activeView, visibleLayerIds, onToggleL
       </label>
 
       <SidebarSection expanded={Boolean(expanded.sessions)} icon={<MessageSquareIcon size={14} />} label="Agent 会话" onToggle={() => toggleSection("sessions")}>
-        <button className="tree-row selected" onClick={() => onSelectEntity("session-main")}>
+        <div className="tree-row selected static">
           <span className="tree-leading status-dot running" />
-          <span>主设计会话</span>
-          <small>等待审批</small>
-        </button>
-        <button className="tree-row" onClick={() => onSelectEntity("session-review")}>
-          <span className="tree-leading status-dot" />
-          <span>工程审查</span>
-          <small>空闲</small>
-        </button>
+          <span>当前设计会话</span>
+          <small>本地 Runtime</small>
+        </div>
       </SidebarSection>
 
       <SidebarSection expanded={Boolean(expanded.sheets)} label="原理图层次" onToggle={() => toggleSection("sheets")}>
@@ -65,13 +62,12 @@ export function ProjectSidebar({ project, activeView, visibleLayerIds, onToggleL
       </SidebarSection>
 
       <SidebarSection expanded={Boolean(expanded.queues)} label="待处理队列" onToggle={() => toggleSection("queues")}>
-        <button className="tree-row queue-row" onClick={() => onSelectEntity("finding-erc-001", "schematic")}>
-          <span className="queue-count warning">1</span><span>ERC warnings</span>
+        <button className="tree-row queue-row" disabled={!ercFindings[0]} onClick={() => ercFindings[0] && onSelectEntity(ercFindings[0].id, "schematic")}>
+          <span className="queue-count warning">{ercFindings.length}</span><span>ERC findings</span>
         </button>
-        <button className="tree-row queue-row" onClick={() => onSelectEntity("finding-drc-004", "pcb")}>
-          <span className="queue-count danger">1</span><span>DRC errors</span>
+        <button className="tree-row queue-row" disabled={!drcFindings[0]} onClick={() => drcFindings[0] && onSelectEntity(drcFindings[0].id, "pcb")}>
+          <span className="queue-count danger">{drcFindings.length}</span><span>DRC findings</span>
         </button>
-        <div className="tree-row queue-row static"><span className="queue-count">3</span><span>未布通网络</span></div>
       </SidebarSection>
     </aside>
   );

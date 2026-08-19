@@ -75,7 +75,8 @@ export type WorkbenchAction =
   | { type: "set-patch"; patchProposal?: PatchProposalView }
   | { type: "set-sidecars"; sidecars: SidecarStatus[] }
   | { type: "notice"; notice?: string }
-  | { type: "error"; error?: string };
+  | { type: "error"; error?: string }
+  | { type: "boot-error"; error: string };
 
 export const initialWorkbenchState: WorkbenchState = {
   loading: true,
@@ -106,7 +107,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       return {
         ...state,
         loading: false,
-        project: action.project,
+        project: { ...action.project, draftRevision: action.editSession.draftRevision },
         runtimeCapabilities: action.runtimeCapabilities,
         designCapabilities: action.designCapabilities,
         approvals: action.approvals,
@@ -170,5 +171,7 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       return { ...state, notice: action.notice, error: undefined };
     case "error":
       return { ...state, error: action.error, notice: undefined };
+    case "boot-error":
+      return { ...state, loading: false, error: action.error, notice: undefined };
   }
 }

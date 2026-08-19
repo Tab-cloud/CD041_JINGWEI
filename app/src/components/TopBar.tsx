@@ -31,6 +31,7 @@ interface TopBarProps {
   onOpenModelSettings: () => void;
   onToggleTheme: () => void;
   theme: Theme;
+  realData: boolean;
 }
 
 const maturityLabels: Record<ProjectView["maturity"], string> = {
@@ -58,6 +59,7 @@ export function TopBar({
   onOpenModelSettings,
   onToggleTheme,
   theme,
+  realData,
 }: TopBarProps) {
   return (
     <header className="top-bar">
@@ -72,7 +74,7 @@ export function TopBar({
       <div className="project-identity">
         <div className="project-title-row">
           <strong>{project?.name ?? "尚未打开项目"}</strong>
-          <StatusBadge tone="mock">MOCK 0.1 · DEV</StatusBadge>
+          <StatusBadge tone={realData ? "info" : "mock"}>{realData ? "LOCAL JIR 0.2" : "FIXTURE 0.1"}</StatusBadge>
           {project && <StatusBadge tone={project.maturity === "production-released" ? "success" : "warning"}>{maturityLabels[project.maturity]}</StatusBadge>}
         </div>
         {project && (
@@ -93,7 +95,7 @@ export function TopBar({
       </div>
 
       <nav aria-label="项目与编辑操作" className="top-actions">
-        <button className="icon-button" onClick={onCreateProject} title="创建 mock 项目"><PlusIcon /></button>
+        <button className="icon-button" onClick={onCreateProject} title="创建项目"><PlusIcon /></button>
         <button className="icon-button" onClick={onOpenProject} title="选择项目目录"><FolderOpenIcon /></button>
         <span className="action-divider" />
         <button className="icon-button" disabled={!undoAvailable} onClick={onUndo} title="撤销语义命令"><UndoIcon /></button>

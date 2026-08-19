@@ -17,4 +17,4 @@ pub fn production_registry()
 }
 
 #[cfg(windows)]
-pub use transport::{NamedPipeClient, serve_named_pipe_once};
+pub use transport::{NamedPipeClient, serve_named_pipe, serve_named_pipe_once};

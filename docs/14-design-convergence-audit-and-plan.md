@@ -21,8 +21,8 @@
 | AUD-001 | P0 | “Phase 0 集成通过”容易被理解成完整 Phase 0 exit | 统一为 `foundation integration accepted`，单列 product exit gates | 本轮文档收拢 |
 | AUD-002 | P0 | Runtime 控制面与 daemon 都被描述为 revision pointer/阶段 owner | daemon 唯一拥有设计 pointer、assessment 和阶段投影；Runtime 只缓存观察值 | 本轮设计完成，代码需适配 |
 | AUD-003 | P0 | Tauri 文档要求退出不杀 sidecar，但 desktop 实现必须杀进程 | 定义 desktop-owned/attached/headless 三种 owner mode | 本轮设计完成；当前仅 desktop-owned |
-| AUD-004 | P0 | Runtime 正式本地 RPC 未定义，stdio handshake/RPC 与监控混流 | bootstrap 仅走 stdin；正式 Runtime API 使用独立 pipe/UDS 与生成协议 | 待实现 |
-| AUD-005 | P0 | UI 仍直接构造 MockRuntimeClient/MockDesignClient | 建立真实 RuntimeTransport、DesignTransport 与显式 fixture mode | 待实现 |
+| AUD-004 | P0 | Runtime 正式本地 RPC 未定义，stdio handshake/RPC 与监控混流 | bootstrap 仅走 stdin；正式 Runtime API 使用独立 pipe/UDS 与生成协议 | Slice 1 完成（Windows named pipe） |
+| AUD-005 | P0 | UI 仍直接构造 MockRuntimeClient/MockDesignClient | 建立真实 RuntimeTransport、DesignTransport 与显式 fixture mode | Slice 1 完成；原生 display-list 属 Slice 3 |
 | AUD-006 | P0 | Runtime 已有 reconciliation 抽象，真实 sidecar 却报告 false | 增加 daemon execution reconciliation operation 和真实 adapter | 待实现 |
 | AUD-007 | P0 | Revision metadata 同时承担设计内容、draft/candidate/verified/released/superseded | 分离 RevisionSnapshot、CommitRecord、DraftSession、ChangeProposal/Decision、MaturityAssessment、ReleaseRecord | 本轮设计完成，需 store migration |
 | AUD-008 | P0 | 文档声称所有 ID 都是 UUID，并描述了已过时的 JIR entity shape | wire ID 改为 opaque；Rust schema 是唯一规范源 | 本轮文档收拢 |
@@ -50,8 +50,8 @@ P2 的 RF/SI/PI、高压/安规、HDI/BGA、刚挠、多人协作和云端服务
 | 正式 Rust→TypeScript binding | Pass | reproducible codegen 与真实 daemon integration test |
 | Runtime→daemon trace context | Pass | 正式 binding + Windows named pipe + Rust child span |
 | Runtime→daemon reconciliation | Blocked | sidecar capability 为 `false` |
-| CLI/Agent/GUI 同一 patch 同 revision | Blocked | GUI 仍是 mock DesignClient |
-| 真实 Runtime/UI adapter 与事件回放 | Blocked | UI 仅显示 sidecar process health |
+| CLI/Agent/GUI 同一 patch 同 revision | Partial pass | GUI 已使用真实 DesignTransport 并通过真实检查点；同一黄金板 patch 的三入口等价门禁留在 Slice 3 |
+| 真实 Runtime/UI adapter 与事件回放 | Pass（Slice 1） | 独立 Runtime RPC pipe、Tauri native bridge、真实 Runtime/Design clients、显式 fixture、durable replay 与已安装 UI 通过 |
 | JDL/JIR 最小编译与 migration | Pass（Slice 0） | JIR 0.2 canonical identity、显式备份 store migration、newer read-only/downgrade refusal、proposal CAS 和负向测试通过；黄金板 round-trip 仍属 Slice 3 |
 | KiCad schematic/PCB projection | Partial pass | KiCad 10 PCB DRC/Gerber/Drill 通过；完整 JIR↔KiCad round-trip 未通过 |
 | 原生 ERC/DRC 与 reference 差异映射 | Partial pass | domain rules/fixtures 已有；真实同板双后端 equivalence 未完成 |
@@ -88,6 +88,14 @@ revision enum；proposal 接受使用 project head compare-and-swap。
 
 ### Slice 1：真实本地控制协议和 UI adapter
 
+状态（2026-08-20）：**Pass（transport/UI adapter）**。Runtime 正式 RPC 已从 stdio 分离到认证 Windows named
+pipe；daemon 支持 Runtime 与工作台并发客户端；Tauri 仅在 Rust 侧保存 token 并代理受限方法；安装版默认使用真实
+RuntimeTransportClient/DesignTransportClient，只有显式 `?fixture=1` 才启用 fixture。真实进程集成已完成
+session、project、draft preview/commit；已安装 UI 显示 Runtime/daemon connected、durable replay，真实检查点不移动
+current revision，深浅主题切换和退出零残留均通过。旧 schema v1 工作区使用显式启动参数迁移到 v2 并创建备份。
+原生 schematic/PCB display-list 与可点击黄金板编辑仍属于 Slice 3，UI 对此明确显示 unavailable，不伪造数据。
+详细记录见 `handoffs/slice-1-real-local-transport-2026-08-20.md`。
+
 目标：移除“进程是真的、数据是 mock”的主断点。
 
 - 为 Runtime sidecar 建立 Windows named pipe、后续 UDS 的 versioned RPC server；
@@ -97,7 +105,8 @@ revision enum；proposal 接受使用 project head compare-and-swap。
 - fixture mode 必须显式启动，生产安装默认禁止自动回退 fixture；
 - UI 初始化、重连和刷新从真实 capabilities/event sequence 恢复。
 
-退出条件：安装版创建真实 session/project，读取 daemon 工程并执行一个真实 draft patch；UI 中没有伪装连接。
+退出条件：安装版创建真实 session/project 并读取 daemon 工程；真实 transport 集成执行 draft patch；UI 真实检查点
+与 replay 通过且没有伪装连接。黄金板图形上的可点击 patch 由 Slice 3 的原生 display-list 验收关闭。
 
 ### Slice 2：跨进程幂等、取消和恢复
 
@@ -190,5 +199,5 @@ revision enum；proposal 接受使用 project head compare-and-swap。
 
 ## 6. 下一步
 
-Slice 0 已闭合，下一步进入 Slice 1：实现 Runtime 正式本地 RPC、Tauri endpoint discovery 和真实 UI adapter，以便
-立即替换 mock clients。两项完成前，不继续扩展新的 UI fixture、router heuristic 或高级板型。
+Slice 0 与 Slice 1 已闭合，下一步进入 Slice 2：实现 execution reconciliation、取消与崩溃恢复故障注入，确保
+daemon 已提交但 Runtime 丢失响应时不会产生第二个 revision。
