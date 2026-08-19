@@ -1,5 +1,5 @@
 {
-  "candidateDirectory": "\\\\?\\D:\\Projects\\CD041_LUBAN\\jingwei-agent\\testdata\\physical\\candidates\\pcb-candidate-logical-golden-rev-001-placement-baseline-grid-cluster-v1-000000004a573034-route-manhattan-reference-router-v1-000000004a573034--golden",
+  "candidateDirectory": "testdata/physical/candidates/pcb-candidate-logical-golden-rev-001-placement-baseline-grid-cluster-v1-000000004a573034-route-manhattan-reference-router-v1-000000004a573034--golden",
   "designRevision": "pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034",
   "validManufacturingCandidate": true,
   "parsedRoles": [

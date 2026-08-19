@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "jingwei-kicad-reference-gate-v0.1",
+  "tool": {
+    "name": "kicad-cli",
+    "version": "10.0.5",
+    "sha256": "fc142e3b4c13af868501fcbc9312dd94ad62d3c05882f97a23b6fd9f8118d0c3",
+    "pcbFileFormatVersion": "20250513"
+  },
+  "board": "testdata/physical/candidates/pcb-candidate-logical-golden-rev-001-placement-baseline-grid-cluster-v1-000000004a573034-route-manhattan-reference-router-v1-000000004a573034--golden/projection/board.kicad_pcb",
+  "drc": {
+    "exitCode": 0,
+    "violations": 0,
+    "unconnectedItems": 0
+  },
+  "fabrication": {
+    "gerberExitCode": 0,
+    "drillExitCode": 0,
+    "files": [
+      {
+        "name": "board-F_Cu.gtl",
+        "byteLength": 1851,
+        "sha256": "92f7b7610cdc2af02fe7dbcc8520f52b8c62a4924b243db66c87bfdbcde9db72"
+      },
+      {
+        "name": "board-B_Cu.gbl",
+        "byteLength": 645,
+        "sha256": "c1d851901aac2b18287950147090b2aa55e9102fcbde64edf1f30f5ccfc2f890"
+      },
+      {
+        "name": "board-F_Mask.gts",
+        "byteLength": 1493,
+        "sha256": "7ccb53f50d9cf7a04ed70e774e27833b86d09d4264b70a3f79d9dfc50f921457"
+      },
+      {
+        "name": "board-B_Mask.gbs",
+        "byteLength": 753,
+        "sha256": "4b860c9f2e0e5be928d883cf4f64e4c23f448a3d69de9c18c157994dc7c972b3"
+      },
+      {
+        "name": "board-F_Silkscreen.gto",
+        "byteLength": 2720,
+        "sha256": "c749a2480e180852f8a08f112933076966935c694081c66a793ae9cd96bfdaa2"
+      },
+      {
+        "name": "board-B_Silkscreen.gbo",
+        "byteLength": 765,
+        "sha256": "b50a7fc04212ff35a106d44d90555f35b01a26dbaf1279ce71a0502315eab30d"
+      },
+      {
+        "name": "board-Edge_Cuts.gm1",
+        "byteLength": 638,
+        "sha256": "31dd54b768065b5d9a2b73b1177a686eab717341d0124dd417b0f772c3578102"
+      },
+      {
+        "name": "board-job.gbrjob",
+        "byteLength": 2472,
+        "sha256": "cd59df127e028ef6b0b17312e2cde1129f27fa8d5da630c3f13cfa6966acdd58"
+      },
+      {
+        "name": "board-PTH.drl",
+        "byteLength": 359,
+        "sha256": "dff74cd1664736f894cdef47315e4514cecd799f38b0b477b72091abfce4355b"
+      },
+      {
+        "name": "board-NPTH.drl",
+        "byteLength": 391,
+        "sha256": "e1684064f351e9bd132b0bddad5b107dfd01373b49a1425fdcbb21be8617923b"
+      }
+    ]
+  },
+  "commands": [
+    "kicad-cli pcb drc --format json --severity-all --exit-code-violations <board>",
+    "kicad-cli pcb export gerbers --layers F.Cu,B.Cu,F.Mask,B.Mask,F.SilkS,B.SilkS,Edge.Cuts --subtract-soldermask <board>",
+    "kicad-cli pcb export drill --format excellon --excellon-units mm --excellon-separate-th <board>"
+  ],
+  "productionRelease": false,
+  "remainingGates": [
+    "manufacturer DFM",
+    "physical prototype build and test",
+    "named engineering and release signoffs"
+  ]
+}

@@ -107,8 +107,8 @@
     {
       "role": "kicad-pcb-projection",
       "path": "projection/board.kicad_pcb",
-      "sha256": "42059f769d33d073231b85a627460b551fe1017510b305e7d8ddfd34a21c262f",
-      "bytes": 3365
+      "sha256": "1f4f06426cb891f95a52ac1081e1cf0efb3c38cb8af0682b99b9be4ce621150d",
+      "bytes": 3671
     },
     {
       "role": "projection-coverage",

@@ -55,6 +55,18 @@ Result: exit 0; native DRC errors 0; independent package verification true. The 
 
 No KiCad or Freerouting command was executed because the binaries were absent. This is recorded as skipped in the candidate reference-gate report; no version, hash, exit code, or success claim was synthesized.
 
+## Integration revalidation: KiCad 10.0.5
+
+After the five task branches were integrated, KiCad 10.0.5 was found in the current-user installation and pinned by both exact version and executable SHA-256 in `toolchains/kicad-10.0.5-windows.json`. The projection was upgraded to file format `20250513`, invalid property syntax and KiCad 10 layer IDs were corrected, and generated footprints no longer depend on an unconfigured external library table.
+
+```text
+pwsh -File scripts/verify-kicad-reference.ps1 -KicadCli <absolute-kicad-cli-path>
+```
+
+Result: exit 0. The real KiCad backend reported 0 DRC violations and 0 unconnected items, then exported seven Gerber layers, one Gerber Job file, and separate PTH/NPTH Excellon drill files. The sanitized, hash-bound evidence is stored in `testdata/physical/reports/kicad-10.0.5-reference-gate.json`.
+
+This closes the KiCad parser/DRC/fabrication-export gate only. Manufacturer DFM, a physical prototype, and named engineering/release signoffs remain open; `productionRelease` is therefore still false.
+
 ## Source hygiene
 
 Task-owned files are isolated under the task-book ownership paths. Repository-wide `git diff --check` cannot meaningfully check newly untracked files in this concurrently initialized workspace; Rust formatting covers source files, and a final scoped whitespace scan is recorded during handoff completion.

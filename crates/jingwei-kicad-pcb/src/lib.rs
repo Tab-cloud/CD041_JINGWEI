@@ -12,7 +12,7 @@ pub use reference::{
 pub use sexpr::{SExpr, SExprError, parse_sexpr, serialize_sexpr};
 
 use jingwei_geometry::{Length, Point};
-use jingwei_pcb::{Board, LayerKind, Side};
+use jingwei_pcb::{Board, Side};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Projection implementation version.
 pub const KICAD_PROJECTION_VERSION: &str = "jingwei-kicad-pcb-v1";
 /// `KiCad` PCB syntax version used by the Phase 0 projection.
-pub const KICAD_FILE_FORMAT_VERSION: &str = "20240108";
+pub const KICAD_FILE_FORMAT_VERSION: &str = "20250513";
 
 /// JIR candidate entity to one or more `KiCad` UUIDs.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -131,7 +131,7 @@ pub fn project_board(board: &Board) -> ProjectionResult {
         let uuid = stable_uuid(&feature.id);
         root.push(list([
             atom("footprint"),
-            string("Jingwei:MechanicalHole"),
+            string(""),
             list([atom("layer"), string("F.Cu")]),
             list([atom("uuid"), atom(&uuid)]),
             at(feature.center, None),
@@ -165,7 +165,7 @@ pub fn project_board(board: &Board) -> ProjectionResult {
         };
         let mut node = vec![
             atom("footprint"),
-            string(&format!("Jingwei:{}", footprint.footprint_name)),
+            string(""),
             list([atom("layer"), string(layer)]),
             list([atom("uuid"), atom(&uuid)]),
             at(
@@ -176,15 +176,24 @@ pub fn project_board(board: &Board) -> ProjectionResult {
                 atom("property"),
                 string("Reference"),
                 string(&footprint.designator),
-                list([atom("at"), atom("0"), atom("-2")]),
+                list([atom("at"), atom("0"), atom("-4")]),
                 list([atom("layer"), string("F.SilkS")]),
+            ]),
+            list([
+                atom("property"),
+                string("JINGWEI_FOOTPRINT"),
+                string(&footprint.footprint_name),
+                list([atom("at"), atom("0"), atom("0")]),
+                list([atom("layer"), string("F.Fab")]),
+                list([atom("hide"), atom("yes")]),
             ]),
             list([
                 atom("property"),
                 string("JINGWEI_ID"),
                 string(&footprint.id),
                 list([atom("at"), atom("0"), atom("0")]),
-                list([atom("layer"), string("F.Fab"), atom("hide")]),
+                list([atom("layer"), string("F.Fab")]),
+                list([atom("hide"), atom("yes")]),
             ]),
         ];
         for pad in board
@@ -378,32 +387,58 @@ pub fn check_equivalence(board: &Board, projection: &ProjectionResult) -> Equiva
 
 fn project_layers(board: &Board) -> SExpr {
     let mut layers = vec![atom("layers")];
-    let mut copper_index = 0_u16;
-    for layer in &board.definition.stackup.layers {
-        let kind = match layer.kind {
-            LayerKind::Copper => {
-                let index = copper_index;
-                copper_index = copper_index.saturating_add(2);
-                (index, "signal")
+    let mut inner_copper_index = 4_u16;
+    let copper_names: Vec<_> = board
+        .definition
+        .stackup
+        .layers
+        .iter()
+        .filter(|layer| layer.kind == jingwei_pcb::LayerKind::Copper)
+        .map(|layer| layer.name.as_str())
+        .collect();
+    let copper_names = if copper_names.is_empty() {
+        vec!["F.Cu", "B.Cu"]
+    } else {
+        copper_names
+    };
+    for name in copper_names {
+        let index = match name {
+            "F.Cu" => 0,
+            "B.Cu" => 2,
+            _ => {
+                let index = inner_copper_index;
+                inner_copper_index = inner_copper_index.saturating_add(2);
+                index
             }
-            LayerKind::SolderMask => (if layer.name.starts_with('F') { 36 } else { 37 }, "user"),
-            LayerKind::Silkscreen => (if layer.name.starts_with('F') { 37 } else { 36 }, "user"),
-            LayerKind::EdgeCuts => (44, "user"),
-            LayerKind::Fabrication => (49, "user"),
-            LayerKind::Courtyard => (39, "user"),
         };
         layers.push(list([
-            atom(&kind.0.to_string()),
-            string(&layer.name),
-            atom(kind.1),
+            atom(&index.to_string()),
+            string(name),
+            atom("signal"),
         ]));
     }
-    if board.definition.stackup.layers.is_empty() {
-        layers.push(list([atom("0"), string("F.Cu"), atom("signal")]));
-        layers.push(list([atom("31"), string("B.Cu"), atom("signal")]));
-        layers.push(list([atom("36"), string("B.SilkS"), atom("user")]));
-        layers.push(list([atom("37"), string("F.SilkS"), atom("user")]));
-        layers.push(list([atom("44"), string("Edge.Cuts"), atom("user")]));
+
+    for (index, name) in [
+        (9, "F.Adhes"),
+        (11, "B.Adhes"),
+        (13, "F.Paste"),
+        (15, "B.Paste"),
+        (5, "F.SilkS"),
+        (7, "B.SilkS"),
+        (1, "F.Mask"),
+        (3, "B.Mask"),
+        (17, "Dwgs.User"),
+        (19, "Cmts.User"),
+        (21, "Eco1.User"),
+        (23, "Eco2.User"),
+        (25, "Edge.Cuts"),
+        (27, "Margin"),
+        (31, "F.CrtYd"),
+        (29, "B.CrtYd"),
+        (35, "F.Fab"),
+        (33, "B.Fab"),
+    ] {
+        layers.push(list([atom(&index.to_string()), string(name), atom("user")]));
     }
     SExpr::List(layers)
 }
@@ -591,6 +626,9 @@ mod tests {
         assert_eq!(round_trip, projection.content);
         assert!(check_equivalence(&board(), &projection).equivalent);
         assert!(projection.content.contains("jingwei-agent"));
+        assert!(projection.content.contains("(version 20250513)"));
+        assert!(projection.content.contains("(2 \"B.Cu\" signal)"));
+        assert!(projection.content.contains("(1 \"F.Mask\" user)"));
     }
 
     #[test]

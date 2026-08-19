@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             include_step: true,
         },
     )?;
-    let verification = verify_candidate(&candidate.directory, &board, &profile);
+    let mut verification = verify_candidate(&candidate.directory, &board, &profile);
     if !verification.valid_manufacturing_candidate {
         return Err(io::Error::other(format!(
             "golden manufacturing candidate did not verify: {}",
@@ -90,6 +90,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ))
         .into());
     }
+    verification.candidate_directory = candidate
+        .directory
+        .strip_prefix(&repository)?
+        .display()
+        .to_string()
+        .replace('\\', "/");
     let reports = repository.join("testdata/physical/reports");
     fs::create_dir_all(&reports)?;
     fs::write(
