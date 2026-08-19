@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "0.1",
+  "profiles": [
+    { "name": "interactive-golden", "primitiveCount": 10000 },
+    { "name": "dense-board", "primitiveCount": 100000 }
+  ],
+  "targets": {
+    "interactionFps": 60,
+    "hitTestP95Ms": 50,
+    "previewP95Ms": 100,
+    "commitP95Ms": 300
+  },
+  "disclaimer": "Synthetic renderer/culling targets; real target-hardware WebView evidence remains a separate gate."
+}

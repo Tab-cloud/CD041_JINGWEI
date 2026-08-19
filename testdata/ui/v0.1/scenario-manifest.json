@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "0.1",
+  "mode": "mock",
+  "notice": "Development-only semantic fixtures. They are not daemon, solver, ERC, DRC, or production evidence.",
+  "scenarios": [
+    "normal-run-tool-approval",
+    "provider-and-tool-failure",
+    "schematic-and-pcb-display-list",
+    "finding-and-cross-probe",
+    "edit-preview-commit-conflict",
+    "event-disconnect-replay",
+    "sidecar-unavailable-version-mismatch",
+    "candidate-verified-blocked-stages"
+  ]
+}

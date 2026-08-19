@@ -1,0 +1,57 @@
+Task-05-owned paths
+===================
+
+app/.gitignore
+app/README.md
+app/index.html
+app/package.json
+app/pnpm-lock.yaml
+app/pnpm-workspace.yaml
+app/tsconfig.json
+app/vite.config.ts
+app/eslint.config.mjs
+
+app/src/App.tsx
+app/src/main.tsx
+app/src/canvas/**
+app/src/clients/**
+app/src/components/**
+app/src/hooks/**
+app/src/mocks/v0.1/**
+app/src/store/**
+app/src/styles/**
+app/src/test/**
+app/src/utils/**
+
+app/src-tauri/build.rs
+app/src-tauri/Cargo.lock
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/src-tauri/capabilities/default.json
+app/src-tauri/src/lib.rs
+app/src-tauri/src/main.rs
+app/src-tauri/sidecars/manifest.json
+app/src-tauri/gen/schemas/**
+app/src-tauri/icons/**
+
+testdata/ui/README.md
+testdata/ui/v0.1/benchmark-profile.json
+testdata/ui/v0.1/scenario-manifest.json
+
+docs/handoffs/task-05/README.md
+docs/handoffs/task-05/artifacts.md
+docs/handoffs/task-05/changed-files.txt
+docs/handoffs/task-05/commands-and-results.md
+docs/handoffs/task-05/interfaces.md
+docs/handoffs/task-05/known-gaps.md
+docs/handoffs/task-05/evidence/tauri-final-edit-matrix.jpg
+docs/handoffs/task-05/evidence/tauri-final-package-smoke.jpg
+docs/handoffs/task-05/evidence/tauri-pcb-workbench.jpg
+docs/handoffs/task-05/evidence/tauri-recovery-after-refresh.jpg
+
+Out-of-scope paths
+==================
+
+Root workspace files, crates, packages, profiles, other task handoffs, and
+interface-change proposals were created by concurrent sessions. They were not
+modified or included by task 05.

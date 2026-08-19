@@ -1,0 +1,29 @@
+@media (max-width: 1280px) {
+  .primary-workspace { grid-template-columns: 205px minmax(500px, 1fr) 240px; }
+  .top-bar { grid-template-columns: 190px minmax(360px, 1fr) auto auto; }
+  .revision-row span:nth-child(2) { display: none; }
+  .tool-button span { display: none; }
+  .tool-button { padding: 0 7px; }
+}
+
+@media (max-height: 800px) {
+  .workbench-app { grid-template-rows: 54px 23px minmax(310px, 1fr) minmax(195px, 27vh); }
+  .top-bar { min-height: 54px; }
+  .toast { bottom: calc(27vh + 12px); }
+  .inspector-section { margin-top: 8px; padding-top: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --line: #607189;
+    --line-soft: #435268;
+    --text: #ffffff;
+    --text-soft: #d7e1ee;
+    --text-dim: #aebdce;
+  }
+  .status-badge, .primary-button, .secondary-button, .icon-button, .tool-button { border-width: 2px; }
+}
