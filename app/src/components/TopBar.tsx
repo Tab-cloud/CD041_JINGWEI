@@ -1,13 +1,16 @@
 import type { ProjectView } from "../clients/contracts";
 import type { SidecarStatus } from "../store/workbenchState";
+import type { Theme } from "../theme/theme";
 import {
-  CircuitBoardIcon,
   FolderOpenIcon,
   PlayIcon,
   PlusIcon,
   RedoIcon,
   SaveIcon,
+  SettingsIcon,
+  MoonIcon,
   StopIcon,
+  SunIcon,
   UndoIcon,
 } from "./Icons";
 import { StatusBadge } from "./StatusBadge";
@@ -25,6 +28,9 @@ interface TopBarProps {
   onRedo: () => void;
   onRun: () => void;
   onCancel: () => void;
+  onOpenModelSettings: () => void;
+  onToggleTheme: () => void;
+  theme: Theme;
 }
 
 const maturityLabels: Record<ProjectView["maturity"], string> = {
@@ -49,13 +55,16 @@ export function TopBar({
   onRedo,
   onRun,
   onCancel,
+  onOpenModelSettings,
+  onToggleTheme,
+  theme,
 }: TopBarProps) {
   return (
     <header className="top-bar">
       <div className="brand-block">
-        <span className="brand-mark"><CircuitBoardIcon size={20} /></span>
+        <span aria-hidden="true" className="brand-mark" />
         <div>
-          <strong>经纬 Agent</strong>
+          <strong>精卫 Agent</strong>
           <span>原生设计工作台</span>
         </div>
       </div>
@@ -90,6 +99,16 @@ export function TopBar({
         <button className="icon-button" disabled={!undoAvailable} onClick={onUndo} title="撤销语义命令"><UndoIcon /></button>
         <button className="icon-button" disabled={!redoAvailable} onClick={onRedo} title="重做语义命令"><RedoIcon /></button>
         <button className="icon-button" disabled={!project} onClick={onCheckpoint} title="创建命名检查点"><SaveIcon /></button>
+        <span className="action-divider" />
+        <button className="icon-button" onClick={onOpenModelSettings} title="模型与 API 凭据"><SettingsIcon /></button>
+        <button
+          aria-label={`切换到${theme === "dark" ? "浅色" : "深色"}模式`}
+          className="icon-button theme-toggle"
+          onClick={onToggleTheme}
+          title={`当前为${theme === "dark" ? "深色" : "浅色"}模式，切换到${theme === "dark" ? "浅色" : "深色"}模式`}
+        >
+          {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+        </button>
         <span className="action-divider" />
         {runActive ? (
           <button className="primary-button danger" onClick={onCancel}><StopIcon size={15} />取消</button>

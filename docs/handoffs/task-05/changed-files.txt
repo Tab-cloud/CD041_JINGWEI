@@ -22,6 +22,7 @@ app/src/store/**
 app/src/styles/**
 app/src/test/**
 app/src/utils/**
+app/src/model/**
 
 app/src-tauri/build.rs
 app/src-tauri/Cargo.lock
@@ -30,6 +31,8 @@ app/src-tauri/tauri.conf.json
 app/src-tauri/capabilities/default.json
 app/src-tauri/src/lib.rs
 app/src-tauri/src/main.rs
+app/src-tauri/src/credential_store.rs
+app/src-tauri/src/model_configuration.rs
 app/src-tauri/sidecars/manifest.json
 app/src-tauri/gen/schemas/**
 app/src-tauri/icons/**
@@ -48,10 +51,19 @@ docs/handoffs/task-05/evidence/tauri-final-edit-matrix.jpg
 docs/handoffs/task-05/evidence/tauri-final-package-smoke.jpg
 docs/handoffs/task-05/evidence/tauri-pcb-workbench.jpg
 docs/handoffs/task-05/evidence/tauri-recovery-after-refresh.jpg
+docs/handoffs/task-05/evidence/jingwei-logo-exe-icon.png
+docs/interface-change-proposals/task-05-model-provider-configuration.md
+
+User-authorized product naming correction
+=========================================
+
+README.md
+docs/08-open-questions-and-decisions.md
 
 Out-of-scope paths
 ==================
 
-Root workspace files, crates, packages, profiles, other task handoffs, and
+Except for the explicit 精卫 Agent product-name correction listed above, root
+workspace files, crates, packages, profiles, other task handoffs, and other
 interface-change proposals were created by concurrent sessions. They were not
 modified or included by task 05.

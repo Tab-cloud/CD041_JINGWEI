@@ -10,7 +10,7 @@
 
 | 编号 | 提案 | 状态 |
 | --- | --- | --- |
-| P-001 | 产品名称 Jingwei-Agent / 经纬 Agent | Proposed |
+| P-001 | 产品名称 Jingwei-Agent / 精卫 Agent，语义取自“精卫填海” | Accepted |
 | P-002 | 复用 Eval 通用 Agent runtime，新增独立 Rust EDA 领域层 | Accepted |
 | P-003 | 自研 Jingwei Design Kernel，JIR 为唯一设计真相 | Accepted |
 | P-004 | MVP 聚焦低压、非安全关键、2/4 层常规刚性板 | Proposed |

@@ -18,12 +18,19 @@
 }
 
 @media (prefers-contrast: more) {
-  :root {
+  :root[data-theme="dark"] {
     --line: #607189;
     --line-soft: #435268;
     --text: #ffffff;
     --text-soft: #d7e1ee;
     --text-dim: #aebdce;
+  }
+  :root[data-theme="light"] {
+    --line: #4d4d52;
+    --line-soft: #85858b;
+    --text: #000000;
+    --text-soft: #252528;
+    --text-dim: #4f4f54;
   }
   .status-badge, .primary-button, .secondary-button, .icon-button, .tool-button { border-width: 2px; }
 }

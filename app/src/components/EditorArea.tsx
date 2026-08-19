@@ -1,5 +1,6 @@
 import type { DesignViewKind, DisplayList, Viewport } from "../clients/contracts";
 import type { ToolMode } from "../store/workbenchState";
+import type { Theme } from "../theme/theme";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { SemanticCanvas, type CanvasIntent } from "./SemanticCanvas";
 
@@ -12,6 +13,7 @@ interface EditorAreaProps {
   relatedIds: string[];
   ghostPrimitives: DisplayList["primitives"];
   previewLatencyMs?: number;
+  theme: Theme;
   onViewChange: (view: DesignViewKind) => void;
   onViewportChange: (viewport: Viewport) => void;
   onToolChange: (tool: ToolMode) => void;
@@ -28,6 +30,7 @@ export function EditorArea({
   relatedIds,
   ghostPrimitives,
   previewLatencyMs,
+  theme,
   onViewChange,
   onViewportChange,
   onToolChange,
@@ -63,6 +66,7 @@ export function EditorArea({
         onViewportChange={onViewportChange}
         relatedIds={relatedIds}
         selectedIds={selectedIds}
+        theme={theme}
         toolMode={toolMode}
         viewport={viewport}
       />
