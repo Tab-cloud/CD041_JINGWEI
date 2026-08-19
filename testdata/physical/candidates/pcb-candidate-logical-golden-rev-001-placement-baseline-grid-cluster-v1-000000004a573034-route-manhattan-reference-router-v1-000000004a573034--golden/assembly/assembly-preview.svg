@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60000 40000" role="img" aria-label="Assembly candidate pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034">
+<rect x="0" y="0" width="60000" height="40000" fill="none" stroke="black"/>
+<rect id="pcb-footprint:component:J1" x="3000" y="16000" width="4000" height="8000" fill="none" stroke="blue"/><text x="3000" y="16000">J1</text>
+<rect id="pcb-footprint:component:R1" x="4200" y="4600" width="1600" height="800" fill="none" stroke="blue"/><text x="4200" y="4600">R1</text>
+</svg>

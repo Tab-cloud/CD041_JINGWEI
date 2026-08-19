@@ -1,0 +1,12 @@
+{
+  "freerouting": {
+    "gateSatisfied": false,
+    "status": "not-required-for-native-reference-candidate"
+  },
+  "kicad": {
+    "gateSatisfied": false,
+    "requiredVersion": "10.0.5",
+    "status": "not-executed-by-exporter"
+  },
+  "note": "Run pinned external adapters separately and attach exact command/version/hash/exit-code evidence."
+}

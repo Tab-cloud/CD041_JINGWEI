@@ -1,0 +1,52 @@
+Task-04-owned source and configuration
+======================================
+crates/jingwei-geometry/Cargo.toml
+crates/jingwei-geometry/src/lib.rs
+crates/jingwei-geometry/src/primitives.rs
+crates/jingwei-geometry/src/spatial.rs
+crates/jingwei-geometry/src/units.rs
+crates/jingwei-pcb/Cargo.toml
+crates/jingwei-pcb/src/edit_view.rs
+crates/jingwei-pcb/src/lib.rs
+crates/jingwei-pcb/src/logical.rs
+crates/jingwei-pcb/src/model.rs
+crates/jingwei-placement/Cargo.toml
+crates/jingwei-placement/src/lib.rs
+crates/jingwei-routing/Cargo.toml
+crates/jingwei-routing/src/freerouting.rs
+crates/jingwei-routing/src/lib.rs
+crates/jingwei-drc/Cargo.toml
+crates/jingwei-drc/src/lib.rs
+crates/jingwei-kicad-pcb/Cargo.toml
+crates/jingwei-kicad-pcb/src/lib.rs
+crates/jingwei-kicad-pcb/src/reference.rs
+crates/jingwei-kicad-pcb/src/sexpr.rs
+crates/jingwei-manufacturing/Cargo.toml
+crates/jingwei-manufacturing/examples/generate_golden_candidate.rs
+crates/jingwei-manufacturing/src/exporter.rs
+crates/jingwei-manufacturing/src/lib.rs
+crates/jingwei-manufacturing/src/profile.rs
+crates/jingwei-manufacturing/src/registration.rs
+crates/jingwei-manufacturing/src/verifier.rs
+profiles/manufacturers/jlcpcb-standard-v0.yaml
+testdata/physical/README.md
+testdata/physical/logical-netlist-v0/golden-board.json
+testdata/physical/invalid/missing-footprint.json
+testdata/physical/invalid/manufacturing-cases.json
+testdata/physical/invalid/router-faults.json
+docs/interface-change-proposals/task-04-physical-module-registry.md
+docs/handoffs/task-04/README.md
+docs/handoffs/task-04/interfaces.md
+docs/handoffs/task-04/known-gaps.md
+docs/handoffs/task-04/commands-and-results.md
+docs/handoffs/task-04/artifacts.md
+docs/handoffs/task-04/changed-files.txt
+
+Generated golden candidate
+==========================
+testdata/physical/candidates/pcb-candidate-logical-golden-rev-001-placement-baseline-grid-cluster-v1-000000004a573034-route-manhattan-reference-router-v1-000000004a573034--golden/**
+testdata/physical/reports/golden-package-verification.json
+
+Intentionally not owned or modified by task 04
+================================================
+Root workspace/lock/tooling files; jingwei-jir; jingwei-jdp; core/daemon; logical crates; app/packages; task-01/task-02/task-03/task-05 handoffs and proposals.

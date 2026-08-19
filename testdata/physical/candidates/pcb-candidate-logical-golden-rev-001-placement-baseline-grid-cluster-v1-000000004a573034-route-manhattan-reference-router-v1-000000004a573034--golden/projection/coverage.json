@@ -1,0 +1,22 @@
+[
+  {
+    "capability": "outline-cutout-footprint-pad-track-via",
+    "covered": true,
+    "note": "typed AST projection and external object map"
+  },
+  {
+    "capability": "zone-fill",
+    "covered": false,
+    "note": "zone fill remains a native/reference backend follow-up"
+  },
+  {
+    "capability": "differential-length-impedance-rules",
+    "covered": false,
+    "note": "model fields are retained in JIR candidate but not projected in Phase 0"
+  },
+  {
+    "capability": "arbitrary-third-party-round-trip",
+    "covered": false,
+    "note": "parser round-trips supported syntax; unknown destructive import is rejected"
+  }
+]

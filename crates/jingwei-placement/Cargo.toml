@@ -1,0 +1,15 @@
+[package]
+name = "jingwei-placement"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Deterministic constraint-aware baseline PCB placement candidates"
+
+[dependencies]
+jingwei-geometry = { path = "../jingwei-geometry" }
+jingwei-pcb = { path = "../jingwei-pcb" }
+serde.workspace = true
+
+[lints]
+workspace = true

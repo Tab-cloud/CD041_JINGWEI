@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "physical-invalid-cases-v0.1",
+  "purpose": "Named mutations used by task-04 package and DRC negative tests",
+  "cases": [
+    {
+      "id": "outline-open-or-multiple",
+      "expectedBlockingRule": "PCB-DRC-EDGE-001"
+    },
+    {
+      "id": "footprint-overlap-or-edge",
+      "expectedBlockingRule": "PCB-DRC-COURTYARD-001"
+    },
+    {
+      "id": "track-clearance-or-width",
+      "expectedBlockingRule": "PCB-DRC-CLEARANCE-001"
+    },
+    {
+      "id": "via-drill-annular",
+      "expectedBlockingRule": "PCB-DRC-VIA-001"
+    },
+    {
+      "id": "unrouted-net",
+      "expectedBlockingRule": "PCB-DRC-UNROUTED-001"
+    },
+    {
+      "id": "wrong-layer-file-mapping",
+      "expectedBlockingCode": "MFG-PROFILE-ROLE-MISMATCH"
+    },
+    {
+      "id": "stale-bom-or-cpl",
+      "expectedBlockingCode": "MFG-DESIGNATOR-CLOSURE"
+    },
+    {
+      "id": "rotation-origin-or-unit",
+      "expectedBlockingCode": "MFG-CPL-CONVENTION"
+    },
+    {
+      "id": "projection-object-missing",
+      "expectedBlockingCode": "KICAD-EQUIVALENCE-MISSING-OBJECT"
+    },
+    {
+      "id": "path-traversal",
+      "expectedBlockingCode": "MFG-UNSAFE-PATH"
+    },
+    {
+      "id": "oversized-input",
+      "expectedBlockingCode": "MFG-INPUT-LIMIT"
+    }
+  ],
+  "note": "The executable tests construct isolated temporary candidates and apply these mutations; this catalog keeps fixture intent discoverable without checking in corrupt binary artifacts."
+}

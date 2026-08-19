@@ -1,0 +1,15 @@
+[package]
+name = "jingwei-drc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Native PCB DRC/DFM rules with revision-bound findings and coverage"
+
+[dependencies]
+jingwei-geometry = { path = "../jingwei-geometry" }
+jingwei-pcb = { path = "../jingwei-pcb" }
+serde.workspace = true
+
+[lints]
+workspace = true

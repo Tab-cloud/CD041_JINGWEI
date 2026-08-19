@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "logical-netlist-v0",
+  "sourceRevision": "logical-invalid-missing-footprint",
+  "components": [
+    {
+      "id": "component:U1",
+      "designator": "U1",
+      "value": "INVALID",
+      "manufacturer": "Fixture",
+      "mpn": "INVALID-NO-FOOTPRINT",
+      "footprint": null,
+      "padMap": {},
+      "placementRole": "critical",
+      "locked": false,
+      "fixedPosition": null
+    }
+  ],
+  "pins": [],
+  "nets": [],
+  "constraints": [],
+  "evidenceRefs": ["fixture:negative:missing-footprint"]
+}

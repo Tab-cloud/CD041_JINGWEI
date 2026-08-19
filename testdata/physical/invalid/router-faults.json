@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "router-fault-fixture-v0.1",
+  "backend": "deterministic-fake-router-v1",
+  "terminalStates": [
+    "success",
+    "unrouted",
+    "violating",
+    "canceled",
+    "crashed",
+    "unknown"
+  ],
+  "acceptance": "Only success may be considered a route candidate, and every returned candidate must still pass native and reference validation."
+}

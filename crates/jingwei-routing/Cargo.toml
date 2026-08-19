@@ -1,0 +1,22 @@
+[package]
+name = "jingwei-routing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Cancelable router adapters and deterministic reference routing fixtures"
+
+[dependencies]
+async-trait.workspace = true
+hex.workspace = true
+jingwei-geometry = { path = "../jingwei-geometry" }
+jingwei-pcb = { path = "../jingwei-pcb" }
+serde.workspace = true
+sha2.workspace = true
+tokio-util = { version = "0.7.16", features = ["rt"] }
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

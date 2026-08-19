@@ -1,0 +1,30 @@
+{
+  "candidateDirectory": "\\\\?\\D:\\Projects\\CD041_LUBAN\\jingwei-agent\\testdata\\physical\\candidates\\pcb-candidate-logical-golden-rev-001-placement-baseline-grid-cluster-v1-000000004a573034-route-manhattan-reference-router-v1-000000004a573034--golden",
+  "designRevision": "pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034",
+  "validManufacturingCandidate": true,
+  "parsedRoles": [
+    "bom",
+    "cpl",
+    "drill",
+    "gerber-copper-back",
+    "gerber-copper-front",
+    "gerber-job",
+    "gerber-mask-back",
+    "gerber-mask-front",
+    "gerber-outline",
+    "gerber-silkscreen-back",
+    "gerber-silkscreen-front",
+    "ipc356",
+    "kicad-pcb-projection",
+    "manifest",
+    "step-native-candidate"
+  ],
+  "findings": [],
+  "openGates": [
+    "pinned KiCad 10.0.5 reference DRC/export not executed in native exporter",
+    "independent package verifier must pass after manifest creation",
+    "manufacturer DFM not performed",
+    "physical prototype not built or tested",
+    "named engineering and release signoffs missing"
+  ]
+}

@@ -1,0 +1,54 @@
+schemaVersion: manufacturer-profile-v0.1
+id: jlcpcb-standard-v0
+version: 2026-08-19.1
+name: JLCPCB standard 2-layer golden-test profile
+status: golden-test-only
+disclaimer: Used for the initial golden test only; confirm all capabilities with the factory before a real order.
+source:
+  - https://jlcpcb.com/help/article/gerber-files-preparation
+  - https://jlcpcb.com/help/article/advice-for-bom-and-cpl-files-preparation
+  - https://jlcpcb.com/help/article/how-to-generate-the-bom-and-centroid-file-from-kicad
+updatedOn: 2026-08-19
+applicability:
+  boardTypes: [rigid-fr4]
+  layerCounts: [2]
+  assemblySides: [front]
+  minimumComponent: 0603
+capabilities:
+  boardThicknessMicrometres: [1600]
+  copperThicknessMicrometres: [35]
+  surfaceFinishes: [HASL lead-free, ENIG]
+  minimumTrackWidthMicrometres: 200
+  minimumClearanceMicrometres: 200
+  minimumDrillMicrometres: 300
+  minimumAnnularRingMicrometres: 150
+  minimumMaskBridgeMicrometres: 100
+  minimumEdgeClearanceMicrometres: 300
+  minimumNpthMicrometres: 500
+  minimumSlotWidthMicrometres: 500
+  supportedPlating: [PTH, NPTH]
+coordinates:
+  unit: mm
+  origin: auxiliary-origin
+  xDirection: right
+  yDirection: down
+  frontRotation: counter-clockwise-degrees
+  backRotation: manufacturer-mapping-required
+outputs:
+  - { role: gerber-copper-front, path: fabrication/board-F_Cu.gbr }
+  - { role: gerber-copper-back, path: fabrication/board-B_Cu.gbr }
+  - { role: gerber-mask-front, path: fabrication/board-F_Mask.gbr }
+  - { role: gerber-mask-back, path: fabrication/board-B_Mask.gbr }
+  - { role: gerber-silkscreen-front, path: fabrication/board-F_Silkscreen.gbr }
+  - { role: gerber-silkscreen-back, path: fabrication/board-B_Silkscreen.gbr }
+  - { role: gerber-outline, path: fabrication/board-Edge_Cuts.gbr }
+  - { role: gerber-job, path: fabrication/board-job.gbrjob }
+  - { role: drill, path: fabrication/board-PTH-NPTH.drl }
+  - { role: ipc356, path: fabrication/board.ipc }
+  - { role: bom, path: assembly/bom.csv }
+  - { role: cpl, path: assembly/cpl.csv }
+coverageGaps:
+  - Values are intentionally conservative Phase 0 golden-test rules, not the complete JLCPCB capability matrix.
+  - Advanced stackups, impedance, HDI, controlled depth, castellations, edge plating and flex are not covered.
+  - Bottom-side CPL rotation mapping requires a reviewed manufacturer-specific transform.
+  - Factory DFM, component availability and assembly exceptions require live confirmation.

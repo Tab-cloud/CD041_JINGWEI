@@ -1,0 +1,10 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('Jingwei Manufacturing Candidate'),'2;1');
+FILE_NAME('pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034','deterministic-candidate',('Jingwei-Agent'),(''),'', 'jingwei-manufacturing','');
+FILE_SCHEMA(('CONFIG_CONTROL_DESIGN'));
+ENDSEC;
+DATA;
+#1=PRODUCT('pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034','logical-golden-rev-001','Manufacturing Candidate - not Production Release',());
+ENDSEC;
+END-ISO-10303-21;
