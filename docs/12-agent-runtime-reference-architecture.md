@@ -97,8 +97,9 @@ Agent runtime 被攻破、模型越权或 MCP 描述恶意时，daemon 仍必须
 - `jingwei-agent-runtime`：由现有 Eval server 抽取/重命名的 Agent 控制面 sidecar；
 - `jingwei-daemon`：Rust EDA daemon，工作区唯一写入者。
 
-首版可以由 Tauri 统一管理两个 sidecar 的启动和健康检查，但不得把“前端窗口仍存在”当成任一任务的真实状态。
-runtime 与 daemon 都持有进程 epoch/owner lease，重启时按 durable state 恢复或明确失败旧的 in-flight 工作。
+首版由 Tauri 以 `desktop-owned` 模式管理两个 sidecar 的启动、健康和退出清理，但不得把“前端窗口仍存在”
+当成任一任务的真实状态。未来 `attached`/`headless` 模式才使用外部 owner lease 让任务独立于 UI 存活；三种
+模式不得混用。权威生命周期见 `13-authoritative-boundaries-and-lifecycle.md`。
 
 ## 5. 核心运行时对象
 
@@ -299,6 +300,9 @@ approval.reply
 artifact.get
 runtime.capabilities
 ```
+
+生产 transport 使用独立 versioned named pipe/UDS endpoint，schema 由 `agent-protocol` 维护；stdin 只用于
+bootstrap。当前 sidecar 的 JSON-lines stdio dispatcher 是集成 harness，尚不能作为工作台正式 Runtime API。
 
 事件至少包括：
 

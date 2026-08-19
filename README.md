@@ -1,7 +1,7 @@
 # Jingwei-Agent 开发文档
 
 > 文档基线：2026-08-19  
-> 状态：需求梳理 v0.7，五会话 Phase 0 已汇总到独立集成分支并完成有边界的验收
+> 状态：设计基线 v1.0，五会话 foundation 已收拢；完整 Phase 0 product exit 仍在推进
 > 产品中文名：精卫 Agent（取自“精卫填海”）
 > 目标：从自然语言需求生成可审查、可复现、可制造的电子设计工程与制造包。
 
@@ -40,8 +40,8 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 | 文档 | 用途 | 当前状态 |
 | --- | --- | --- |
 | [00-product-requirements.md](docs/00-product-requirements.md) | 产品范围、用户流程、功能与非功能需求 | 待评审 |
-| [01-system-architecture.md](docs/01-system-architecture.md) | 系统分层、运行时复用、设计流水线和服务边界 | 待评审 |
-| [02-domain-model-and-artifacts.md](docs/02-domain-model-and-artifacts.md) | 需求、器件、库、网络、规则、版本与制品模型 | 待评审 |
+| [01-system-architecture.md](docs/01-system-architecture.md) | 系统分层、运行时复用、设计流水线和服务边界 | 已收拢，受 13 号规范约束 |
+| [02-domain-model-and-artifacts.md](docs/02-domain-model-and-artifacts.md) | 需求、器件、库、网络、规则、版本与制品模型 | 已收拢，规范类型以 Rust schema 为准 |
 | [03-eda-toolchain-and-integrations.md](docs/03-eda-toolchain-and-integrations.md) | KiCad、自动布线、供应链、库与制造商适配 | 待技术验证 |
 | [04-tool-contracts.md](docs/04-tool-contracts.md) | Agent 工具列表、输入输出、副作用与权限 | 待技术验证 |
 | [05-validation-and-production-gates.md](docs/05-validation-and-production-gates.md) | ERC/DRC/DFM、样板和量产发布门禁 | 待硬件评审 |
@@ -52,9 +52,11 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 | [10-rust-tauri-platform-architecture.md](docs/10-rust-tauri-platform-architecture.md) | Rust workspace、daemon、JDP 本地 IPC、Tauri 与跨平台打包决策 | 实现基线 |
 | [11-native-workbench-preview-and-editing.md](docs/11-native-workbench-preview-and-editing.md) | 原理图/PCB 交互预览、人工编辑、人机协作、事务和验收 | 产品与交互基线 |
 | [12-agent-runtime-reference-architecture.md](docs/12-agent-runtime-reference-architecture.md) | Eval/Codex/OpenCode 参考架构、成熟框架选型、会话/工具/审批/恢复与实施门禁 | Agent 控制面实现基线 |
-| [integration-2026-08-19.md](docs/handoffs/integration-2026-08-19.md) | 五会话汇总、提交映射、集成门禁、测试证据与剩余生产阻塞项 | Phase 0 集成验收基线 |
+| [13-authoritative-boundaries-and-lifecycle.md](docs/13-authoritative-boundaries-and-lifecycle.md) | 状态所有权、身份、事务、sidecar 生命周期、revision/成熟度/release 和兼容规则 | 最高优先级架构规范 |
+| [14-design-convergence-audit-and-plan.md](docs/14-design-convergence-audit-and-plan.md) | 全局缺陷审计、Phase 0 状态矩阵与后续统一纵向实施顺序 | 当前执行计划 |
+| [integration-2026-08-19.md](docs/handoffs/integration-2026-08-19.md) | 五会话汇总、提交映射和基础集成证据 | Foundation integration 历史基线 |
 
-### 五会话开发任务
+### 五会话开发任务（已归档）
 
 总任务书先冻结共同协议、文件所有权、依赖和统一合并顺序；五个会话必须使用独立 Git branch/worktree：
 
@@ -69,6 +71,9 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 共同接口、并行规则、交接包、集成测试和统一验收见
 [五会话并行开发总任务书](docs/tasks/00-five-session-execution-plan.md)。
 
+这些任务文档与 handoff 现在只作为历史输入。后续不再等待独立任务会话，所有架构、实现、测试和发布门禁
+统一按 [全局收拢计划](docs/14-design-convergence-audit-and-plan.md) 在当前集成主线推进。
+
 ### 当前跨运行时追踪门禁
 
 `runtime → JDP → Rust daemon` 跨运行时 trace-context 接收门禁已经解除：正式 Rust schema 生成的
@@ -82,11 +87,11 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 
 ## 3. 文档权威顺序
 
-1. 已签核的产品需求与决策日志；
-2. 制造商针对具体订单确认的能力与规则文件；
-3. 当前 Jingwei revision、锁定规则的确定性检查和交叉验证报告；
-4. 本目录的架构、工具合同和开发计划；
-5. 模型生成的解释性文本。
+1. 已签核的产品需求、风险/发布政策和组织权限；
+2. [权威边界与生命周期规范](docs/13-authoritative-boundaries-and-lifecycle.md)；
+3. Rust 生成的 JIR/JDP schema、Runtime protocol 与持久化 migration；
+4. 制造商针对具体订单确认的能力、当前 revision 和确定性验证证据；
+5. 专题架构、工具合同、handoff 和模型解释。
 
 当模型判断与数据手册、封装图、制造商规则或确定性检查冲突时，模型判断必须让位并把冲突暴露给用户。
 
@@ -109,18 +114,11 @@ Eval 现有 `schematic_read`、`datasheet_read`、`pin_extract` 主要解决“�
 - JIR revision、规则报告和制造输出是可机器验证的设计事实；KiCad 等外部 ECAD 文件是有 provenance 的投影；
 - 生产发布必须由确定性门禁和具名人员签核共同决定。
 
-## 5. 下一次评审建议
+## 5. 下一步
 
-优先确认 [08-open-questions-and-decisions.md](docs/08-open-questions-and-decisions.md) 中的 P0 问题，尤其是：
-
-1. MVP 支持的板卡类型和禁止自动发布的高风险范围；
-2. 首发制造商、器件供应商与目标地区；
-3. 是否接受 JDL/JIR/JDP 命名以及首期原生内核支持范围；
-4. Rust daemon + Tauri 2 薄客户端的实施顺序、性能指标和 Windows 首发范围；
-5. Eval runtime 共享 package 的抽取边界、首个商业模型 provider 和数据外发策略；
-6. 本地优先还是允许上传设计到云端服务；
-7. “生产发布”必须由哪些角色签核；
-8. 第一个黄金样板的明确需求。
+统一从 [Slice 0：规范类型和迁移收拢](docs/14-design-convergence-audit-and-plan.md) 开始，随后实现真实 Runtime
+本地 RPC 和 UI adapter。商业模型凭据、Freerouting 分发法务、制造商 DFM 和真实样板仍需要相应外部输入；
+这些外部阻塞不会再成为架构边界不清或继续实现其他安全工作项的理由。
 
 ## 6. 外部依据
 

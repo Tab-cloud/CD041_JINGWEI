@@ -1,6 +1,6 @@
 # 待确认问题与决策日志
 
-> 版本：0.5  
+> 版本：0.6
 > 日期：2026-08-19  
 > 用法：每次需求评审先关闭 P0 问题，再把结论追加到决策日志。未确认项不得伪装为已定需求。
 
@@ -13,18 +13,22 @@
 | P-001 | 产品名称 Jingwei-Agent / 精卫 Agent，语义取自“精卫填海” | Accepted |
 | P-002 | 复用 Eval 通用 Agent runtime，新增独立 Rust EDA 领域层 | Accepted |
 | P-003 | 自研 Jingwei Design Kernel，JIR 为唯一设计真相 | Accepted |
-| P-004 | MVP 聚焦低压、非安全关键、2/4 层常规刚性板 | Proposed |
-| P-005 | JLCPCB 为首个 manufacturer profile，但架构不绑定单一工厂 | Proposed |
-| P-006 | 默认本地处理设计，云端调用逐项目授权 | Proposed |
-| P-007 | Freerouting/其他 solver 作为候选后端，结果必须写入 JIR 并交叉验证 | Proposed |
+| P-004 | MVP 聚焦低压、非安全关键、2 层验收且架构兼容 4 层常规刚性板 | Accepted for Phase 1 |
+| P-005 | JLCPCB 为首个 manufacturer profile，但架构不绑定单一工厂 | Accepted for Phase 1 |
+| P-006 | 默认本地处理设计，云端调用逐项目授权 | Accepted |
+| P-007 | Freerouting/其他 solver 作为候选后端，结果必须写入 JIR 并交叉验证 | Architecture accepted；distribution blocked |
 | P-008 | 生产交付必须包含 JDL/JIR 原生工程及 KiCad 兼容 projection，不只交付 Gerber | Accepted |
-| P-009 | “生产发布”需要工厂 DFM、样板测试和具名多角色签核 | Proposed |
-| P-010 | 首个黄金板为 9-24V 输入的温湿度 + RS-485 采集板 | Proposed |
+| P-009 | “生产发布”需要工厂 DFM、样板测试和具名多角色签核 | Accepted |
+| P-010 | 首个黄金板为 9-24V 输入的温湿度 + RS-485 采集板 | Accepted for Phase 1 baseline |
 | P-011 | JDL/JIR/JDP 分别承担声明式语言、规范化 IR 和事务协议 | Accepted |
 | P-012 | KiCad 10.0.5 为首个 reference backend，不是核心语言或唯一 ECAD | Accepted |
 | P-013 | Rust 为核心实现语言；`jingwei-daemon` 唯一写入；Tauri 2 + React 为首版薄客户端 | Accepted |
 | P-014 | AI 生成的原理图和 PCB 必须在原生工作台中可预览、人工编辑、撤销并继续与 AI 协作 | Accepted |
 | P-015 | Agent 控制面采用 Eval-derived runtime，参考 Codex/OpenCode；MCP 只做外部集成，固定工程门禁使用确定性 workflow | Accepted |
+
+本轮已把不依赖商业合同的推荐默认冻结为 Phase 1 工程基线，避免继续开发时反复分叉。API 账户/条款、
+Freerouting 商业分发、具体采购参数、组织角色授权、工厂 DFM 和样板预算仍需相应责任人提供外部事实；未取得时
+对应门禁保持 blocked，而不是回退已接受的架构边界。
 
 ## 2. P0 产品问题
 
@@ -34,6 +38,7 @@
 - 选项：面向无硬件经验终端用户、面向专业工程师、企业内部工具；
 - 影响：交互、责任、默认自动化程度、审查和支持成本；
 - Owner：产品负责人。
+- 状态：Accepted for Phase 1，内部硬件工程师/方案团队优先。
 
 ### Q2. MVP 明确支持哪些板型？
 
@@ -41,6 +46,7 @@
 - 需要明确排除：高压、大功率、RF、DDR/BGA、刚挠、汽车/医疗；
 - 影响：规则体系、黄金数据、工程人员和对外承诺；
 - Owner：产品 + 硬件负责人。
+- 状态：Accepted for Phase 1，2 层为验收基线，4 层只保留架构能力。
 
 ### Q3. 用户的一句话需求需要自动走多远？
 
@@ -48,12 +54,14 @@
 - 选项：全自动草稿、逐阶段确认、仅专业工程师模式；
 - 影响：体验速度与错误风险；
 - Owner：产品负责人。
+- 状态：Accepted，自动生成候选，关键器件和所有发布级别仍需人类确认。
 
 ### Q4. 什么状态可以在产品文案中称为“可量产”？
 
 - 推荐默认：只对 `production-released` 使用，必须有 DFM、样板和签核；
 - 影响：法律责任、用户信任和 UI 术语；
 - Owner：产品 + 质量 + 法务。
+- 状态：Accepted，仅 L5 `production-released` 可使用量产发布措辞。
 
 ### Q5. 首个真实黄金板需求是什么？
 
@@ -61,6 +69,7 @@
 - 需要确认：输入范围、MCU/国产化偏好、传感精度、尺寸、数量、成本和目标工厂；
 - 影响：Phase 0/1 所有验收；
 - Owner：硬件负责人。
+- 状态：Accepted as Phase 1 baseline；采购/样板前补齐具体参数并签核 DesignIntent。
 
 ### Q6. Jingwei 与 KiCad 的关系是什么？
 
@@ -82,6 +91,7 @@
 - 推荐默认：ECAD/验证本地；LLM/供应/API 按项目授权并显示外发内容；
 - 影响：模型能力、隐私、企业客户、成本和离线模式；
 - Owner：产品 + 安全。
+- 状态：Accepted，默认本地；任何云外发受项目 policy 与逐次/预授权 scope 上限约束。
 
 ### Q9. 首发制造商和装配厂有哪些？
 
@@ -89,6 +99,7 @@
 - 需要确认：是否也支持 PCBWay、Seeed、企业自有工厂；
 - 影响：profile、BOM/CPL、DFM 和真实验收；
 - Owner：制造负责人。
+- 状态：Accepted for Phase 1，JLCPCB/JLC Assembly 为首个 profile。
 
 ### Q10. 首发器件供应商和地区？
 
@@ -96,36 +107,42 @@
 - 需要确认：API 账户、商业条款、目标币种、库存 TTL；
 - 影响：选型、成本、数据许可和可用性；
 - Owner：供应链负责人。
+- 状态：Accepted as adapter priority；API 账户、商业条款、币种与 TTL 仍为外部输入。
 
 ### Q11. 自动生成的库由谁批准？
 
 - 推荐默认：项目级硬件/PCB 双人检查；提升组织共享库再做一次 librarian 审查；
 - 影响：速度与严重逃逸风险；
 - Owner：硬件/PCB 负责人。
+- 状态：Accepted，项目级双人检查，组织共享再增加 librarian review。
 
 ### Q12. Production Release 需要哪些角色？
 
 - 推荐默认：硬件、PCB/制造、测试、供应链；低风险小团队可由授权人员兼任但身份仍分角色记录；
 - 影响：权限模型和用户流程；
 - Owner：质量负责人。
+- 状态：Accepted，角色可由同一授权人员兼任，但 attestation 必须按角色独立记录。
 
 ### Q13. 是否允许 Agent 自动创建 warning waiver？
 
 - 推荐默认：不允许。Agent 只能提出带证据的 waiver draft；
 - 影响：安全与自动化完成率；
 - Owner：质量 + 硬件负责人。
+- 状态：Accepted，Agent 只能提交 waiver draft。
 
 ### Q14. 首发是否真实下单和制作样板？
 
 - 推荐默认：必须；没有样板就只能完成到 Manufacturing Candidate；
 - 影响：预算、周期和量产声明；
 - Owner：项目负责人。
+- 状态：Accepted，没有真实样板只能停在 Manufacturing Candidate。
 
 ### Q15. 商业发布是否分发 Freerouting？
 
 - 推荐默认：Phase 0 法务评审后决定；可先作为独立可选依赖；
 - 影响：GPL 合规、安装体验和自动布线可用性；
 - Owner：法务 + 技术负责人。
+- 状态：Architecture accepted / commercial distribution blocked pending legal review。
 
 ## 3. P1 工程问题
 
@@ -324,17 +341,53 @@
   多主机数日工作流，或客户强制 Azure/私有 durable workflow 基础设施。
 - 关联文档：`12-agent-runtime-reference-architecture.md`。
 
-## 7. 建议第一次需求评审议程
+### DEC-2026-011：状态所有权采用单向权威矩阵
+
+- 日期：2026-08-19
+- 状态：Accepted
+- 选择：daemon 独占 JIR/revision/draft/pointer/validation/gate；Runtime 独占 session/run/tool/approval/event；
+  UI 仅拥有视图状态；组织 release boundary 独占生产签名和撤销。
+- 约束：Runtime/UI 可保存带 epoch/sequence 的观察值，但不能反向移动设计 pointer 或写阶段。
+- 关联文档：`13-authoritative-boundaries-and-lifecycle.md`。
+
+### DEC-2026-012：Revision、成熟度与 Production Release 分离
+
+- 日期：2026-08-19
+- 状态：Accepted
+- 选择：RevisionSnapshot 只表示 canonical immutable design content；创建者和时间进入 CommitRecord，草稿进入
+  DraftSession，待审设计进入 ChangeProposal，接受 proposal 才 CAS 移动 project head；MaturityAssessment 绑定
+  revision/toolchain/profile/rules/evidence；Production Release 与撤销分别是独立签名的 append-only record。
+- ID 规则：RevisionId 覆盖 snapshot 全部规范字段；验证必须重算 ID、graph hash 和 journal linkage。
+- 负面影响：需要迁移当前 `RevisionStatus`、store schema 和 generated bindings。
+- 关联文档：`13-authoritative-boundaries-and-lifecycle.md`、`14-design-convergence-audit-and-plan.md`。
+
+### DEC-2026-013：Sidecar 明确区分 owner mode 与正式传输
+
+- 日期：2026-08-19
+- 状态：Accepted
+- 选择：当前桌面包为 `desktop-owned`，Tauri 退出必须清理自己启动的子进程；未来 attached/headless 由外部
+  owner lease 管理。stdin 只做 bootstrap；Runtime 正式 API 与 daemon JDP 分别使用 versioned pipe/UDS。
+- 负面影响：需要新增 Runtime 本地 RPC server，现有 stdio dispatcher 只保留为集成 harness。
+- 关联文档：`10-rust-tauri-platform-architecture.md`、`13-authoritative-boundaries-and-lifecycle.md`。
+
+### DEC-2026-014：Foundation integration 不等于 Phase 0 product exit
+
+- 日期：2026-08-19
+- 状态：Accepted
+- 选择：五会话结果统一称为 foundation integration；只有 07 号路线图全部退出条件通过才称 Phase 0 product
+  exit，Production Release 继续要求 G0-G8、组织签名和真实样板。
+- 关联文档：`14-design-convergence-audit-and-plan.md`。
+
+## 7. 后续外部确认议程
 
 建议 90 分钟，参与者包括产品、硬件、PCB/制造、Agent/runtime 和供应链：
 
-1. 10 分钟：确认产品用户和“生产发布”定义；
-2. 15 分钟：确认 MVP 支持/禁止板型；
-3. 20 分钟：确认黄金板完整需求；
-4. 15 分钟：确认 JDL/JIR/JDP 命名、Rust/Tauri 实现基线、Eval runtime 抽包与本地/云边界；
-5. 10 分钟：确认工厂、供应商和库策略；
-6. 10 分钟：确认签核角色和真实样板预算；
-7. 10 分钟：分配 Phase 0 spike owner、截止时间和验收证据。
+1. 15 分钟：签核黄金板具体电气、机械、成本和数量参数；
+2. 15 分钟：确认模型、供应商 API 账户、地区、币种和数据外发条款；
+3. 15 分钟：确认 Freerouting/第三方库的商业分发与 NOTICE 方案；
+4. 15 分钟：确认组织身份、角色兼任、发布签名和撤销政策；
+5. 15 分钟：确认工厂 DFM、真实下单和样板预算；
+6. 15 分钟：为上述外部门禁确定责任人、日期和可接受证据。
 
-评审后更新所有 Proposed 项，并为每个结论新增 DEC 记录。P-002、P-003、P-008、P-011、P-012、P-013、
-P-014、P-015 已由本轮架构评估关闭。
+外部事实确认后更新对应状态和 DEC。除非达到各决策的重新评审触发条件，不重新打开已经接受的 JIR/JDP、
+Rust/Runtime/Tauri、权威所有权和发布安全边界。

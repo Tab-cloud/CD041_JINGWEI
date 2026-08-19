@@ -1,6 +1,6 @@
 # 验证体系与生产发布门禁
 
-> 版本：0.3  
+> 版本：0.4
 > 日期：2026-08-19  
 > 状态：待硬件、PCB、制造和测试负责人评审
 
@@ -26,7 +26,9 @@
 | L4 | Prototype Verified | 样板按测试计划通过 | 批量工艺/供应链已放行 |
 | L5 | Production Released | 所有要求的 DFM、测试、供应链和具名签核有效 | 永久有效或任何变更无需复核 |
 
-UI 必须始终显示真实等级和未完成门禁。
+L0-L4 由绑定 revision 和全部 lock/evidence 的 `MaturityAssessment` 计算；L5 只由有效 L4 assessment 与组织签名
+`ReleaseRecord` 的组合投影产生。撤销记录、证据失效或 bytes/hash 不一致都会取消 L5 投影，但不修改原 revision
+或 ReleaseRecord。UI 必须始终显示真实等级和未完成门禁。
 
 ## 3. 阶段门禁
 
@@ -143,7 +145,7 @@ UI 必须始终显示真实等级和未完成门禁。
 
 通过条件：
 
-- G0-G7 均对当前 candidate 有效；
+- G0-G7 均对 ReleaseRequest 绑定的精确 revision 和 lock/evidence set 有效；
 - AVL/替代料、采购数量和库存风险复核；
 - 生产测试/烧录/校准方案可执行；
 - 质量、可追溯性、序列号和返修策略明确；

@@ -543,6 +543,10 @@ revision 后才能进入发布流程。
 
 ## 17. Phase 0 验收
 
+以下是完整 Phase 0 product exit 条件，不因五会话 foundation 已合并而自动通过。当前逐项状态见
+`14-design-convergence-audit-and-plan.md`；其中真实 UI adapter、reconciliation、完整 KiCad round-trip、签名
+安装和黄金板闭环仍为阻塞项。
+
 - 一套由 Rust 类型生成的版本化 JIR/JDP JSON Schema、client binding 和迁移策略；
 - 一套最小 JDL grammar/AST/formatter；
 - 一套 JDP query/patch/validate 协议；

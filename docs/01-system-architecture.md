@@ -1,8 +1,8 @@
 # Jingwei-Agent 系统架构
 
-> 版本：0.5  
+> 版本：0.6
 > 日期：2026-08-19  
-> 状态：待技术评审
+> 状态：Accepted；状态所有权与生命周期以 `13-authoritative-boundaries-and-lifecycle.md` 为准
 
 ## 1. 架构原则
 
@@ -116,15 +116,19 @@
 
 ### 4.1 控制面
 
-控制面保存项目当前阶段、任务、审批、锁、问题、签核和 revision 指针。JDP transaction 与 Eval ToolExecution
-关联，但 EDA 对象本身由 JIR store 管理。
+Runtime 控制面保存 session、input、run、model attempt、ToolExecution、Runtime approval 和 durable event。
+它可以缓存带 daemon epoch/sequence 的 `observedRevision`、finding、gate 和 release projection，但不拥有项目
+project head、draft head、change proposal、对象锁、waiver validity、阶段或签核终态。后者由 daemon/release domain 根据持久
+设计事实计算。JDP transaction 与 ToolExecution 关联，但 EDA 对象和设计指针只由 JIR store 管理。
 
 关键对象：
 
-- `Project`、`DesignRevision`、`ChangeSet`；
-- `DesignIntent`、`DecisionRecord`、`Issue`；
-- `ToolExecution`、`ApprovalRequest`、`ReleaseRecord`；
-- `ArtifactManifest`、`ValidationRun`。
+- Runtime owner：`Session`、`Input`、`Run`、`ModelAttempt`、`ToolExecution`、`ApprovalRequest`；
+- daemon owner：`Project`、`DesignRevision`、`DraftSession`、`ChangeSet`、`DesignIntent`、`Issue`、`Waiver`、
+  `ValidationRun`、`MaturityAssessment` 和 `ArtifactManifest`；
+- organization release boundary：`ReleaseRecord`、角色 attestation、签名与 revoke record。
+
+完整矩阵见 `13-authoritative-boundaries-and-lifecycle.md`。任何 Runtime/UI 中的项目阶段都只是可重建投影。
 
 ### 4.2 设计面
 

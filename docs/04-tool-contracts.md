@@ -199,8 +199,9 @@ interface RuntimeToolDescriptor {
 | `dfm_report_import` | 新 artifact/issues | 工厂问题与对象映射 | read-external/write-project |
 | `prototype_test_record` | 新 test record | 计划、样本、数据、结论和附件 | named engineer |
 | `release_readiness` | 无/报告 | 缺失门禁与有效签核 | read-project |
-| `production_release` | 不可逆业务状态 | 签名 manifest 和发布记录 | multi-role approval |
-| `release_revoke` | 状态变更 | 撤销原因和影响批次 | authorized approval |
+| `production_release_request` | release request | 固定 candidate/assessment/manifest hash 与缺失 attestation | release-manager request |
+| `release_record_verify` | 只读验证/导入引用 | 组织签名 ReleaseRecord 的验证结果 | daemon + signer trust |
+| `release_revoke_request` | revoke request | 撤销理由、release/批次影响范围 | release-manager request |
 
 ### 3.8 兼容与通用设计操作
 
@@ -431,22 +432,23 @@ interface ManufacturingExportInput {
 前置检查：revision 不可脏、profile 有效、ERC/DRC 与自定义验证属于该 revision、关键 issue 关闭、库全部批准。
 输出目录只能新建，不能覆盖已有候选。
 
-### 4.10 `production_release`
+### 4.10 `production_release_request` / `release_record_verify`
 
 ```ts
-interface ProductionReleaseInput {
+interface ProductionReleaseRequestInput {
   releaseCandidateId: string
-  approvals: Array<{
-    role: "hardware" | "pcb" | "manufacturing" | "test" | "supply-chain"
-    approvalId: string
-  }>
-  prototypeTestRecordIds: string[]
-  manufacturingDfmRecordId: string
+  maturityAssessmentId: string
+  expectedArtifactManifestHash: string
   releaseNotes: string
 }
 ```
 
-该工具不能由通用 shell、文件复制或直接数据库写入替代。缺少任何风险 profile 要求的签核时返回明确缺口。
+daemon 只创建不可变 release request，并从权威 ledger 查询 attestation/DFM/test record；客户端提交的 actor、role
+或 approval ID 不能直接成为发布事实。独立组织 signer 重新验证 request、manifest、assessment、角色和分离职责，
+签名后返回 `ReleaseRecord`；daemon 只验证签名和保存引用。缺少 signer 时该能力必须报告 unavailable。
+
+通用 Agent、普通 Runtime approval、shell、文件复制或直接数据库写入都不能创建 Production Release。撤销同样
+由组织 release boundary 追加签名 revoke record，不删除旧发布。
 
 ## 5. 权限级别
 

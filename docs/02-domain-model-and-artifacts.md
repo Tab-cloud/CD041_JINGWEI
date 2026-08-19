@@ -1,8 +1,8 @@
 # Jingwei-Agent 领域模型与制品规范
 
-> 版本：0.4  
+> 版本：0.5
 > 日期：2026-08-19  
-> 状态：待技术评审
+> 状态：Accepted as conceptual model；wire shape 以 Rust schema 和 13 号权威边界规范为准
 
 > 实现约定：本章的 `interface`/YAML/JSON 片段用于说明 wire shape。规范领域类型由 Rust crate 定义，
 > JSON Schema 与 TypeScript client binding 从 Rust 类型生成，禁止手工维护第二套模型。
@@ -33,7 +33,8 @@ JIR 是唯一规范化设计真相；JDL、KiCad、Gerber、BOM 和渲染图都�
 
 ### 2.1 标识规则
 
-- 所有领域对象使用不可变 UUID；
+- 所有 wire ID 都是有类型、不可解释的 opaque string；默认生成器可使用带类型前缀的 UUID，但客户端不得解析
+  或依赖其格式，黄金 fixture 可以使用稳定可读 ID；
 - 名称、参考位号、网络名和坐标都是可变属性，不是身份；
 - 外部器件使用 `manufacturer + normalized MPN` 作为业务唯一键，同时保留供应商料号；
 - 库资产由 `type + logicalName + contentHash` 唯一标识；
@@ -42,24 +43,55 @@ JIR 是唯一规范化设计真相；JDL、KiCad、Gerber、BOM 和渲染图都�
 ### 2.2 Revision
 
 ```ts
-interface DesignRevision {
+interface RevisionSnapshot {
   id: string
   projectId: string
   parents: string[]
-  createdAt: string
-  createdBy: ActorRef
-  changeSetId: string
-  intentRevision: string
-  toolchainLockId: string
-  artifactManifestId: string
-  jirSchemaVersion: string
+  schemaVersion: string
   operationJournalHash: string
-  status: "draft" | "candidate" | "verified" | "released" | "superseded"
+  graphHash: string
+}
+
+interface RevisionCommitRecord {
+  id: string
+  revisionId: string
+  createdAt: string
+  actor: AuthenticatedActorRef
+  correlation: {
+    sourceKind: "agent-tool" | "ui-command" | "cli-command" | "system-migration"
+    sourceId: string
+    requestId: string
+  }
+}
+
+interface ChangeProposal {
+  id: string
+  baseProjectHead: string
+  proposedRevision: string
+}
+
+interface ProposalDecisionRecord {
+  id: string
+  proposalId: string
+  action: "accept" | "reject" | "withdraw"
+  actor: AuthenticatedActorRef
+  issuedAt: string
 }
 ```
 
 已提交 revision 不可原地修改。JDL 编译、GUI 修改、Agent patch 和外部 KiCad 编辑导入都通过 JDP transaction
-形成新 revision。
+形成新 revision。DraftSession 保存独立 draft head；待审结果进入 immutable ChangeProposal；accept/reject/withdraw
+由 append-only ProposalDecisionRecord 表达。只有 daemon 把有效 accept decision 与 compare-and-swap 移动 project
+head 放进同一事务，proposal 的有效状态由记录投影计算。
+
+`draft`、`candidate`、`verified`、`released` 和 `superseded` 都不是 revision snapshot 状态：验证成熟度由绑定
+revision/toolchain/profile/rule/evidence 的 `MaturityAssessment` 表达；Production Release 是独立签名 record；
+superseded 是 project head/proposal/release 关系。当前 Rust `RevisionStatus` 是待 Slice 0 migration 的 Phase 0
+过渡类型，不能据此开放发布能力。
+
+`RevisionId` 只由 RevisionSnapshot 的全部 canonical 字段生成。创建时间、actor、artifact/evidence 和审批不进入
+snapshot metadata，分别由 CommitRecord、Assessment、Manifest 和 Attestation 表达；验证器必须重算完整 ID，
+不能只校验 graph hash。
 
 ### 2.3 JIR Entity 与 Edge
 
@@ -67,25 +99,35 @@ interface DesignRevision {
 interface JirEntity<TKind extends string, TProps> {
   id: string
   kind: TKind
-  parentId?: string
-  tags: string[]
-  props: TProps
-  sourceRefs: SourceRef[]
-  revisionCreated: string
-  revisionUpdated: string
+  schemaVersion: string
+  properties: TProps
+  provenance: {
+    sourceKind: string
+    evidenceRefs: string[]
+    generator?: string
+    generatorVersion?: string
+  }
+  editControl: {
+    policy: "ai-editable" | "ask-before-change" | "locked"
+    lastModifiedBy?: string
+    lastOperationId?: string
+    lockedBy?: string
+    lockReason?: string
+  }
 }
 
 interface JirEdge {
   id: string
-  kind: "contains" | "connects" | "implements" | "constrained-by" |
-        "derived-from" | "verified-by" | "projected-to"
+  kind: string
   from: string
   to: string
-  props?: Record<string, unknown>
+  properties: CanonicalValue
 }
 ```
 
-对象与关系都可独立查询、引用和 diff。外部格式对象 ID 通过 projection map 关联，不进入核心身份空间。
+Entity/edge kind 使用 namespaced open registry，每个 kind 有独立 schema version；核心 graph 只保证规范值、唯一 ID
+和 referential integrity，领域约束由注册 validator 强制执行。对象与关系都可独立查询、引用和 diff。外部格式
+对象 ID 通过 projection map 关联，不进入核心身份空间。
 
 ### 2.4 Operation Journal
 
@@ -564,8 +606,10 @@ project/
     locks/
 ```
 
-`design/` 是权威源；`projections/` 可重新生成。缓存不进入发布包。供应商原始响应和数据手册是否可随项目
-分发由许可证决定；不可分发时仅保存哈希、定位和受限本地引用。
+`.jingwei/revisions/`、pointer log、operation journal 和内容寻址制品是 daemon store 的权威源；`design/` 中的
+JDL/JIR 文本是可审查、可重建的 source projection，不能绕过 transaction 直接覆盖权威 snapshot。
+`projections/` 可重新生成，缓存不进入发布包。供应商原始响应和数据手册是否可随项目分发由许可证决定；
+不可分发时仅保存哈希、定位和受限本地引用。
 
 ## 13. 语义 Diff
 
@@ -585,6 +629,6 @@ JDL 文本 diff 只作为辅助；发布和审查使用基于 JIR entity/edge/co
 ## 14. 数据保留
 
 - 草稿 revision 可按策略压缩，但保留具名决策和已引用证据；
-- 所有 candidate/released revision、验证报告、manifest 和批准不可丢弃；
+- 所有 proposal revision、MaturityAssessment、ReleaseRecord/revoke record、验证报告、manifest 和批准不可丢弃；
 - 外部价格/库存快照按项目策略设 TTL，并明确显示过期；
 - 删除项目时区分本地源、缓存、凭据、外部云副本和发布归档。

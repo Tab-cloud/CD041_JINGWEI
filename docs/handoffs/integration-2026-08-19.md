@@ -69,4 +69,6 @@ Agent 会话与编辑画布仍标记为 `VERSIONED MOCK · NOT REAL DAEMON EVIDE
 5. 当前 NSIS 安装包未签名，也没有完成更新、回滚、SBOM/来源证明和 macOS/Linux sidecar 打包。
 6. 参考板的自动检查通过不能提升为量产结论；仍需制造商 DFM、样板、上电/功能/可靠性验证及具名工程师签核。
 
-因此本轮验收结论是 **Phase 0 integration accepted / Production Release blocked**。
+因此本轮验收结论是 **Foundation integration accepted / Phase 0 product exit blocked / Production Release blocked**。
+完整边界审计和后续统一计划见 `../13-authoritative-boundaries-and-lifecycle.md` 与
+`../14-design-convergence-audit-and-plan.md`。

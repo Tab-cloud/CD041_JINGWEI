@@ -1,8 +1,8 @@
 # 开发路线图与验收计划
 
-> 版本：0.5  
+> 版本：0.6
 > 日期：2026-08-19  
-> 状态：待排期；阶段工期是工作量级别，不是承诺日期
+> 状态：Foundation 已集成；Phase 0 product exit 按 14 号统一计划推进
 
 ## 1. 交付策略
 
@@ -30,6 +30,10 @@ provider streaming、MCP、审批和 session store；Rust 边界集中在 EDA da
 ## 2. Phase 0：技术可行性与基线
 
 目标工作量：4-8 工程周。增加的投入用于建立可长期演进的 AI 原生语义内核，而非一次性 KiCad 生成脚本。
+
+五会话已完成的是 Phase 0 foundation integration，不等于本章退出条件全部通过。真实 UI adapter、跨进程
+reconciliation、完整 JIR↔KiCad round-trip、真实供应链/Freerouting、签名安装和黄金样板仍然阻断 product exit。
+逐项状态与统一实施顺序见 `14-design-convergence-audit-and-plan.md`。
 
 ### 2.1 交付
 
@@ -107,7 +111,8 @@ provider streaming、MCP、审批和 session store；Rust 边界集中在 EDA da
 - 目标 JLCPCB 打样与装配；
 - 低风险室内环境。
 
-这只是推荐默认，开始编码前应由产品和硬件负责人确认。
+该板已冻结为 Phase 1 工程基线，用于 schema、adapter 和验收设计；进入真实器件采购与样板前仍需硬件负责人
+确认 MCU、精度、接口保护、成本、尺寸和目标数量等具体参数。
 
 ### 3.2 能力
 

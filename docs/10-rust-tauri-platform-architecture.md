@@ -1,6 +1,6 @@
 # Rust 与 Tauri 跨平台实现架构
 
-> 决策版本：1.2  
+> 决策版本：1.3
 > 日期：2026-08-19  
 > 状态：Accepted for implementation  
 > 决策：Jingwei 的 EDA 设计内核、领域工具和设计状态服务统一使用 Rust；Agent 控制面复用 Eval 的
@@ -71,9 +71,14 @@ Qt、Web 或专用原生客户端，而无需迁移 JIR 或重写设计工具。
 - Agent 模式：Jingwei Agent Runtime 连接同一 daemon，不通过前端转发大对象；
 - CLI/CI 模式：优先连接已有 daemon；不存在时启动受工作区锁保护的 headless 实例；
 - 版本不兼容时拒绝连接并给出升级/迁移操作，不尝试静默降级协议；
-- Tauri 退出不应杀死仍有合法任务/client 的 runtime 或 daemon；最终生命周期策略由各自 owner lease、任务
-  终态和空闲超时决定；
+- 当前 Windows Phase 0 使用 `desktop-owned`：Tauri 只关闭自己启动的 runtime/daemon 子进程，并在退出时
+  确认无残留；该模式不承诺 UI 关闭后长任务继续运行；
+- 后续 `attached`/`headless` 模式由外部 supervisor 持有 owner lease，Tauri 只断开，不杀外部进程；支持前
+  必须实现 client refcount、attach authorization、任务终态与 idle timeout；
 - 两个 sidecar 独立健康、独立 epoch、独立崩溃恢复。runtime 不拥有 JIR，daemon 不拥有会话/provider 状态。
+
+三种 owner mode 的权威定义见 `13-authoritative-boundaries-and-lifecycle.md`。不能把 future persistent mode 的
+规则套到当前 desktop-owned 实现，也不能为保留任务而留下无 owner 的孤儿进程。
 
 ## 4. Rust workspace
 
@@ -139,6 +144,10 @@ jingwei-agent/
 
 Phase 0 优先可审查、可抓取和易做黄金测试的 JSON。只有 benchmark 证明序列化是瓶颈后，才为 display list 或
 大批量几何增加 MessagePack/Protobuf 等二进制通道；不能让两种编码产生两套语义模型。
+
+Runtime control API 与 JDP 是两个协议面：daemon 继续使用 JDP named pipe/UDS；Runtime 必须使用由
+`agent-protocol` 定义的独立本地 endpoint。stdin 只传一次 bootstrap secret/config，当前 JSON-lines stdio RPC
+仅属于 Phase 0 harness，不能作为生产多 client transport，也不能与 stdout 日志/handshake 混流。
 
 ### 5.2 本地认证
 
