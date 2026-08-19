@@ -1,7 +1,7 @@
 # Jingwei-Agent 开发文档
 
 > 文档基线：2026-08-19  
-> 状态：需求梳理 v0.6，架构基线已拆分为五会话并行开发任务  
+> 状态：需求梳理 v0.7，五会话 Phase 0 已汇总到独立集成分支并完成有边界的验收
 > 产品中文名：精卫 Agent（取自“精卫填海”）
 > 目标：从自然语言需求生成可审查、可复现、可制造的电子设计工程与制造包。
 
@@ -52,6 +52,7 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 | [10-rust-tauri-platform-architecture.md](docs/10-rust-tauri-platform-architecture.md) | Rust workspace、daemon、JDP 本地 IPC、Tauri 与跨平台打包决策 | 实现基线 |
 | [11-native-workbench-preview-and-editing.md](docs/11-native-workbench-preview-and-editing.md) | 原理图/PCB 交互预览、人工编辑、人机协作、事务和验收 | 产品与交互基线 |
 | [12-agent-runtime-reference-architecture.md](docs/12-agent-runtime-reference-architecture.md) | Eval/Codex/OpenCode 参考架构、成熟框架选型、会话/工具/审批/恢复与实施门禁 | Agent 控制面实现基线 |
+| [integration-2026-08-19.md](docs/handoffs/integration-2026-08-19.md) | 五会话汇总、提交映射、集成门禁、测试证据与剩余生产阻塞项 | Phase 0 集成验收基线 |
 
 ### 五会话开发任务
 
@@ -70,17 +71,14 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 
 ### 当前跨运行时追踪门禁
 
-任务 01 已验证 TypeScript Runtime 内部 span、脱敏规则和 OTLP/HTTP collector wire payload，但任务 02 尚未正式
-交付以下制品：
+`runtime → JDP → Rust daemon` 跨运行时 trace-context 接收门禁已经解除：正式 Rust schema 生成的
+`bindings/typescript/**` 被 Runtime adapter 直接消费，TypeScript/Bun 通过 Windows named pipe 向真实
+`jingwei-daemon` 发送 W3C trace context，daemon 校验 trace/span ID 并记录同 trace 的 child span。集成测试
+`packages/agent-tools/test/rust-daemon-trace-integration.test.ts` 覆盖了该真实跨进程路径；Runtime OTLP 导出的
+脱敏也由独立 wire test 覆盖。
 
-- 可启动并处理正式 JDP 请求的 `jingwei-daemon`；
-- 由 Rust schema 生成并纳入产品集成路径的 `bindings/typescript/**`；
-- Rust daemon 接收、校验 trace context 并建立 child span 的接口。
-
-因此，`runtime → JDP → Rust daemon` 跨运行时追踪当前状态为 **BLOCKED / 未验收**。任何 Runtime-only
-测试、录制式 JDP client、生成器临时输出或脱敏示例都不能作为跨运行时追踪通过证据。解除门禁必须让真实
-Runtime `jdp.request` 与真实 daemon handler span 到达同一 collector，并验证相同 trace ID、正确 parent span ID
-以及敏感字段未进入 telemetry。
+这不代表全部生产可观测性已经完成：collector 部署、高可用采集、长期留存与操作告警仍属于后续运维门禁。
+商业 OpenAI live test 也因当前环境缺少 `OPENAI_API_KEY` 和 `JINGWEI_OPENAI_MODEL` 而明确跳过。
 
 ## 3. 文档权威顺序
 

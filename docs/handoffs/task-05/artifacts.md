@@ -1,5 +1,34 @@
 # Task 05 artifacts
 
+## Integration revalidation (current)
+
+Task 05's original mock-only artifact record remains below as historical handoff evidence. The integration branch now produces
+and verifies a larger installer with real Windows runtime and daemon sidecars:
+
+```text
+app/src-tauri/target/release/bundle/nsis/Jingwei Agent Dev_0.1.0_x64-setup.exe
+size: 30,461,443 bytes
+SHA-256: 6B5444C3A6FC2E4CADCB85390B3B6BB77B3F2914ECB6C974A9807FA067D9AC60
+signature: NotSigned
+
+installed jingwei-workbench.exe
+size: 11,902,976 bytes
+SHA-256: 81615129DFF4C8D416647A5E2845358FFE94C1BE35563A18794404ABA1918AAA
+
+installed jingwei-agent-runtime-x86_64-pc-windows-msvc.exe
+size: 113,857,536 bytes
+SHA-256: 5FDA5F7162CD83BC1ECBE48D5E6457B574FD77C08F0968FE133A1B689D92167F
+
+installed jingwei-daemon-x86_64-pc-windows-msvc.exe
+size: 3,932,672 bytes
+SHA-256: CF580837946D6331E966C6545C5777CE3DC2A826787209B1E8E8BCDFDF9136C2
+```
+
+The installed app reached healthy for both sidecars after one recheck, used binaries from the installed resource directory,
+switched dark to light theme, displayed the model/API configuration drawer and missing environment-variable reasons, preserved
+the mock-data and Production Release boundaries, and left no Jingwei processes after exit. Machine-readable evidence is in
+`testdata/sidecars/windows-installed-app-gate.json` and `testdata/sidecars/windows-sidecar-gate.json`.
+
 ## Build artifacts
 
 Build outputs are intentionally ignored and are not committed.
@@ -19,7 +48,8 @@ size: 499 bytes
 SHA-256: E88E29F5D2E6DE385653174E28EE0095F503A796ACF43417496E2AFF5E3ACBA9
 ```
 
-The installer and executable are development-only. They are not signed and contain no real runtime/daemon sidecars.
+These original Task 05 installer hashes are development-only historical artifacts. They were unsigned and contained no real
+runtime/daemon sidecars; use the integration revalidation section above for the current package.
 
 The release executable was launched after the model-settings change. The native drawer exposed provider, HTTPS endpoint, model ID, password-style API Key input, environment/local status cards, and `SKIPPED · 未执行`. No configuration or credential was saved during this visual gate.
 
@@ -48,4 +78,5 @@ current 精卫 icon/title. The current rebuilt executable icon is verified separ
 - `app/src/mocks/v0.1/fixtures.ts` contains UI-consumable versioned mock state.
 - `testdata/ui/v0.1/scenario-manifest.json` identifies the mock scenarios and states that they are not production evidence.
 - `testdata/ui/v0.1/benchmark-profile.json` records the synthetic 10k/100k display-list targets.
-- `app/src-tauri/sidecars/manifest.json` records both real sidecars as not bundled and prevents a false launch-success claim.
+- `app/src-tauri/sidecars/manifest.json` now records pinned hashes for both bundled Windows sidecars. The UI still labels mock
+  design data separately from real process health.

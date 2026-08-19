@@ -4,9 +4,9 @@
 
 Task 05 now provides a self-contained Tauri 2 + React 19 + TypeScript desktop workbench under `app/`. The application implements the task-book's four-region information architecture, semantic Canvas2D schematic/PCB rendering, selection and cross-probe, preview-to-commit editing, revision-aware undo/redo, AI patch review, durable runtime/tool/approval projection, reload recovery, and a constrained native shell.
 
-The top bar now also opens a native model-provider drawer. It separates `OPENAI_API_KEY` / `JINGWEI_OPENAI_MODEL` environment status from the local desktop profile, accepts provider endpoint/model/API Key input, stores the key in Windows Credential Manager, and never reads the key back into React. With the current missing environment variables and unavailable Runtime sidecar, the commercial OpenAI endpoint is visibly `SKIPPED · 未执行`.
+The top bar now also opens a native model-provider drawer. It separates `OPENAI_API_KEY` / `JINGWEI_OPENAI_MODEL` environment status from the local desktop profile, accepts provider endpoint/model/API Key input, stores the key in Windows Credential Manager, and never reads the key back into React. With the current missing environment variables and no saved local model/key, the commercial OpenAI endpoint is visibly blocked and not executed.
 
-The checked-in build is intentionally a development mock. It displays `VERSIONED MOCK · NOT REAL DAEMON EVIDENCE` in the main window, exposes separate Mock Runtime and Mock JDP connection labels, and keeps Production Release blocked. No fixture, screenshot, test, or package is presented as evidence that the real Runtime, JDP daemon, EDA kernel, solver, ERC/DRC engine, or manufacturing flow has run.
+The checked-in UI is intentionally a development mock. It displays `VERSIONED MOCK · NOT REAL DAEMON EVIDENCE` in the main window, exposes separate Mock Runtime and Mock JDP data labels, and keeps Production Release blocked. The integration branch additionally bundles real Runtime and daemon processes, but their green process-health indicators remain separate from the mock design-data ribbon.
 
 ## Implemented scope
 
@@ -31,27 +31,28 @@ Real implementation in this task:
 - Canvas2D display-list construction, culling, hit testing, render scheduling, and interaction state machine.
 - UI facade contracts, reducer boundaries, recovery rules, security validation, and test suite.
 - Local desktop interactions recorded in the evidence directory.
+- On the integration branch, pinned Windows Runtime/daemon binaries, supervised startup, versioned handshake, installed resource resolution, and exit cleanup.
 
 Versioned simulation:
 
 - Runtime events, model/tool attempts, approval records, solver output, JDP responses, geometry, findings, rules, and semantic patches.
 - `sessionStorage` persistence used only to emulate server-backed mock draft/event state across reload. Local selection, hover, and ghost preview are deliberately not restored.
-- Sidecar manifest entries are `bundled: false`; the native shell reports the real sidecars as unavailable instead of silently substituting the mock clients.
+- The workbench's `RuntimeClient` and `DesignClient` are still versioned mocks. Real sidecar process health does not substitute for those data adapters.
 
 ## Acceptance summary
 
-- Frontend: lint, typecheck, production build, 36 Vitest tests, and coverage command passed.
-- Native shell: format check, Clippy with warnings denied, and 12 Rust tests passed, including an isolated Credential Manager round trip.
+- Frontend: lint, typecheck, production build, and 40 Vitest tests passed.
+- Native shell: targeted format check, Clippy with warnings denied, and 13 Rust tests passed, including an isolated Credential Manager round trip.
 - Performance fixtures: 10k and 100k primitive culling gates passed; the final 100k run culled to 3,168 visible primitives in 5.27 ms.
-- Packaging: unsigned current-user NSIS package built successfully; the release executable was launched and exercised through Windows desktop control.
+- Packaging: unsigned current-user NSIS package built successfully, installed to an isolated smoke directory, and exercised through Windows desktop control.
 - Desktop checks: wire, symbol move, footprint move, via, track, finding cross-probe, lock, AI patch, undo/redo, approval timeline, native project picker, sidecar recheck, and reload recovery were exercised.
 - The rebuilt release executable was opened after the provider change; its model drawer showed both environment variables absent, desktop configuration incomplete, and the commercial endpoint test skipped. No key was entered and no endpoint request was made.
 
 ## Integration order
 
-1. Task 01 should replace the mock runtime construction with an adapter implementing `RuntimeClient`, preserving durable event sequence and approval semantics.
-2. Task 02 should replace the mock design construction with generated JDP bindings implementing `DesignClient`; transport and protocol types must stay outside React components.
+1. The real Runtime sidecar is bundled; the next integration slice must replace the workbench's mock runtime construction with a transport adapter implementing `RuntimeClient`, preserving durable event sequence and approval semantics.
+2. Formal Rust-generated JDP bindings and a real daemon transport are present; the next slice must replace the mock design construction with a `DesignClient` adapter while keeping transport and protocol types outside React components.
 3. Tasks 03 and 04 should provide display-list, query, preview, snap, edit-candidate, validation, and commit results through the daemon. The canvas remains a projection; the kernel transaction service owns revision commits.
-4. Release engineering should bundle signed runtime/daemon sidecars, update the manifest with exact version/target/SHA-256 values, sign the installer, and repeat the native acceptance gates with non-mock evidence.
+4. Release engineering must sign the sidecars and installer, add update/rollback and provenance gates, and repeat installed-app acceptance with real design data.
 
 See [interfaces.md](interfaces.md), [known-gaps.md](known-gaps.md), [commands-and-results.md](commands-and-results.md), [artifacts.md](artifacts.md), and [changed-files.txt](changed-files.txt).

@@ -20,7 +20,10 @@ Generated `node_modules/`, `dist/`, `coverage/`, and Rust `target/` directories 
 
 The current build uses contract version `0.1` mock clients. In Tauri only, the mock server snapshot is kept under versioned `sessionStorage` keys so a WebView reload can exercise server-backed draft and durable-cursor recovery. Browser previews do not persist mock server state. This mechanism must be removed with the mock transport and is not a JIR store.
 
-The packaged sidecar manifest marks both runtime and daemon as `bundled: false`. The shell reports them as unavailable and never launches placeholder executables.
+The Windows package now pins and bundles real Runtime and daemon sidecars. The native supervisor verifies SHA-256 plus
+protocol/version/target handshakes, passes bootstrap secrets only over stdin, starts daemon before Runtime, and kills both
+children on application exit. The React workbench still uses versioned mock data adapters, so sidecar process health is never
+presented as real schematic, PCB, ERC/DRC, or manufacturing evidence.
 
 ## Checks
 
@@ -30,10 +33,13 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm build:sidecars
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
 pnpm tauri build --bundles nsis
+pwsh -NoProfile -File ../scripts/verify-windows-sidecars.ps1
 ```
 
-Integration and acceptance evidence is in `../docs/handoffs/task-05/`.
+Integration and acceptance evidence is in `../docs/handoffs/task-05/`, `../docs/handoffs/integration-2026-08-19.md`, and
+`../testdata/sidecars/`.
