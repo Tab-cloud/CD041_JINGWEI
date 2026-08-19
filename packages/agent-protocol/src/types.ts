@@ -1,0 +1,273 @@
+export type JsonPrimitive = string | number | boolean | null
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
+
+export interface JsonSchema {
+  $id?: string
+  type?: string | string[]
+  properties?: Record<string, JsonSchema>
+  required?: string[]
+  additionalProperties?: boolean | JsonSchema
+  items?: JsonSchema
+  enum?: JsonValue[]
+  const?: JsonValue
+  anyOf?: JsonSchema[]
+  oneOf?: JsonSchema[]
+  allOf?: JsonSchema[]
+  minimum?: number
+  maximum?: number
+  minLength?: number
+  maxLength?: number
+  pattern?: string
+  format?: string
+  description?: string
+}
+
+export type DeliveryMode = "steer" | "queue"
+export type RunKind = "root" | "specialist" | "workflow-node"
+export type RunStatus =
+  | "queued"
+  | "running"
+  | "waiting-approval"
+  | "waiting-user"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "quarantined"
+
+export type ToolExecutionStatus =
+  | "recorded"
+  | "authorizing"
+  | "waiting-approval"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "denied"
+  | "unknown"
+
+export type ModelAttemptStatus = "created" | "streaming" | "completed" | "failed" | "cancelled" | "discarded"
+export type Effect =
+  | "read"
+  | "design-write"
+  | "workspace-write"
+  | "process"
+  | "network"
+  | "hardware"
+  | "release"
+export type PolicyDecision = "allow" | "ask" | "deny"
+
+export interface CreateSessionInput {
+  projectId: string
+  workspaceId: string
+  title?: string
+  dataPolicy?: "local" | "organization" | "cloud-approved"
+}
+
+export interface SessionView {
+  id: string
+  projectId: string
+  workspaceId: string
+  title: string
+  dataPolicy: "local" | "organization" | "cloud-approved"
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AdmitInput {
+  sessionId: string
+  clientRequestId: string
+  delivery: DeliveryMode
+  content: string
+  attachmentRefs?: string[]
+}
+
+export interface AdmittedInput extends AdmitInput {
+  id: string
+  sequence: number
+  admittedAt: string
+}
+
+export interface RunView {
+  id: string
+  sessionId: string
+  kind: RunKind
+  ownerAgentId: string
+  parentRunId?: string
+  status: RunStatus
+  output?: string
+  error?: RuntimeFailure
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RuntimeFailure {
+  code: string
+  stage: string
+  summary: string
+  fingerprint: string
+  retryable: boolean
+  objectRefs: string[]
+  evidenceRefs: string[]
+  suggestedActions: Array<{
+    kind: "change-input" | "use-alternative" | "request-user" | "repair" | "abort-release"
+    description: string
+  }>
+}
+
+export interface ApprovalView {
+  id: string
+  sessionId: string
+  runId: string
+  toolCallId: string
+  toolName: string
+  permission: string
+  effects: Effect[]
+  resourceClaims: string[]
+  redactedInput: Record<string, unknown>
+  reason: string
+  scope: ApprovalScope
+  status: "pending" | "approved" | "denied" | "expired" | "cancelled"
+  createdAt: string
+  expiresAt: string
+  decidedAt?: string
+}
+
+export interface ApprovalScope {
+  sessionId: string
+  permission: string
+  resourceClaims: string[]
+  expiresAt?: string
+}
+
+export interface ApprovalReply {
+  approvalId: string
+  decision: "allow-once" | "allow-scope" | "deny"
+  scopeExpiresAt?: string
+}
+
+export interface ArtifactView {
+  id: string
+  sessionId: string
+  mediaType: string
+  byteLength: number
+  sha256: string
+  content?: string
+  createdAt: string
+}
+
+export interface RuntimeCapabilities {
+  protocolVersion: "0.1"
+  deliveries: DeliveryMode[]
+  durableEvents: true
+  approvalScopes: true
+  jdp: JdpCapabilities
+  providers: ProviderCapabilities[]
+}
+
+export interface TraceContext {
+  traceId: string
+  spanId: string
+  traceFlags?: number
+}
+
+export interface DurableEvent<T = unknown> {
+  schemaVersion: "0.1"
+  aggregateId: string
+  sequence: number
+  timestamp: string
+  sessionId?: string
+  runId?: string
+  taskId?: string
+  traceId?: string
+  type: string
+  data: T
+}
+
+export interface RuntimeClient {
+  createSession(input: CreateSessionInput): Promise<SessionView>
+  admitInput(input: AdmitInput): Promise<AdmittedInput>
+  resumeRun(sessionId: string): Promise<RunView>
+  cancelRun(runId: string, reason?: string): Promise<void>
+  events(sessionId: string, afterSequence?: number): AsyncIterable<DurableEvent>
+  listApprovals(sessionId?: string): Promise<ApprovalView[]>
+  replyApproval(input: ApprovalReply): Promise<void>
+  getArtifact(artifactId: string): Promise<ArtifactView>
+  capabilities(): Promise<RuntimeCapabilities>
+}
+
+export interface ProviderCapabilities {
+  provider: string
+  model: string
+  nativeTools: boolean
+  structuredOutput: boolean
+  streaming: boolean
+  reasoning: boolean
+  image: boolean
+  pdf: boolean
+  contextTokens: number
+  outputTokens: number
+  cancellation: boolean
+  retry: "none" | "safe" | "idempotent"
+  idempotency: boolean
+  faultDomain: string
+  dataPolicy: Record<string, string | boolean>
+}
+
+export interface FindingSummary {
+  errors: number
+  warnings: number
+  info: number
+}
+
+export interface JdpCapabilities {
+  protocolVersion: "0.1"
+  operations: string[]
+  reconciliation: boolean
+}
+
+export interface JdpRequest<TInput> {
+  protocolVersion: "0.1"
+  requestId: string
+  idempotencyKey: string
+  workspaceId: string
+  projectId: string
+  operation: string
+  baseRevision?: string
+  deadlineMs?: number
+  dryRun?: boolean
+  input: TInput
+  traceContext?: TraceContext
+}
+
+export interface JdpSuccess<TOutput> {
+  success: true
+  requestId: string
+  executionId: string
+  baseRevision?: string
+  newRevision?: string
+  data: TOutput
+  artifactRefs: string[]
+  evidenceRefs: string[]
+  findings: FindingSummary
+}
+
+export interface JdpFailure {
+  success: false
+  requestId: string
+  executionId?: string
+  error: RuntimeFailure
+}
+
+export interface ExecutionReconciliation {
+  executionId: string
+  idempotencyKey: string
+  status: "not-found" | "running" | "succeeded" | "failed" | "unknown"
+  result?: JdpSuccess<unknown> | JdpFailure
+}
+
+export interface JdpClient {
+  capabilities(): Promise<JdpCapabilities>
+  invoke<TInput, TOutput>(request: JdpRequest<TInput>): Promise<JdpSuccess<TOutput> | JdpFailure>
+  events(aggregateId: string, afterSequence?: number): AsyncIterable<DurableEvent>
+  cancel(taskId: string): Promise<void>
+  reconcile(executionId: string, idempotencyKey: string): Promise<ExecutionReconciliation>
+}

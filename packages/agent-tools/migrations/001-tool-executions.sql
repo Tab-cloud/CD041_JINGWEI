@@ -1,0 +1,20 @@
+CREATE TABLE runtime_tool_executions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  run_id TEXT NOT NULL,
+  tool_call_id TEXT NOT NULL,
+  tool_name TEXT NOT NULL,
+  tool_identity TEXT NOT NULL,
+  input_json TEXT NOT NULL,
+  input_hash TEXT NOT NULL,
+  idempotency_key TEXT,
+  effects_json TEXT NOT NULL,
+  resources_json TEXT NOT NULL,
+  authorization_json TEXT,
+  status TEXT NOT NULL,
+  output_json TEXT,
+  artifact_refs_json TEXT NOT NULL,
+  error_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

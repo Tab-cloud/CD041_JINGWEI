@@ -1,0 +1,19 @@
+{
+  "fixtureVersion": "0.1",
+  "steps": [
+    { "type": "text-delta", "text": "uncommitted draft" },
+    {
+      "type": "tool-call",
+      "id": "partial-call",
+      "name": "design.query",
+      "input": {},
+      "toolIdentity": "stale-uncommitted-identity"
+    },
+    { "type": "error", "code": "transport-reset" }
+  ],
+  "expected": {
+    "attemptStatus": "discarded",
+    "committedText": "",
+    "executedToolCalls": 0
+  }
+}

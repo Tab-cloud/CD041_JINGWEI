@@ -1,0 +1,37 @@
+{
+  "fixtureVersion": "0.1",
+  "cases": [
+    {
+      "id": "input-durable-run-not-started",
+      "expected": "pending input survives SQLite reopen and is drainable"
+    },
+    {
+      "id": "provider-partial-no-finish",
+      "expected": "attempt is discarded and no partial text or tool call is committed"
+    },
+    {
+      "id": "tool-recorded-handler-not-started",
+      "expected": "execution is safe to reauthorize with the same identity and idempotency key"
+    },
+    {
+      "id": "approval-requested-runtime-restart",
+      "expected": "pending approval remains visible and fail-closed after reopen"
+    },
+    {
+      "id": "jdp-committed-response-lost",
+      "expected": "reconcile returns the existing revision; invoke is not repeated"
+    },
+    {
+      "id": "external-tool-terminal-unknown",
+      "expected": "execution enters needs-reconciliation and its resource lease remains quarantined"
+    },
+    {
+      "id": "event-consumer-disconnected",
+      "expected": "read-after history joins live delivery without loss or duplication"
+    },
+    {
+      "id": "runtime-schema-migration-failed",
+      "expected": "store construction fails closed and model execution does not start"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@jingwei/agent-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean"
+  },
+  "dependencies": {
+    "@jingwei/agent-events": "workspace:*",
+    "@jingwei/agent-observability": "workspace:*",
+    "@jingwei/agent-tools": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.4.3"
+  }
+}

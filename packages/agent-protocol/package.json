@@ -1,0 +1,7 @@
+{
+  "name": "@jingwei/agent-protocol",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean" }
+}
