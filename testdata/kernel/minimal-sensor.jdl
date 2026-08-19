@@ -1,0 +1,11 @@
+project SensorNode {
+  interface power_input;
+  block sensing {
+    component U1: "temperature-sensor";
+    net V3V3;
+    property supply_voltage: voltage = 3.3V;
+    connect U1.VDD -> V3V3;
+    constraint supported_voltage = supply_voltage within component_rating;
+    assert U1 powered_by V3V3;
+  }
+}

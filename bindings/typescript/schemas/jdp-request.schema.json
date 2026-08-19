@@ -1,0 +1,80 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "description": "Opaque `IdempotencyKey` wire identifier.",
+      "type": "string"
+    },
+    "ProjectId": {
+      "description": "Opaque `ProjectId` wire identifier.",
+      "type": "string"
+    },
+    "RequestId": {
+      "description": "Opaque `RequestId` wire identifier.",
+      "type": "string"
+    },
+    "RevisionId": {
+      "description": "Opaque `RevisionId` wire identifier.",
+      "type": "string"
+    },
+    "WorkspaceId": {
+      "description": "Opaque `WorkspaceId` wire identifier.",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Versioned JDP request envelope.",
+  "properties": {
+    "baseRevision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RevisionId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deadlineMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "dryRun": {
+      "default": false,
+      "type": "boolean"
+    },
+    "idempotencyKey": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "input": true,
+    "operation": {
+      "type": "string"
+    },
+    "projectId": {
+      "$ref": "#/$defs/ProjectId"
+    },
+    "protocolVersion": {
+      "type": "string"
+    },
+    "requestId": {
+      "$ref": "#/$defs/RequestId"
+    },
+    "workspaceId": {
+      "$ref": "#/$defs/WorkspaceId"
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "requestId",
+    "idempotencyKey",
+    "workspaceId",
+    "projectId",
+    "operation",
+    "input"
+  ],
+  "title": "JdpRequest",
+  "type": "object"
+}

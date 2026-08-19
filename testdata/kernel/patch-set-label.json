@@ -1,0 +1,21 @@
+{
+  "operations": [
+    {
+      "op": "set-property",
+      "entityId": "entity-61a16b4ad1a313fd5aacfca4",
+      "key": "label",
+      "value": "sensor-controller"
+    }
+  ],
+  "preconditions": [
+    {
+      "kind": "entity-exists",
+      "entityId": "entity-61a16b4ad1a313fd5aacfca4"
+    },
+    {
+      "kind": "object-editable",
+      "entityId": "entity-61a16b4ad1a313fd5aacfca4"
+    }
+  ],
+  "expectedPostconditions": ["graph.integrity"]
+}

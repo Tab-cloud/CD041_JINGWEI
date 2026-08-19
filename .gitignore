@@ -1,0 +1,4 @@
+/target/
+/.jingwei/
+**/*.tmp
+**/*.bak

@@ -1,0 +1,22 @@
+[package]
+name = "jingwei-jdl"
+description = "Bounded declarative Jingwei Design Language parser and compiler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+hex.workspace = true
+jingwei-jir = { path = "../jingwei-jir" }
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest = "1.8.0"
+
+[lints]
+workspace = true

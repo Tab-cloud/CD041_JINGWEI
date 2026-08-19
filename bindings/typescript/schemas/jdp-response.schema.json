@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "ErrorDetail": {
+      "description": "Stable structured error body.",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "evidenceRefs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fingerprint": {
+          "type": "string"
+        },
+        "objectRefs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "suggestedActions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SuggestedAction"
+          },
+          "type": "array"
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "stage",
+        "summary",
+        "fingerprint",
+        "retryable"
+      ],
+      "type": "object"
+    },
+    "ExecutionId": {
+      "description": "Opaque `ExecutionId` wire identifier.",
+      "type": "string"
+    },
+    "FindingSummary": {
+      "description": "Counts by severity returned on every successful operation.",
+      "properties": {
+        "errors": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "info": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "warnings": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "errors",
+        "warnings",
+        "info"
+      ],
+      "type": "object"
+    },
+    "JdpFailure": {
+      "description": "A failed JDP result.",
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorDetail"
+        },
+        "executionId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requestId": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "requestId",
+        "error"
+      ],
+      "type": "object"
+    },
+    "JdpSuccess": {
+      "description": "A successful JDP result.",
+      "properties": {
+        "artifactRefs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "baseRevision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RevisionId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "data": true,
+        "evidenceRefs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "executionId": {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        "findings": {
+          "$ref": "#/$defs/FindingSummary",
+          "default": {
+            "errors": 0,
+            "info": 0,
+            "warnings": 0
+          }
+        },
+        "newRevision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RevisionId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requestId": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "requestId",
+        "executionId",
+        "data"
+      ],
+      "type": "object"
+    },
+    "RequestId": {
+      "description": "Opaque `RequestId` wire identifier.",
+      "type": "string"
+    },
+    "RevisionId": {
+      "description": "Opaque `RevisionId` wire identifier.",
+      "type": "string"
+    },
+    "SuggestedAction": {
+      "description": "Machine-readable recovery suggestion.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SuggestedActionKind"
+        }
+      },
+      "required": [
+        "kind",
+        "description"
+      ],
+      "type": "object"
+    },
+    "SuggestedActionKind": {
+      "description": "Allowed recovery action categories.",
+      "enum": [
+        "change-input",
+        "use-alternative",
+        "request-user",
+        "repair",
+        "abort-release"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/JdpSuccess"
+    },
+    {
+      "$ref": "#/$defs/JdpFailure"
+    }
+  ],
+  "description": "Success or failure wire response. The untagged layout preserves the `success` discriminator.",
+  "title": "JdpResponse"
+}

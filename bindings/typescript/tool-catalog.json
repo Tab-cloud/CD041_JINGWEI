@@ -1,0 +1,431 @@
+[
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Create an immutable empty project",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "project.create",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Read project metadata and current revision",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "project.get",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Compile bounded declarative JDL into a JIR revision",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.compile_jdl",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Query a bounded subset of a JIR graph",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.query",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Explain one entity using provenance and graph relations",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.explain",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Validate and preview an atomic JIR patch",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.patch.propose",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Atomically apply a preconditioned JIR patch",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.patch.apply",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Compute a semantic JIR graph diff",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.diff",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Run core and registered validation providers",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.validate",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Open a leased draft branch",
+    "effect": "draft-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "edit_session.open",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Preview semantic edit commands without writing JIR",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "edit_command.preview",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Commit a semantic command group to a draft revision",
+    "effect": "draft-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "edit_command.commit",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Create an inverse draft revision",
+    "effect": "draft-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "edit.undo",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Create a reapply draft revision",
+    "effect": "draft-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "edit.redo",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Persist draft session metadata",
+    "effect": "draft-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "edit.checkpoint",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Publish an approved draft as project candidate",
+    "effect": "revision-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "edit.publish",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Read durable task state",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "task.get",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": true,
+    "defaultTimeoutMs": 30000,
+    "description": "Request durable task cancellation",
+    "effect": "task-control",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "task.cancel",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Replay durable task events",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "task.events",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Read a content-addressed artifact",
+    "effect": "artifact-read",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "artifact.get",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Negotiate workspace and operation capabilities",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "workspace.capabilities",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.1"
+  }
+]

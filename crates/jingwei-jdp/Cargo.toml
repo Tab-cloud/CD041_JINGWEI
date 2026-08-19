@@ -1,0 +1,25 @@
+[package]
+name = "jingwei-jdp"
+description = "Versioned Jingwei Design Protocol contracts and code generation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+hex.workspace = true
+jingwei-jir = { path = "../jingwei-jir" }
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "jingwei-codegen"
+path = "src/bin/codegen.rs"
