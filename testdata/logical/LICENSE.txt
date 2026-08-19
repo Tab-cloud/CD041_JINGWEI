@@ -1,0 +1,6 @@
+CC0 1.0 Universal
+
+To the extent possible under law, the authors have dedicated the synthetic
+fixture data in this directory to the public domain. This dedication does not
+apply to Jingwei source code, third-party names, standards, or manufacturer
+data outside this directory.

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img" aria-labelledby="title desc">
+  <title id="title">Synthetic SOIC-8 library review artifact</title>
+  <desc id="desc">Review-only rendering of a generated symbol, footprint, pin-one mark, origin, courtyard and pin-pad table.</desc>
+  <rect width="760" height="360" fill="#f7f7f5"/>
+  <g font-family="Segoe UI, sans-serif" fill="#1f2933">
+    <text x="24" y="34" font-size="20" font-weight="600">Project-private generated asset review</text>
+    <text x="24" y="58" font-size="12">SYNTHETIC FIXTURE — not manufacturer-qualified</text>
+    <rect x="40" y="94" width="180" height="190" rx="6" fill="#ffffff" stroke="#334e68" stroke-width="2"/>
+    <text x="94" y="190" font-size="18" font-weight="600">JW-RS485-8A</text>
+    <g font-size="12">
+      <text x="18" y="122">1 RO</text><line x1="40" y1="118" x2="72" y2="118" stroke="#334e68"/>
+      <text x="10" y="166">2 RE_N</text><line x1="40" y1="162" x2="72" y2="162" stroke="#334e68"/>
+      <text x="18" y="210">3 DE</text><line x1="40" y1="206" x2="72" y2="206" stroke="#334e68"/>
+      <text x="18" y="254">4 DI</text><line x1="40" y1="250" x2="72" y2="250" stroke="#334e68"/>
+      <text x="228" y="122">VCC 8</text><line x1="188" y1="118" x2="220" y2="118" stroke="#334e68"/>
+      <text x="228" y="166">B 7</text><line x1="188" y1="162" x2="220" y2="162" stroke="#334e68"/>
+      <text x="228" y="210">A 6</text><line x1="188" y1="206" x2="220" y2="206" stroke="#334e68"/>
+      <text x="228" y="254">GND 5</text><line x1="188" y1="250" x2="220" y2="250" stroke="#334e68"/>
+    </g>
+    <circle cx="56" cy="108" r="5" fill="#d64545"/>
+    <rect x="360" y="92" width="190" height="194" fill="none" stroke="#7b8794" stroke-dasharray="6 4"/>
+    <rect x="402" y="116" width="106" height="146" rx="4" fill="#d9e2ec" stroke="#334e68"/>
+    <circle cx="418" cy="132" r="6" fill="#d64545"/>
+    <g fill="#8fb3d9" stroke="#334e68">
+      <rect x="370" y="126" width="42" height="20"/><rect x="498" y="126" width="42" height="20"/>
+      <rect x="370" y="164" width="42" height="20"/><rect x="498" y="164" width="42" height="20"/>
+      <rect x="370" y="202" width="42" height="20"/><rect x="498" y="202" width="42" height="20"/>
+      <rect x="370" y="240" width="42" height="20"/><rect x="498" y="240" width="42" height="20"/>
+    </g>
+    <line x1="455" y1="178" x2="455" y2="200" stroke="#d64545"/><line x1="444" y1="189" x2="466" y2="189" stroke="#d64545"/>
+    <text x="570" y="120" font-size="13" font-weight="600">Checks shown</text>
+    <text x="570" y="146" font-size="12">• Pin 1 / polarity</text>
+    <text x="570" y="168" font-size="12">• Courtyard</text>
+    <text x="570" y="190" font-size="12">• Origin</text>
+    <text x="570" y="212" font-size="12">• 8 pin / 8 pad</text>
+    <text x="570" y="234" font-size="12">• Pin-pad identity</text>
+    <text x="24" y="330" font-size="12">Human review remains required before project approval. Organization promotion is outside Task 03.</text>
+  </g>
+</svg>

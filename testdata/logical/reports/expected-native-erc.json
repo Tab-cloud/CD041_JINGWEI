@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "erc-coverage-expectation/1",
+  "goldenErrorCount": 0,
+  "implementedRules": [
+    "ERC.UNCONNECTED_REQUIRED",
+    "ERC.DRIVER_CONFLICT",
+    "ERC.POWER_NO_SOURCE",
+    "ERC.VOLTAGE_RANGE",
+    "ERC.FOOTPRINT_BINDING",
+    "ERC.I2C_ADDRESS",
+    "ERC.DECOUPLING",
+    "ERC.CONNECTOR_CONTRACT",
+    "ERC.PINMUX_DOMAIN",
+    "ERC.DFT_COVERAGE",
+    "ERC.NO_CONNECT_CONFLICT",
+    "ERC.ASSERTION_MARGIN"
+  ],
+  "coverageGaps": ["SI", "thermal", "EMC", "physical decoupling distance", "probe accessibility"]
+}
