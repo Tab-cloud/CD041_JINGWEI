@@ -24,6 +24,8 @@
 - `b70cd5d`：正式 TypeScript binding 通过 named pipe 向 Rust daemon 传播 trace context；
 - `4421dc0`：修正 KiCad 10 PCB 投影并通过 pinned CLI DRC/Gerber/Drill 门禁；
 - `81d1018`：捆绑真实 Windows Runtime/daemon sidecar，完成安装、监督、刷新与退出清理。
+- `af6edeb`：在内容已经由等价提交导入、Task 04 又被后续 KiCad 修复覆盖之后，以不改变当前 tree 的
+  ancestry-only merge 记录 01/03/04/05 正式交付提交；至此五个正式任务提交均为集成 HEAD 的祖先。
 
 ## 2. 指定门禁结果
 
