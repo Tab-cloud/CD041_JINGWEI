@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type {
   DesignClient,
+  DesignCapabilities,
   DesignViewKind,
   EditCommandGroup,
   EditPolicy,
   FindingView,
   Point,
   RuntimeClient,
+  RuntimeCapabilities,
   SemanticEditCommand,
   Viewport,
 } from "../clients/contracts";
@@ -78,11 +80,10 @@ export function useWorkbenchController() {
         if (clients.mode === "real" && !sidecars.every((sidecar) => sidecar.state === "healthy")) {
           throw new Error(sidecars.map((sidecar) => `${sidecar.kind}: ${sidecar.reason ?? sidecar.state}`).join("；"));
         }
-        const [project, runtimeCapabilities, designCapabilities] = await Promise.all([
-          design.getProject(PROJECT_ID),
-          runtime.capabilities(),
-          design.capabilities(),
-        ]);
+        const { runtimeCapabilities, designCapabilities } = clients.mode === "real"
+          ? await waitForTransportReadiness(runtime, design)
+          : await readTransportCapabilities(runtime, design);
+        const project = await design.getProject(PROJECT_ID);
         if (clients.mode === "real") {
           runtimeSessionId.current = (await runtime.createSession({ projectId: project.id, title: "精卫主设计会话" })).id;
         }
@@ -434,5 +435,48 @@ function commandGroup(editSessionId: string, baseDraftRevision: string, command:
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  if (typeof error === "object" && error !== null) {
+    const value = error as Record<string, unknown>;
+    if (typeof value.message === "string" && value.message.trim()) return value.message;
+    if (typeof value.summary === "string" && value.summary.trim()) return value.summary;
+    if (typeof value.error === "string" && value.error.trim()) return value.error;
+  }
   return "发生未知错误";
+}
+
+async function readTransportCapabilities(runtime: RuntimeClient, design: DesignClient): Promise<{
+  runtimeCapabilities: RuntimeCapabilities;
+  designCapabilities: DesignCapabilities;
+}> {
+  const [runtimeCapabilities, designCapabilities] = await Promise.all([
+    runtime.capabilities(),
+    design.capabilities(),
+  ]);
+  return { runtimeCapabilities, designCapabilities };
+}
+
+export async function waitForTransportReadiness(runtime: RuntimeClient, design: DesignClient): Promise<{
+  runtimeCapabilities: RuntimeCapabilities;
+  designCapabilities: DesignCapabilities;
+}> {
+  let lastError: unknown = new Error("sidecar handshake 已完成，但 transport 尚未就绪");
+  for (const delayMs of [0, 100, 250, 500, 1_000, 2_000]) {
+    if (delayMs > 0) await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
+    try {
+      const capabilities = await readTransportCapabilities(runtime, design);
+      if (
+        capabilities.runtimeCapabilities.state === "connected"
+        && capabilities.designCapabilities.state === "connected"
+      ) {
+        return capabilities;
+      }
+      lastError = new Error(
+        `Runtime ${capabilities.runtimeCapabilities.state}；daemon ${capabilities.designCapabilities.state}`,
+      );
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(`真实 transport 启动超时：${errorMessage(lastError)}`);
 }
