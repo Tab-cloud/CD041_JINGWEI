@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getSidecarStatuses, openExternalUrl, validateCredentialReference } from "./tauriBridge";
+import {
+  deleteModelCredential,
+  getModelConfiguration,
+  getSidecarStatuses,
+  openExternalUrl,
+  saveModelConfiguration,
+  validateCredentialReference,
+} from "./tauriBridge";
 
 describe("browser security bridge", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -19,6 +26,15 @@ describe("browser security bridge", () => {
 
   it("accepts credential references but rejects secret-shaped values", async () => {
     await expect(validateCredentialReference("credential://windows/jingwei.openai")).resolves.toBe("credential://windows/jingwei.openai");
+    await expect(validateCredentialReference("credential://macos/jingwei.openai")).resolves.toBe("credential://macos/jingwei.openai");
     await expect(validateCredentialReference("sk-secret")).rejects.toThrow();
+  });
+
+  it("does not emulate credential writes in the browser preview", async () => {
+    const view = await getModelConfiguration();
+    expect(view.credentialStoreAvailable).toBe(false);
+    expect(view.environment.configured).toBe(false);
+    await expect(saveModelConfiguration({ provider: "openai-responses", baseUrl: "https://api.openai.com/v1", model: "gpt-example" })).rejects.toThrow("原生桌面应用");
+    await expect(deleteModelCredential()).rejects.toThrow("原生桌面应用");
   });
 });

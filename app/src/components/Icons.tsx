@@ -74,3 +74,18 @@ export const SendIcon = createIcon("发送", [["path", { d: "m22 2-7 20-4-9-9-4z
 export const RefreshIcon = createIcon("重连", [["path", { d: "M20 7h-5V2" }], ["path", { d: "M20 7a8 8 0 1 0 1 8" }]]);
 export const EyeIcon = createIcon("显示", [["path", { d: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12" }], ["circle", { cx: 12, cy: 12, r: 3 }]]);
 export const EyeOffIcon = createIcon("隐藏", [["path", { d: "m3 3 18 18" }], ["path", { d: "M10.6 5.2A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a17.7 17.7 0 0 1-2.1 3.2" }], ["path", { d: "M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7a9.8 9.8 0 0 0 5.4-1.6" }]]);
+export const SettingsIcon = createIcon("模型与凭据设置", [
+  ["line", { x1: 4, y1: 6, x2: 20, y2: 6 }],
+  ["circle", { cx: 9, cy: 6, r: 2 }],
+  ["line", { x1: 4, y1: 12, x2: 20, y2: 12 }],
+  ["circle", { cx: 15, cy: 12, r: 2 }],
+  ["line", { x1: 4, y1: 18, x2: 20, y2: 18 }],
+  ["circle", { cx: 11, cy: 18, r: 2 }],
+]);
+export const SunIcon = createIcon("浅色模式", [
+  ["circle", { cx: 12, cy: 12, r: 4 }],
+  ["path", { d: "M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" }],
+]);
+export const MoonIcon = createIcon("深色模式", [
+  ["path", { d: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" }],
+]);

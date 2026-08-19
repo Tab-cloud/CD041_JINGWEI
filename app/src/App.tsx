@@ -1,14 +1,19 @@
+import { useState } from "react";
 import { ApprovalDrawer } from "./components/ApprovalDrawer";
 import { BottomPanel } from "./components/BottomPanel";
 import { EditorArea } from "./components/EditorArea";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { TopBar } from "./components/TopBar";
+import { ModelSettingsDrawer } from "./components/ModelSettingsDrawer";
 import { AlertCircleIcon, CheckCircleIcon, RefreshIcon, XIcon } from "./components/Icons";
 import { useWorkbenchController } from "./hooks/useWorkbenchController";
+import { useTheme } from "./theme/useTheme";
 
 export default function App() {
   const { state, actions } = useWorkbenchController();
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   if (state.loading) {
     return (
@@ -27,6 +32,8 @@ export default function App() {
         onCheckpoint={() => void actions.checkpoint()}
         onCreateProject={() => void actions.createProject()}
         onOpenProject={() => void actions.openProject()}
+        onOpenModelSettings={() => setModelSettingsOpen(true)}
+        onToggleTheme={toggleTheme}
         onRedo={() => void actions.redo()}
         onRun={() => void actions.submitAgentInput("检查当前 candidate 的阻塞项并生成局部修复计划", "queue")}
         onUndo={() => void actions.undo()}
@@ -34,6 +41,7 @@ export default function App() {
         redoAvailable={state.redoAvailable}
         runActive={state.run?.status === "running"}
         sidecars={state.sidecars}
+        theme={theme}
         undoAvailable={state.undoAvailable}
       />
 
@@ -69,6 +77,7 @@ export default function App() {
           relatedIds={state.relatedIds}
           selectedIds={state.selectedIds}
           toolMode={state.toolMode}
+          theme={theme}
           viewport={state.viewports[state.activeView]}
         />
         <InspectorPanel
@@ -95,6 +104,11 @@ export default function App() {
       />
 
       <ApprovalDrawer approvals={state.approvals} onReply={(id, decision) => void actions.replyApproval(id, decision)} />
+      <ModelSettingsDrawer
+        onClose={() => setModelSettingsOpen(false)}
+        open={modelSettingsOpen}
+        runtimeAvailable={state.sidecars.some((sidecar) => sidecar.kind === "runtime" && sidecar.state === "healthy")}
+      />
 
       {state.notice && (
         <div className="toast toast-success" role="status"><CheckCircleIcon size={16} /><span>{state.notice}</span><button onClick={actions.clearNotice} title="关闭"><XIcon size={14} /></button></div>

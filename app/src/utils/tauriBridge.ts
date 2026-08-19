@@ -1,4 +1,9 @@
 import type { SidecarStatus } from "../store/workbenchState";
+import {
+  EMPTY_MODEL_CONFIGURATION,
+  type ModelConfigurationView,
+  type SaveModelConfigurationInput,
+} from "../model/modelConfiguration";
 
 interface TauriWindow extends Window {
   __TAURI_INTERNALS__?: unknown;
@@ -42,11 +47,29 @@ export async function chooseProjectFolder(): Promise<boolean> {
 
 export async function validateCredentialReference(reference: string): Promise<string> {
   if (!isTauriRuntime()) {
-    if (!/^credential:\/\/windows\/[a-z0-9][a-z0-9._-]{2,80}$/u.test(reference)) throw new Error("凭据引用格式无效");
+    if (!/^credential:\/\/(?:windows|macos|linux)\/[a-z0-9][a-z0-9._-]{2,79}$/u.test(reference)) throw new Error("凭据引用格式无效");
     return reference;
   }
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<string>("validate_credential_reference", { reference });
+}
+
+export async function getModelConfiguration(): Promise<ModelConfigurationView> {
+  if (!isTauriRuntime()) return structuredClone(EMPTY_MODEL_CONFIGURATION);
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ModelConfigurationView>("model_configuration_get");
+}
+
+export async function saveModelConfiguration(input: SaveModelConfigurationInput): Promise<ModelConfigurationView> {
+  if (!isTauriRuntime()) throw new Error("模型配置只能在原生桌面应用中保存");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ModelConfigurationView>("model_configuration_save", { input });
+}
+
+export async function deleteModelCredential(): Promise<ModelConfigurationView> {
+  if (!isTauriRuntime()) throw new Error("系统凭据只能在原生桌面应用中管理");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ModelConfigurationView>("model_configuration_delete_credential");
 }
 
 function browserFallbackStatuses(): SidecarStatus[] {

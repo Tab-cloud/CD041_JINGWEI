@@ -26,4 +26,6 @@ React components consume controller state and commands. They do not import task-
 
 ## Interface-change proposal status
 
-No interface-change proposal is included with task 05. The local TypeScript contracts are a UI projection over the task-book concepts and do not redefine the normative wire protocol. If the generated JDP bindings cannot satisfy this facade without changing protocol semantics, the integration owner must create a proposal before changing shared contracts.
+`docs/interface-change-proposals/task-05-model-provider-configuration.md` proposes the Runtime-owned provider profile and live-test contract. The implemented Tauri boundary exposes only non-secret profile metadata, environment-variable presence, and credential-store state to React. A raw API key is accepted only on save, written to Windows Credential Manager, cleared from UI state, and never returned.
+
+Task 01 integration must add a credential broker plus `provider.profile.get/apply/test/delete` operations. Only Runtime may resolve the opaque `credentialRef`; JDP and the EDA daemon must not receive provider credentials. Until this contract is implemented, the settings drawer reports live test as skipped or blocked and never calls the commercial endpoint directly.

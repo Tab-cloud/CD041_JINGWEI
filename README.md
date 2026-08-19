@@ -2,7 +2,7 @@
 
 > 文档基线：2026-08-19  
 > 状态：需求梳理 v0.6，架构基线已拆分为五会话并行开发任务  
-> 产品中文名：经纬 Agent  
+> 产品中文名：精卫 Agent（取自“精卫填海”）
 > 目标：从自然语言需求生成可审查、可复现、可制造的电子设计工程与制造包。
 
 ## 1. 当前结论
@@ -67,6 +67,20 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 
 共同接口、并行规则、交接包、集成测试和统一验收见
 [五会话并行开发总任务书](docs/tasks/00-five-session-execution-plan.md)。
+
+### 当前跨运行时追踪门禁
+
+任务 01 已验证 TypeScript Runtime 内部 span、脱敏规则和 OTLP/HTTP collector wire payload，但任务 02 尚未正式
+交付以下制品：
+
+- 可启动并处理正式 JDP 请求的 `jingwei-daemon`；
+- 由 Rust schema 生成并纳入产品集成路径的 `bindings/typescript/**`；
+- Rust daemon 接收、校验 trace context 并建立 child span 的接口。
+
+因此，`runtime → JDP → Rust daemon` 跨运行时追踪当前状态为 **BLOCKED / 未验收**。任何 Runtime-only
+测试、录制式 JDP client、生成器临时输出或脱敏示例都不能作为跨运行时追踪通过证据。解除门禁必须让真实
+Runtime `jdp.request` 与真实 daemon handler span 到达同一 collector，并验证相同 trace ID、正确 parent span ID
+以及敏感字段未进入 telemetry。
 
 ## 3. 文档权威顺序
 

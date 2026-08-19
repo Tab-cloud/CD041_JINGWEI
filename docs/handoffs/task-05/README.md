@@ -4,6 +4,8 @@
 
 Task 05 now provides a self-contained Tauri 2 + React 19 + TypeScript desktop workbench under `app/`. The application implements the task-book's four-region information architecture, semantic Canvas2D schematic/PCB rendering, selection and cross-probe, preview-to-commit editing, revision-aware undo/redo, AI patch review, durable runtime/tool/approval projection, reload recovery, and a constrained native shell.
 
+The top bar now also opens a native model-provider drawer. It separates `OPENAI_API_KEY` / `JINGWEI_OPENAI_MODEL` environment status from the local desktop profile, accepts provider endpoint/model/API Key input, stores the key in Windows Credential Manager, and never reads the key back into React. With the current missing environment variables and unavailable Runtime sidecar, the commercial OpenAI endpoint is visibly `SKIPPED · 未执行`.
+
 The checked-in build is intentionally a development mock. It displays `VERSIONED MOCK · NOT REAL DAEMON EVIDENCE` in the main window, exposes separate Mock Runtime and Mock JDP connection labels, and keeps Production Release blocked. No fixture, screenshot, test, or package is presented as evidence that the real Runtime, JDP daemon, EDA kernel, solver, ERC/DRC engine, or manufacturing flow has run.
 
 ## Implemented scope
@@ -17,7 +19,9 @@ The checked-in build is intentionally a development mock. It displays `VERSIONED
 - Undo, redo, checkpoint, semantic diff hunks, per-hunk acceptance, protected-object rejection, and AI-origin provenance.
 - Runtime timeline projection for agent/model/tool/approval/failure events, replay cursor recovery, approval target/effect display, and retry/create-session mock flows.
 - Tauri-side controlled project picker, external HTTP(S) opening, credential-reference validation, sidecar manifest/hash/version/target validation, handshake parsing, health, crash, and unavailable-state reporting.
+- Model/provider settings with HTTPS/model/key validation, non-secret profile persistence, Windows Credential Manager storage, key deletion, environment-source status, and explicit live-test readiness.
 - Strict Tauri capability allowlist and CSP; no frontend shell/filesystem permission, no raw credentials in frontend contracts, and no production devtools.
+- Product branding corrected to `精卫 Agent`; the app, generated platform icons, and rebuilt Windows development package use the 精卫衔石、海浪与电路翼标志。
 
 ## What is real and what is simulated
 
@@ -36,11 +40,12 @@ Versioned simulation:
 
 ## Acceptance summary
 
-- Frontend: lint, typecheck, production build, 30 Vitest tests, and coverage command passed.
-- Native shell: format check, Clippy with warnings denied, and 7 Rust tests passed.
+- Frontend: lint, typecheck, production build, 36 Vitest tests, and coverage command passed.
+- Native shell: format check, Clippy with warnings denied, and 12 Rust tests passed, including an isolated Credential Manager round trip.
 - Performance fixtures: 10k and 100k primitive culling gates passed; the final 100k run culled to 3,168 visible primitives in 5.27 ms.
 - Packaging: unsigned current-user NSIS package built successfully; the release executable was launched and exercised through Windows desktop control.
 - Desktop checks: wire, symbol move, footprint move, via, track, finding cross-probe, lock, AI patch, undo/redo, approval timeline, native project picker, sidecar recheck, and reload recovery were exercised.
+- The rebuilt release executable was opened after the provider change; its model drawer showed both environment variables absent, desktop configuration incomplete, and the commercial endpoint test skipped. No key was entered and no endpoint request was made.
 
 ## Integration order
 

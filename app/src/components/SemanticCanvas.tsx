@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { DisplayList, Point, Viewport } from "../clients/contracts";
 import type { ToolMode } from "../store/workbenchState";
+import type { Theme } from "../theme/theme";
 import { canvasPointToWorld } from "../canvas/displayList";
 import { renderCanvas } from "../canvas/renderCanvas";
 
@@ -17,6 +18,7 @@ interface SemanticCanvasProps {
   selectedIds: string[];
   relatedIds: string[];
   ghostPrimitives: DisplayList["primitives"];
+  theme: Theme;
   onViewportChange: (viewport: Viewport) => void;
   onIntent: (intent: CanvasIntent) => void;
   onCancel: () => void;
@@ -29,6 +31,7 @@ export function SemanticCanvas({
   selectedIds,
   relatedIds,
   ghostPrimitives,
+  theme,
   onViewportChange,
   onIntent,
   onCancel,
@@ -45,12 +48,13 @@ export function SemanticCanvas({
       relatedIds: new Set(relatedIds),
       ghostPrimitives,
       devicePixelRatio: window.devicePixelRatio,
+      theme,
     });
     render();
     const observer = new ResizeObserver(render);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [displayList, ghostPrimitives, relatedIds, selectedIds, viewport]);
+  }, [displayList, ghostPrimitives, relatedIds, selectedIds, theme, viewport]);
 
   const worldPoint = (clientX: number, clientY: number): Point => {
     const rect = canvasRef.current?.getBoundingClientRect();

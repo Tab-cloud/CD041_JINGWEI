@@ -1,3 +1,10 @@
+mod credential_store;
+mod model_configuration;
+
+use model_configuration::{
+    model_configuration_delete_credential, model_configuration_get, model_configuration_save,
+    validate_credential_reference,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -107,23 +114,6 @@ fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
     app.opener()
         .open_url(parsed.as_str(), None::<&str>)
         .map_err(|error| format!("无法打开系统浏览器: {error}"))
-}
-
-#[tauri::command]
-fn validate_credential_reference(reference: String) -> Result<String, String> {
-    let value = reference
-        .strip_prefix("credential://windows/")
-        .ok_or_else(|| "凭据引用必须使用 credential://windows/ 前缀".to_string())?;
-    let valid_length = (3..=80).contains(&value.len());
-    let valid_characters = value.chars().all(|character| {
-        character.is_ascii_lowercase()
-            || character.is_ascii_digit()
-            || matches!(character, '.' | '_' | '-')
-    });
-    if !valid_length || !valid_characters {
-        return Err("凭据引用名称格式无效".into());
-    }
-    Ok(reference)
 }
 
 fn start_sidecar(
@@ -451,6 +441,9 @@ pub fn run() {
             ensure_sidecars,
             open_external_url,
             validate_credential_reference,
+            model_configuration_get,
+            model_configuration_save,
+            model_configuration_delete_credential,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build Jingwei workbench");
