@@ -1,0 +1,770 @@
+{
+  "$defs": {
+    "AssessmentId": {
+      "description": "Opaque `AssessmentId` wire identifier.",
+      "type": "string"
+    },
+    "AttestationId": {
+      "description": "Opaque `AttestationId` wire identifier.",
+      "type": "string"
+    },
+    "AuthenticatedActorRef": {
+      "description": "Authenticated human or service identity. Request payloads cannot self-assert this value.",
+      "properties": {
+        "authenticationMethod": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "roleClaims": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "issuer",
+        "authenticationMethod"
+      ],
+      "type": "object"
+    },
+    "CanonicalValue": {
+      "description": "JSON value validated for deterministic canonical serialization."
+    },
+    "ChangeProposal": {
+      "description": "Immutable proposal to move a project head from one exact base to one revision.",
+      "properties": {
+        "baseProjectHead": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "createdByCommit": {
+          "$ref": "#/$defs/CommitId"
+        },
+        "id": {
+          "$ref": "#/$defs/ProposalId"
+        },
+        "issuedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "projectId": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "proposedRevision": {
+          "$ref": "#/$defs/RevisionId"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "baseProjectHead",
+        "proposedRevision",
+        "createdByCommit",
+        "issuedAt"
+      ],
+      "type": "object"
+    },
+    "CommitId": {
+      "description": "Opaque `CommitId` wire identifier.",
+      "type": "string"
+    },
+    "DecisionId": {
+      "description": "Opaque `DecisionId` wire identifier.",
+      "type": "string"
+    },
+    "DependencyLocks": {
+      "description": "Independent dependency locks that make an assessment reproducible.",
+      "properties": {
+        "evidenceSetHash": {
+          "type": "string"
+        },
+        "intentRevision": {
+          "type": "string"
+        },
+        "manufacturerProfileLock": {
+          "type": "string"
+        },
+        "ruleSetLock": {
+          "type": "string"
+        },
+        "toolchainLock": {
+          "type": "string"
+        },
+        "waiverSetHash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "intentRevision",
+        "toolchainLock",
+        "ruleSetLock",
+        "manufacturerProfileLock",
+        "evidenceSetHash",
+        "waiverSetHash"
+      ],
+      "type": "object"
+    },
+    "EdgeId": {
+      "description": "Opaque `EdgeId` wire identifier.",
+      "type": "string"
+    },
+    "EditControl": {
+      "description": "Per-object edit ownership metadata.",
+      "properties": {
+        "lastModifiedBy": {
+          "description": "Actor that last changed the entity.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastOperationId": {
+          "description": "Operation that last changed the entity.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lockReason": {
+          "description": "Human-readable lock rationale.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lockedBy": {
+          "description": "Optional lock owner.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "policy": {
+          "$ref": "#/$defs/EditPolicy",
+          "description": "Current automation policy."
+        }
+      },
+      "required": [
+        "policy"
+      ],
+      "type": "object"
+    },
+    "EditPolicy": {
+      "description": "How an AI or solver may edit an object.",
+      "oneOf": [
+        {
+          "const": "ai-editable",
+          "description": "Automated edits may proceed subject to normal permissions and conditions.",
+          "type": "string"
+        },
+        {
+          "const": "ask-before-change",
+          "description": "An explicit user approval is required.",
+          "type": "string"
+        },
+        {
+          "const": "locked",
+          "description": "Changes are blocked until the lock is deliberately removed.",
+          "type": "string"
+        }
+      ]
+    },
+    "EntityId": {
+      "description": "Opaque `EntityId` wire identifier.",
+      "type": "string"
+    },
+    "EntityKind": {
+      "description": "Open, namespaced entity kind. Core does not close the domain enum.",
+      "type": "string"
+    },
+    "GateResult": {
+      "description": "One immutable gate result bound to the full assessment key.",
+      "properties": {
+        "findingRefs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/GateResultId"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/GateStatus"
+        }
+      },
+      "required": [
+        "id",
+        "gate",
+        "status",
+        "findingRefs",
+        "provider"
+      ],
+      "type": "object"
+    },
+    "GateResultId": {
+      "description": "Opaque `GateResultId` wire identifier.",
+      "type": "string"
+    },
+    "GateStatus": {
+      "description": "Deterministic gate status.",
+      "enum": [
+        "passed",
+        "blocked",
+        "stale",
+        "invalid"
+      ],
+      "type": "string"
+    },
+    "InvocationCorrelation": {
+      "description": "Correlation attached by Runtime or daemon after authenticating the caller.",
+      "properties": {
+        "daemonEpoch": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "daemonInstanceId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "invocationId": {
+          "$ref": "#/$defs/InvocationId"
+        },
+        "requestId": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "sourceKind": {
+          "$ref": "#/$defs/InvocationSourceKind"
+        }
+      },
+      "required": [
+        "invocationId",
+        "sourceKind",
+        "sourceId",
+        "requestId"
+      ],
+      "type": "object"
+    },
+    "InvocationId": {
+      "description": "Opaque `InvocationId` wire identifier.",
+      "type": "string"
+    },
+    "InvocationSourceKind": {
+      "description": "Trusted origin of a design-changing invocation.",
+      "enum": [
+        "agent-tool",
+        "ui-command",
+        "cli-command",
+        "system-migration"
+      ],
+      "type": "string"
+    },
+    "JirEdge": {
+      "description": "Canonical directed relationship in the JIR graph.",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/EntityId",
+          "description": "Source entity."
+        },
+        "id": {
+          "$ref": "#/$defs/EdgeId",
+          "description": "Stable edge identity."
+        },
+        "kind": {
+          "description": "Open namespaced relationship kind.",
+          "type": "string"
+        },
+        "properties": {
+          "$ref": "#/$defs/CanonicalValue",
+          "description": "Canonical relationship properties."
+        },
+        "to": {
+          "$ref": "#/$defs/EntityId",
+          "description": "Target entity."
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "from",
+        "to",
+        "properties"
+      ],
+      "type": "object"
+    },
+    "JirEntity": {
+      "description": "Canonical node in the JIR graph.",
+      "properties": {
+        "editControl": {
+          "$ref": "#/$defs/EditControl",
+          "default": {
+            "lastModifiedBy": null,
+            "lastOperationId": null,
+            "lockReason": null,
+            "lockedBy": null,
+            "policy": "ai-editable"
+          },
+          "description": "Object edit-control metadata."
+        },
+        "id": {
+          "$ref": "#/$defs/EntityId",
+          "description": "Stable entity identity."
+        },
+        "kind": {
+          "$ref": "#/$defs/EntityKind",
+          "description": "Open namespaced entity kind."
+        },
+        "properties": {
+          "$ref": "#/$defs/CanonicalValue",
+          "description": "Canonical properties."
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance",
+          "description": "Source and generator provenance."
+        },
+        "schemaVersion": {
+          "description": "Schema version for this entity kind.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "schemaVersion",
+        "properties",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "JirGraph": {
+      "description": "A deterministic graph snapshot. `BTreeMap` ordering is part of canonical serialization.",
+      "properties": {
+        "edges": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JirEdge"
+          },
+          "description": "Edges indexed by stable ID.",
+          "type": "object"
+        },
+        "entities": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JirEntity"
+          },
+          "description": "Entities indexed by stable ID.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entities",
+        "edges"
+      ],
+      "type": "object"
+    },
+    "MaturityAssessment": {
+      "description": "Recomputable engineering maturity statement for one exact revision and dependency set.",
+      "properties": {
+        "gates": {
+          "items": {
+            "$ref": "#/$defs/GateResult"
+          },
+          "type": "array"
+        },
+        "highestLevel": {
+          "$ref": "#/$defs/MaturityLevel"
+        },
+        "id": {
+          "$ref": "#/$defs/AssessmentId"
+        },
+        "issuedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "locks": {
+          "$ref": "#/$defs/DependencyLocks"
+        },
+        "projectId": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "revisionId": {
+          "$ref": "#/$defs/RevisionId"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "revisionId",
+        "locks",
+        "highestLevel",
+        "gates",
+        "issuedAt"
+      ],
+      "type": "object"
+    },
+    "MaturityLevel": {
+      "description": "Engineering maturity. Production release (L5) is deliberately not a member.",
+      "enum": [
+        "l0-draft",
+        "l1-ecad-candidate",
+        "l2-engineering-verified",
+        "l3-manufacturing-candidate",
+        "l4-prototype-verified"
+      ],
+      "type": "string"
+    },
+    "ProjectId": {
+      "description": "Opaque `ProjectId` wire identifier.",
+      "type": "string"
+    },
+    "ProposalAction": {
+      "description": "Append-only decision applied to a change proposal.",
+      "enum": [
+        "accept",
+        "reject",
+        "withdraw"
+      ],
+      "type": "string"
+    },
+    "ProposalDecisionRecord": {
+      "description": "Authenticated proposal decision. Accept is atomically coupled to project-head CAS.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/ProposalAction"
+        },
+        "actor": {
+          "$ref": "#/$defs/AuthenticatedActorRef"
+        },
+        "id": {
+          "$ref": "#/$defs/DecisionId"
+        },
+        "issuedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "proposalId": {
+          "$ref": "#/$defs/ProposalId"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "proposalId",
+        "action",
+        "actor",
+        "issuedAt"
+      ],
+      "type": "object"
+    },
+    "ProposalId": {
+      "description": "Opaque `ProposalId` wire identifier.",
+      "type": "string"
+    },
+    "Provenance": {
+      "description": "Provenance attached to each entity.",
+      "properties": {
+        "evidenceRefs": {
+          "default": [],
+          "description": "Immutable evidence references.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "generator": {
+          "description": "Tool or generator name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "generatorVersion": {
+          "description": "Tool or generator version.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceKind": {
+          "description": "Source type, for example `jdl`, `human`, `import`, or `solver`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sourceKind"
+      ],
+      "type": "object"
+    },
+    "ReleaseId": {
+      "description": "Opaque `ReleaseId` wire identifier.",
+      "type": "string"
+    },
+    "ReleaseRecord": {
+      "description": "Organization-signed production release. Revocation never mutates this record.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ReleaseId"
+        },
+        "issuedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "request": {
+          "$ref": "#/$defs/ReleaseRequest"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "signerKeyId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "request",
+        "signerKeyId",
+        "signature",
+        "issuedAt"
+      ],
+      "type": "object"
+    },
+    "ReleaseRequest": {
+      "description": "Immutable request sent to the independent organization release signer.",
+      "properties": {
+        "artifactManifestHash": {
+          "type": "string"
+        },
+        "assessmentId": {
+          "$ref": "#/$defs/AssessmentId"
+        },
+        "attestationIds": {
+          "items": {
+            "$ref": "#/$defs/AttestationId"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/ReleaseRequestId"
+        },
+        "issuedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "projectId": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "revisionId": {
+          "$ref": "#/$defs/RevisionId"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "revisionId",
+        "assessmentId",
+        "artifactManifestHash",
+        "attestationIds",
+        "issuedAt"
+      ],
+      "type": "object"
+    },
+    "ReleaseRequestId": {
+      "description": "Opaque `ReleaseRequestId` wire identifier.",
+      "type": "string"
+    },
+    "RequestId": {
+      "description": "Opaque `RequestId` wire identifier.",
+      "type": "string"
+    },
+    "RevisionCommitRecord": {
+      "description": "Append-only authorship and invocation proof for one canonical revision snapshot.",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/AuthenticatedActorRef"
+        },
+        "correlation": {
+          "$ref": "#/$defs/InvocationCorrelation"
+        },
+        "id": {
+          "$ref": "#/$defs/CommitId"
+        },
+        "issuedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "projectId": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "revisionId": {
+          "$ref": "#/$defs/RevisionId"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "revisionId",
+        "actor",
+        "issuedAt",
+        "correlation"
+      ],
+      "type": "object"
+    },
+    "RevisionId": {
+      "description": "Opaque `RevisionId` wire identifier.",
+      "type": "string"
+    },
+    "RevisionMetadata": {
+      "description": "Canonical metadata included in the revision content identity.",
+      "properties": {
+        "graphHash": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "operationJournalHash": {
+          "type": "string"
+        },
+        "parents": {
+          "items": {
+            "$ref": "#/$defs/RevisionId"
+          },
+          "type": "array"
+        },
+        "projectId": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "parents",
+        "schemaVersion",
+        "operationJournalHash",
+        "graphHash"
+      ],
+      "type": "object"
+    },
+    "RevisionSnapshot": {
+      "description": "Complete immutable revision payload. Authorship and lifecycle live in separate records.",
+      "properties": {
+        "graph": {
+          "$ref": "#/$defs/JirGraph"
+        },
+        "metadata": {
+          "$ref": "#/$defs/RevisionMetadata"
+        }
+      },
+      "required": [
+        "metadata",
+        "graph"
+      ],
+      "type": "object"
+    },
+    "RevokeId": {
+      "description": "Opaque `RevokeId` wire identifier.",
+      "type": "string"
+    },
+    "RevokeRecord": {
+      "description": "Append-only organization-signed revocation.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RevokeId"
+        },
+        "issuedAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "releaseId": {
+          "$ref": "#/$defs/ReleaseId"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "signerKeyId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "releaseId",
+        "reason",
+        "signerKeyId",
+        "signature",
+        "issuedAt"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "change_proposal": {
+      "$ref": "#/$defs/ChangeProposal"
+    },
+    "maturity_assessment": {
+      "$ref": "#/$defs/MaturityAssessment"
+    },
+    "proposal_decision": {
+      "$ref": "#/$defs/ProposalDecisionRecord"
+    },
+    "release_record": {
+      "$ref": "#/$defs/ReleaseRecord"
+    },
+    "release_request": {
+      "$ref": "#/$defs/ReleaseRequest"
+    },
+    "revision_commit": {
+      "$ref": "#/$defs/RevisionCommitRecord"
+    },
+    "revision_snapshot": {
+      "$ref": "#/$defs/RevisionSnapshot"
+    },
+    "revoke_record": {
+      "$ref": "#/$defs/RevokeRecord"
+    }
+  },
+  "required": [
+    "revision_snapshot",
+    "revision_commit",
+    "change_proposal",
+    "proposal_decision",
+    "maturity_assessment",
+    "release_request",
+    "release_record",
+    "revoke_record"
+  ],
+  "title": "LifecycleSchemaBundle",
+  "type": "object"
+}

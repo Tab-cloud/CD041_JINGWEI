@@ -55,7 +55,7 @@ export function registerRustGeneratedJdpCatalog(
 }
 
 function assertCompatible(tool: RustGeneratedJdpTool): void {
-  if (tool.protocolVersion !== "0.1" || tool.schemaVersion !== "0.1") {
+  if (tool.protocolVersion !== "0.1" || tool.schemaVersion !== "0.2") {
     throw new Error(
       `Unsupported generated JDP catalog version for ${tool.name}: ${tool.protocolVersion}/${tool.schemaVersion}`,
     )

@@ -157,6 +157,7 @@ pub struct EditSessionRef {
 #[serde(rename_all = "camelCase")]
 pub struct EditPublishOutput {
     pub revision: RevisionId,
+    pub proposal_id: jingwei_jir::ProposalId,
     pub diff: jingwei_jir::GraphDiff,
 }
 

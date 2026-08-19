@@ -2,15 +2,18 @@
 
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use jingwei_daemon::{Daemon, InMemoryClient};
 use jingwei_jdp::{
     DiffInput, EventsInput, JDP_PROTOCOL_VERSION, JdpClient, JdpRequest, JdpResponse,
-    PatchApplyInput, PatchInput, ProjectCreateInput, ProjectInfo, QueryInput, ValidateInput,
-    WorkspaceCapabilities, operation,
+    PatchApplyInput, PatchInput, ProjectCreateInput, ProjectInfo, ProposalDecisionInput,
+    ProposalDecisionOutput, QueryInput, ValidateInput, WorkspaceCapabilities, operation,
 };
-use jingwei_jir::{IdempotencyKey, ProjectId, RequestId, RevisionId, WorkspaceId};
+use jingwei_jir::{
+    IdempotencyKey, ProjectId, ProposalAction, ProposalId, RequestId, RevisionId, WorkspaceId,
+};
 use jingwei_kernel::ExtensionRegistryBuilder;
+use jingwei_store::WorkspaceStore;
 use serde::{Serialize, de::DeserializeOwned};
 
 #[derive(Parser)]
@@ -50,6 +53,15 @@ enum Command {
         #[arg(long)]
         base: RevisionId,
     },
+    /// Accepts, rejects, or withdraws an immutable change proposal.
+    Proposal {
+        #[arg(long)]
+        project: ProjectId,
+        proposal: ProposalId,
+        action: ProposalActionArgument,
+        #[arg(long)]
+        reason: Option<String>,
+    },
     Diff {
         left: RevisionId,
         right: RevisionId,
@@ -67,7 +79,26 @@ enum Command {
         #[arg(long, default_value_t = 0)]
         after: u64,
     },
+    /// Migrates an older workspace after creating a complete local backup.
+    Migrate,
     Doctor,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum ProposalActionArgument {
+    Accept,
+    Reject,
+    Withdraw,
+}
+
+impl From<ProposalActionArgument> for ProposalAction {
+    fn from(value: ProposalActionArgument) -> Self {
+        match value {
+            ProposalActionArgument::Accept => Self::Accept,
+            ProposalActionArgument::Reject => Self::Reject,
+            ProposalActionArgument::Withdraw => Self::Withdraw,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -91,6 +122,14 @@ async fn main() {
 }
 
 async fn run(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
+    if matches!(&arguments.command, Command::Migrate) {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&WorkspaceStore::migrate(&arguments.workspace)?)?
+        );
+        return Ok(());
+    }
+
     let metadata_exists = arguments
         .workspace
         .join(".jingwei")
@@ -227,6 +266,28 @@ async fn run(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                 .await?,
             )?;
         }
+        Command::Proposal {
+            project,
+            proposal,
+            action,
+            reason,
+        } => {
+            print_response(
+                send::<_, ProposalDecisionOutput>(
+                    &client,
+                    workspace_id,
+                    project,
+                    operation::CHANGE_PROPOSAL_DECIDE,
+                    None,
+                    ProposalDecisionInput {
+                        proposal_id: proposal,
+                        action: action.into(),
+                        reason,
+                    },
+                )
+                .await?,
+            )?;
+        }
         Command::Diff {
             left,
             right,
@@ -276,6 +337,7 @@ async fn run(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
                 .await?,
             )?;
         }
+        Command::Migrate => unreachable!("migration exits before daemon startup"),
         Command::Doctor => {
             let project = ProjectId::new("workspace-capabilities")?;
             let response = send::<_, WorkspaceCapabilities>(

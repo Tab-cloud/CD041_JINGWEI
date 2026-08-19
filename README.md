@@ -116,8 +116,8 @@ Eval 现有 `schematic_read`、`datasheet_read`、`pin_extract` 主要解决“�
 
 ## 5. 下一步
 
-统一从 [Slice 0：规范类型和迁移收拢](docs/14-design-convergence-audit-and-plan.md) 开始，随后实现真实 Runtime
-本地 RPC 和 UI adapter。商业模型凭据、Freerouting 分发法务、制造商 DFM 和真实样板仍需要相应外部输入；
+已完成 [Slice 0：规范类型和迁移收拢](docs/14-design-convergence-audit-and-plan.md)，当前进入真实 Runtime
+本地 RPC 和 UI adapter（Slice 1）。商业模型凭据、Freerouting 分发法务、制造商 DFM 和真实样板仍需要相应外部输入；
 这些外部阻塞不会再成为架构边界不清或继续实现其他安全工作项的理由。
 
 ## 6. 外部依据

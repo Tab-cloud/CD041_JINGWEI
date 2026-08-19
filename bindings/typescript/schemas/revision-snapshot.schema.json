@@ -1,0 +1,275 @@
+{
+  "$defs": {
+    "CanonicalValue": {
+      "description": "JSON value validated for deterministic canonical serialization."
+    },
+    "EdgeId": {
+      "description": "Opaque `EdgeId` wire identifier.",
+      "type": "string"
+    },
+    "EditControl": {
+      "description": "Per-object edit ownership metadata.",
+      "properties": {
+        "lastModifiedBy": {
+          "description": "Actor that last changed the entity.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastOperationId": {
+          "description": "Operation that last changed the entity.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lockReason": {
+          "description": "Human-readable lock rationale.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lockedBy": {
+          "description": "Optional lock owner.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "policy": {
+          "$ref": "#/$defs/EditPolicy",
+          "description": "Current automation policy."
+        }
+      },
+      "required": [
+        "policy"
+      ],
+      "type": "object"
+    },
+    "EditPolicy": {
+      "description": "How an AI or solver may edit an object.",
+      "oneOf": [
+        {
+          "const": "ai-editable",
+          "description": "Automated edits may proceed subject to normal permissions and conditions.",
+          "type": "string"
+        },
+        {
+          "const": "ask-before-change",
+          "description": "An explicit user approval is required.",
+          "type": "string"
+        },
+        {
+          "const": "locked",
+          "description": "Changes are blocked until the lock is deliberately removed.",
+          "type": "string"
+        }
+      ]
+    },
+    "EntityId": {
+      "description": "Opaque `EntityId` wire identifier.",
+      "type": "string"
+    },
+    "EntityKind": {
+      "description": "Open, namespaced entity kind. Core does not close the domain enum.",
+      "type": "string"
+    },
+    "JirEdge": {
+      "description": "Canonical directed relationship in the JIR graph.",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/EntityId",
+          "description": "Source entity."
+        },
+        "id": {
+          "$ref": "#/$defs/EdgeId",
+          "description": "Stable edge identity."
+        },
+        "kind": {
+          "description": "Open namespaced relationship kind.",
+          "type": "string"
+        },
+        "properties": {
+          "$ref": "#/$defs/CanonicalValue",
+          "description": "Canonical relationship properties."
+        },
+        "to": {
+          "$ref": "#/$defs/EntityId",
+          "description": "Target entity."
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "from",
+        "to",
+        "properties"
+      ],
+      "type": "object"
+    },
+    "JirEntity": {
+      "description": "Canonical node in the JIR graph.",
+      "properties": {
+        "editControl": {
+          "$ref": "#/$defs/EditControl",
+          "default": {
+            "lastModifiedBy": null,
+            "lastOperationId": null,
+            "lockReason": null,
+            "lockedBy": null,
+            "policy": "ai-editable"
+          },
+          "description": "Object edit-control metadata."
+        },
+        "id": {
+          "$ref": "#/$defs/EntityId",
+          "description": "Stable entity identity."
+        },
+        "kind": {
+          "$ref": "#/$defs/EntityKind",
+          "description": "Open namespaced entity kind."
+        },
+        "properties": {
+          "$ref": "#/$defs/CanonicalValue",
+          "description": "Canonical properties."
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance",
+          "description": "Source and generator provenance."
+        },
+        "schemaVersion": {
+          "description": "Schema version for this entity kind.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "schemaVersion",
+        "properties",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "JirGraph": {
+      "description": "A deterministic graph snapshot. `BTreeMap` ordering is part of canonical serialization.",
+      "properties": {
+        "edges": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JirEdge"
+          },
+          "description": "Edges indexed by stable ID.",
+          "type": "object"
+        },
+        "entities": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JirEntity"
+          },
+          "description": "Entities indexed by stable ID.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entities",
+        "edges"
+      ],
+      "type": "object"
+    },
+    "ProjectId": {
+      "description": "Opaque `ProjectId` wire identifier.",
+      "type": "string"
+    },
+    "Provenance": {
+      "description": "Provenance attached to each entity.",
+      "properties": {
+        "evidenceRefs": {
+          "default": [],
+          "description": "Immutable evidence references.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "generator": {
+          "description": "Tool or generator name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "generatorVersion": {
+          "description": "Tool or generator version.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceKind": {
+          "description": "Source type, for example `jdl`, `human`, `import`, or `solver`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sourceKind"
+      ],
+      "type": "object"
+    },
+    "RevisionId": {
+      "description": "Opaque `RevisionId` wire identifier.",
+      "type": "string"
+    },
+    "RevisionMetadata": {
+      "description": "Canonical metadata included in the revision content identity.",
+      "properties": {
+        "graphHash": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/RevisionId"
+        },
+        "operationJournalHash": {
+          "type": "string"
+        },
+        "parents": {
+          "items": {
+            "$ref": "#/$defs/RevisionId"
+          },
+          "type": "array"
+        },
+        "projectId": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "parents",
+        "schemaVersion",
+        "operationJournalHash",
+        "graphHash"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Complete immutable revision payload. Authorship and lifecycle live in separate records.",
+  "properties": {
+    "graph": {
+      "$ref": "#/$defs/JirGraph"
+    },
+    "metadata": {
+      "$ref": "#/$defs/RevisionMetadata"
+    }
+  },
+  "required": [
+    "metadata",
+    "graph"
+  ],
+  "title": "RevisionSnapshot",
+  "type": "object"
+}

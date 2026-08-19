@@ -60,6 +60,9 @@ impl MigrationRegistry {
             migration
                 .target_version()
                 .clone_into(&mut snapshot.metadata.schema_version);
+            snapshot
+                .reidentify()
+                .map_err(|error| MigrationError::Failed(error.to_string()))?;
         }
         Ok(snapshot)
     }
@@ -80,7 +83,7 @@ pub enum MigrationError {
 
 #[cfg(test)]
 mod tests {
-    use crate::{JirGraph, ProjectId, RevisionSnapshot, RevisionStatus};
+    use crate::{JirGraph, ProjectId, RevisionSnapshot};
 
     use super::*;
 
@@ -109,9 +112,7 @@ mod tests {
             ProjectId::new("project-migration").unwrap(),
             Vec::new(),
             JirGraph::default(),
-            "test",
-            "journal",
-            RevisionStatus::Candidate,
+            crate::canonical_sha256(&"journal").unwrap(),
         )
         .unwrap();
         snapshot.metadata.schema_version = "0.0".into();

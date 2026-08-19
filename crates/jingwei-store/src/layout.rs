@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use jingwei_jir::{ProjectId, RevisionId, SessionId};
+use jingwei_jir::{ProjectId, ProposalId, RevisionId, SessionId};
 
 #[derive(Clone, Debug)]
 pub(crate) struct Layout {
@@ -51,6 +51,24 @@ impl Layout {
         self.project(project).join("journal")
     }
 
+    pub(crate) fn commits(&self, project: &ProjectId) -> PathBuf {
+        self.project(project).join("commits")
+    }
+
+    pub(crate) fn proposals(&self, project: &ProjectId) -> PathBuf {
+        self.project(project).join("proposals")
+    }
+
+    pub(crate) fn proposal(&self, project: &ProjectId, proposal: &ProposalId) -> PathBuf {
+        self.proposals(project)
+            .join(format!("{}.json", safe_component(proposal.as_str())))
+    }
+
+    pub(crate) fn proposal_decisions(&self, project: &ProjectId, proposal: &ProposalId) -> PathBuf {
+        self.proposals(project)
+            .join(format!("{}.decisions", safe_component(proposal.as_str())))
+    }
+
     pub(crate) fn idempotency(&self, project: &ProjectId) -> PathBuf {
         self.project(project).join("idempotency")
     }
@@ -83,6 +101,10 @@ impl Layout {
 
     pub(crate) fn locks(&self) -> PathBuf {
         self.control().join("locks")
+    }
+
+    pub(crate) fn daemon_epoch(&self) -> PathBuf {
+        self.control().join("daemon-epoch.json")
     }
 
     pub(crate) fn events(&self, project: &ProjectId) -> PathBuf {

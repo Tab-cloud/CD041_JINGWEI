@@ -12,6 +12,7 @@ use crate::operation;
 pub enum Permission {
     Read,
     CandidateWrite,
+    ReviewDecision,
     ExternalProcess,
     Waiver,
     ReleaseCandidate,
@@ -142,8 +143,14 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
         ),
         (
             operation::EDIT_PUBLISH,
-            "Publish an approved draft as project candidate",
+            "Publish a draft as an immutable change proposal without moving project head",
             Permission::CandidateWrite,
+            Effect::RevisionWrite,
+        ),
+        (
+            operation::CHANGE_PROPOSAL_DECIDE,
+            "Append an authenticated proposal decision; accept atomically moves project head",
+            Permission::ReviewDecision,
             Effect::RevisionWrite,
         ),
         (

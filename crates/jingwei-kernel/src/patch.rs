@@ -153,7 +153,7 @@ pub fn apply_patch_to_graph(
                 }
                 let old = entity.edit_control.policy;
                 entity.edit_control.policy = *policy;
-                entity.edit_control.last_modified_by = Some(context.actor.clone());
+                entity.edit_control.last_modified_by = Some(context.actor.subject.clone());
                 impacted.push(entity_id.clone());
                 inverse.push(PatchOperation::SetEditPolicy {
                     entity_id: entity_id.clone(),

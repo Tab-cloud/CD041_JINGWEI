@@ -119,10 +119,10 @@ decision 与 CAS 移动 `ProjectHead` 必须同一 daemon transaction。Manufact
 - release 可能撤销但 revision bytes 不变；
 - superseded 是 pointer/release 关系，不是 snapshot 内容。
 
-当前 `RevisionStatus` 是 Phase 0 过渡类型，且当前 revision hash 未覆盖 `createdAt`、`createdBy`、`status`、
-`artifactRefs` 和 `evidenceRefs`。进入真实 UI adapter 前必须迁移为上述 snapshot/commit/draft/proposal 与独立
-assessment/release records；`verify()` 必须重算完整 RevisionId、graph hash 并验证 journal linkage。旧 store 需要
-显式备份、migration 和 downgrade refusal。
+Slice 0 已移除 `RevisionStatus`：canonical snapshot 不再包含 `createdAt`、actor、成熟度或 artifact/evidence 引用；
+commit、draft、proposal/decision、assessment 和 release 使用独立记录。`verify()` 会重算完整 RevisionId、graph
+hash，并由 store 验证 journal linkage。旧 store 只能只读打开，必须通过显式命令在完整数据备份后迁移；新版
+store 会只读打开并拒绝降级。迁移时存在活动 writer 或未恢复 transaction 会 fail closed。
 
 ### 5.2 Maturity Assessment
 
@@ -298,8 +298,8 @@ ProductSupportProfile
 sidecar packaging 可以组合运行，但当前仍是 **foundation integration**：
 
 - 工作台设计与 Agent 数据仍来自 versioned mock clients；
-- Runtime 生产本地 RPC、actor claims 和真实 JDP reconciliation 尚未完成；
-- `RevisionStatus`、gate assessment 和 ReleaseRecord 尚未按本文完成迁移；
+- Runtime 生产本地 RPC、OS/IAM actor claims 和真实 JDP reconciliation 尚未完成；
+- revision/commit/proposal 与 assessment/release 规范 schema 已完成 Slice 0 迁移；assessment 计算、签名和失效图仍待 Slice 6；
 - 真实 KiCad round-trip import、供应链、DFM、样板和签名发布仍未闭环。
 
 因此当前不能声称完整 Phase 0 product exit，更不能声称 Production Release。

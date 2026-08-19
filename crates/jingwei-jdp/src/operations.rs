@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use jingwei_jir::{
-    ArtifactId, CanonicalValue, EdgeId, EntityId, JirEdge, JirEntity, ProjectId, RevisionId,
-    SessionId, TaskId,
+    ArtifactId, CanonicalValue, EdgeId, EntityId, JirEdge, JirEntity, ProjectId, ProposalId,
+    RevisionId, SessionId, TaskId,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,7 @@ pub mod operation {
     pub const EDIT_REDO: &str = "edit.redo";
     pub const EDIT_CHECKPOINT: &str = "edit.checkpoint";
     pub const EDIT_PUBLISH: &str = "edit.publish";
+    pub const CHANGE_PROPOSAL_DECIDE: &str = "change_proposal.decide";
     pub const TASK_GET: &str = "task.get";
     pub const TASK_CANCEL: &str = "task.cancel";
     pub const TASK_EVENTS: &str = "task.events";
@@ -52,6 +53,23 @@ pub struct ProjectInfo {
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProposalDecisionInput {
+    pub proposal_id: ProposalId,
+    pub action: jingwei_jir::ProposalAction,
+    pub reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProposalDecisionOutput {
+    pub proposal_id: ProposalId,
+    pub action: jingwei_jir::ProposalAction,
+    pub project_head: RevisionId,
+    pub idempotent_replay: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompileJdlInput {
     pub source_name: String,
     pub source: String,
@@ -61,6 +79,7 @@ pub struct CompileJdlInput {
 #[serde(rename_all = "camelCase")]
 pub struct CompileJdlOutput {
     pub revision: RevisionId,
+    pub proposal_id: ProposalId,
     pub entity_count: usize,
     pub edge_count: usize,
     pub formatted_source: String,
@@ -200,6 +219,7 @@ pub struct PatchApplyInput {
 #[serde(rename_all = "camelCase")]
 pub struct PatchOutput {
     pub revision: RevisionId,
+    pub proposal_id: ProposalId,
     pub diff: jingwei_jir::GraphDiff,
     pub validation: ValidationOutput,
     pub idempotent_replay: bool,
@@ -332,6 +352,7 @@ pub struct HandshakeResponse {
     pub protocol_version: String,
     pub daemon_build: String,
     pub daemon_instance: String,
+    pub daemon_epoch: u64,
     pub workspace_id: jingwei_jir::WorkspaceId,
     pub read_write: bool,
     pub capabilities: Vec<String>,

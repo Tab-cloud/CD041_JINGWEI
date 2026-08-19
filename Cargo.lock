@@ -427,6 +427,7 @@ dependencies = [
  "jingwei-jdp",
  "jingwei-jir",
  "jingwei-kernel",
+ "jingwei-store",
  "serde",
  "serde_json",
  "tokio",

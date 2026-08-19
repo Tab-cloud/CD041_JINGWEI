@@ -39,7 +39,7 @@ describe("Rust generated JDP binding integration", () => {
       `${pathToFileURL(join(output, "src", "generated.ts")).href}?v=${Date.now()}`
     )
     expect(generated.JDP_PROTOCOL_VERSION).toBe("0.1")
-    expect(generated.JIR_SCHEMA_VERSION).toBe("0.1")
+    expect(generated.JIR_SCHEMA_VERSION).toBe("0.2")
     expect(catalog.length).toBeGreaterThanOrEqual(20)
   })
 

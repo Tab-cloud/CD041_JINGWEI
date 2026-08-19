@@ -5,12 +5,14 @@ use std::collections::BTreeSet;
 use chrono::Utc;
 use jingwei_jdp::{
     CompileJdlOutput, DiffOutput, ExplainOutput, PatchInput, PatchOutput, PatchProposal,
-    ProjectInfo, ProtocolDiagnostic, QueryInput, QueryOutput, ValidateInput, ValidationFinding,
-    ValidationOutput,
+    ProjectInfo, ProposalDecisionInput, ProposalDecisionOutput, ProtocolDiagnostic, QueryInput,
+    QueryOutput, ValidateInput, ValidationFinding, ValidationOutput,
 };
 use jingwei_jir::{
-    CanonicalValue, EditControl, EntityKind, ExecutionId, IdempotencyKey, JirEntity, JirGraph,
-    ProjectId, Provenance, RequestId, RevisionId, RevisionSnapshot, RevisionStatus,
+    AuthenticatedActorRef, CanonicalValue, ChangeProposal, CommitId, DecisionId, EditControl,
+    EntityKind, ExecutionId, IdempotencyKey, InvocationCorrelation, InvocationId,
+    InvocationSourceKind, JirEntity, JirGraph, ProjectId, ProposalDecisionRecord, ProposalId,
+    Provenance, RequestId, RevisionCommitRecord, RevisionId, RevisionSnapshot,
 };
 use jingwei_store::{
     CommitRequest, IdempotencyRecord, OperationJournalRecord, PointerTarget, ProjectMetadata,
@@ -26,7 +28,11 @@ use crate::{
 /// Caller identity and daemon-authorized capabilities.
 #[derive(Clone, Debug)]
 pub struct RequestContext {
-    pub actor: String,
+    pub actor: AuthenticatedActorRef,
+    pub invocation_source: InvocationSourceKind,
+    pub invocation_source_id: String,
+    pub daemon_instance_id: Option<String>,
+    pub daemon_epoch: Option<u64>,
     pub capabilities: BTreeSet<String>,
 }
 
@@ -34,11 +40,35 @@ impl RequestContext {
     /// Local CLI/test context with ordinary read and candidate-write authority.
     pub fn local(actor: impl Into<String>) -> Self {
         Self {
-            actor: actor.into(),
+            actor: AuthenticatedActorRef {
+                subject: actor.into(),
+                issuer: "local-os".into(),
+                authentication_method: "local-development".into(),
+                role_claims: BTreeSet::new(),
+            },
+            invocation_source: InvocationSourceKind::CliCommand,
+            invocation_source_id: "local-cli".into(),
+            daemon_instance_id: None,
+            daemon_epoch: None,
             capabilities: ["design.read".into(), "design.write".into()]
                 .into_iter()
                 .collect(),
         }
+    }
+
+    /// Binds a daemon-authenticated command invocation to one process epoch.
+    #[must_use]
+    pub fn for_daemon_command(
+        mut self,
+        command_invocation_id: impl Into<String>,
+        daemon_instance_id: impl Into<String>,
+        daemon_epoch: u64,
+    ) -> Self {
+        self.invocation_source = InvocationSourceKind::UiCommand;
+        self.invocation_source_id = command_invocation_id.into();
+        self.daemon_instance_id = Some(daemon_instance_id.into());
+        self.daemon_epoch = Some(daemon_epoch);
+        self
     }
 
     /// Tests one explicit capability.
@@ -105,7 +135,7 @@ impl Kernel {
         module
             .execute(
                 ToolContext {
-                    actor: context.actor.clone(),
+                    actor: context.actor.subject.clone(),
                     project_id: project_id.clone(),
                     revision,
                     capabilities: context.capabilities.iter().cloned().collect(),
@@ -160,14 +190,8 @@ impl Kernel {
         graph.insert_entity(project_entity)?;
         let operation = json!({"name": name});
         let journal_hash = jingwei_jir::canonical_sha256(&operation)?;
-        let snapshot = RevisionSnapshot::build(
-            project_id.clone(),
-            Vec::new(),
-            graph,
-            &context.actor,
-            journal_hash,
-            RevisionStatus::Candidate,
-        )?;
+        let snapshot =
+            RevisionSnapshot::build(project_id.clone(), Vec::new(), graph, journal_hash)?;
         let output = ProjectInfo {
             project_id: project_id.clone(),
             name,
@@ -183,8 +207,9 @@ impl Kernel {
                 input_hash,
                 operations: operation,
                 response: serde_json::to_value(&output)?,
-                pointer_target: PointerTarget::ProjectCurrent,
+                pointer_target: PointerTarget::ProjectHead,
                 expected_pointer: None,
+                proposal: None,
             },
             context,
         )?;
@@ -207,6 +232,62 @@ impl Kernel {
             project_id: project.project_id,
             name: project.name,
             current_revision,
+        })
+    }
+
+    /// Applies an append-only change-proposal decision. Accept atomically moves project head.
+    pub fn decide_change_proposal(
+        &self,
+        project_id: &ProjectId,
+        input: ProposalDecisionInput,
+        idempotency_key: &IdempotencyKey,
+        context: &RequestContext,
+    ) -> Result<ProposalDecisionOutput, KernelError> {
+        require(context, "design.write")?;
+        let decision_hash = jingwei_jir::canonical_sha256(&json!({
+            "projectId": project_id,
+            "proposalId": input.proposal_id,
+            "action": input.action,
+            "reason": input.reason.as_deref(),
+            "actor": context.actor,
+            "idempotencyKey": idempotency_key,
+        }))?;
+        let decision_id = DecisionId::new(format!("decision-{decision_hash}"))?;
+        if let Some(existing) = self
+            .store
+            .proposal_decision(project_id, &input.proposal_id)?
+        {
+            if existing.id == decision_id && existing.action == input.action {
+                let project_head = self.store.current_revision(project_id)?.ok_or_else(|| {
+                    KernelError::CorruptProject("project has no current revision".into())
+                })?;
+                return Ok(ProposalDecisionOutput {
+                    proposal_id: input.proposal_id,
+                    action: input.action,
+                    project_head,
+                    idempotent_replay: true,
+                });
+            }
+            return Err(KernelError::IdempotencyConflict);
+        }
+        let decision = ProposalDecisionRecord {
+            id: decision_id,
+            proposal_id: input.proposal_id.clone(),
+            action: input.action,
+            actor: context.actor.clone(),
+            issued_at: Utc::now(),
+            reason: input.reason,
+        };
+        self.store.decide_proposal(project_id, &decision)?;
+        let project_head = self
+            .store
+            .current_revision(project_id)?
+            .ok_or_else(|| KernelError::CorruptProject("project has no current revision".into()))?;
+        Ok(ProposalDecisionOutput {
+            proposal_id: input.proposal_id,
+            action: input.action,
+            project_head,
+            idempotent_replay: false,
         })
     }
 
@@ -263,12 +344,12 @@ impl Kernel {
             project_id.clone(),
             vec![base_revision.clone()],
             compiled.graph,
-            &context.actor,
             journal_hash,
-            RevisionStatus::Candidate,
         )?;
+        let proposal_id = ProposalId::generate();
         let output = CompileJdlOutput {
             revision: snapshot.metadata.id.clone(),
+            proposal_id: proposal_id.clone(),
             entity_count: snapshot.graph.entities.len(),
             edge_count: snapshot.graph.edges.len(),
             formatted_source,
@@ -295,8 +376,12 @@ impl Kernel {
                 input_hash,
                 operations: operation,
                 response: serde_json::to_value(&output)?,
-                pointer_target: PointerTarget::ProjectCurrent,
-                expected_pointer: Some(base_revision.clone()),
+                pointer_target: PointerTarget::None,
+                expected_pointer: None,
+                proposal: Some(ProposalMeta {
+                    id: proposal_id,
+                    base_project_head: base_revision.clone(),
+                }),
             },
             context,
         )?;
@@ -398,12 +483,12 @@ impl Kernel {
             project_id.clone(),
             vec![base_revision.clone()],
             applied.graph,
-            &context.actor,
             journal_hash,
-            RevisionStatus::Candidate,
         )?;
+        let proposal_id = ProposalId::generate();
         let output = PatchOutput {
             revision: snapshot.metadata.id.clone(),
+            proposal_id: proposal_id.clone(),
             diff: current.graph.diff(&snapshot.graph),
             validation,
             idempotent_replay: false,
@@ -418,8 +503,12 @@ impl Kernel {
                 input_hash,
                 operations: journal_operations,
                 response: serde_json::to_value(&output)?,
-                pointer_target: PointerTarget::ProjectCurrent,
-                expected_pointer: Some(base_revision.clone()),
+                pointer_target: PointerTarget::None,
+                expected_pointer: None,
+                proposal: Some(ProposalMeta {
+                    id: proposal_id,
+                    base_project_head: base_revision.clone(),
+                }),
             },
             context,
         )?;
@@ -643,13 +732,40 @@ impl Kernel {
         context: &RequestContext,
     ) -> Result<(), KernelError> {
         let execution_id = ExecutionId::generate();
+        let commit_id = CommitId::generate();
+        let issued_at = Utc::now();
+        let correlation = InvocationCorrelation {
+            invocation_id: InvocationId::generate(),
+            source_kind: context.invocation_source,
+            source_id: context.invocation_source_id.clone(),
+            request_id: meta.request_id.clone(),
+            daemon_instance_id: context.daemon_instance_id.clone(),
+            daemon_epoch: context.daemon_epoch,
+        };
         let event_sequence = self
             .store
             .next_event_sequence(&snapshot.metadata.project_id)?;
         let project_id = snapshot.metadata.project_id.clone();
         let result_revision = snapshot.metadata.id.clone();
+        let proposal = meta.proposal.map(|proposal| ChangeProposal {
+            id: proposal.id,
+            project_id: project_id.clone(),
+            base_project_head: proposal.base_project_head,
+            proposed_revision: result_revision.clone(),
+            created_by_commit: commit_id.clone(),
+            issued_at,
+        });
         self.store.commit(CommitRequest {
             snapshot,
+            commit_record: RevisionCommitRecord {
+                id: commit_id.clone(),
+                project_id: project_id.clone(),
+                revision_id: result_revision.clone(),
+                actor: context.actor.clone(),
+                issued_at,
+                correlation: correlation.clone(),
+            },
+            proposal,
             journal: OperationJournalRecord {
                 execution_id: execution_id.clone(),
                 request_id: meta.request_id,
@@ -659,8 +775,8 @@ impl Kernel {
                 base_revision: meta.base_revision.clone(),
                 result_revision: result_revision.clone(),
                 normalized_input_hash: meta.input_hash.clone(),
-                actor: context.actor.clone(),
-                created_at: Utc::now(),
+                commit_id,
+                correlation,
                 operations: meta.operations,
                 artifact_refs: Vec::new(),
                 evidence_refs: Vec::new(),
@@ -701,6 +817,12 @@ pub(crate) struct CommitMeta<'a> {
     pub(crate) response: Value,
     pub(crate) pointer_target: PointerTarget,
     pub(crate) expected_pointer: Option<RevisionId>,
+    pub(crate) proposal: Option<ProposalMeta>,
+}
+
+pub(crate) struct ProposalMeta {
+    pub(crate) id: ProposalId,
+    pub(crate) base_project_head: RevisionId,
 }
 
 fn require(context: &RequestContext, capability: &str) -> Result<(), KernelError> {

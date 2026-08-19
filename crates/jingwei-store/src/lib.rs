@@ -9,8 +9,9 @@ pub use artifact::{ArtifactRecord, MAX_ARTIFACT_BYTES};
 pub use lock::WriterLease;
 pub use store::{
     CommitRequest, CrashPoint, IdempotencyRecord, OperationJournalRecord, PointerTarget,
-    ProjectMetadata, RecoveryReport, StoreError, StoredEvent, WorkspaceMetadata, WorkspaceStore,
+    ProjectMetadata, RecoveryReport, StoreError, StoreMigrationReport, StoredEvent,
+    WorkspaceMetadata, WorkspaceStore,
 };
 
 /// On-disk metadata format version.
-pub const STORE_SCHEMA_VERSION: u32 = 1;
+pub const STORE_SCHEMA_VERSION: u32 = 2;

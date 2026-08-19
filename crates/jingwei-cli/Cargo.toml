@@ -12,6 +12,7 @@ jingwei-daemon = { path = "../jingwei-daemon" }
 jingwei-jdp = { path = "../jingwei-jdp" }
 jingwei-jir = { path = "../jingwei-jir" }
 jingwei-kernel = { path = "../jingwei-kernel" }
+jingwei-store = { path = "../jingwei-store" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

@@ -10,8 +10,8 @@ use jingwei_jdp::{
     EditCommandGroup, EditSessionOpenInput, EditSessionRef, ErrorDetail, EventsInput, ExplainInput,
     FindingSummary, HandshakeRequest, HandshakeResponse, JDP_PROTOCOL_VERSION, JdpFailure,
     JdpRequest, JdpResponse, JdpSuccess, PatchApplyInput, PatchInput, ProjectCreateInput,
-    QueryInput, SuggestedAction, SuggestedActionKind, TraceContext, ValidateInput,
-    WorkspaceCapabilities, operation, tool_catalog,
+    ProposalDecisionInput, QueryInput, SuggestedAction, SuggestedActionKind, TraceContext,
+    ValidateInput, WorkspaceCapabilities, operation, tool_catalog,
 };
 use jingwei_jir::{ExecutionId, RevisionId, WorkspaceId};
 use jingwei_kernel::{ExtensionRegistry, Kernel, KernelError, RequestContext};
@@ -26,6 +26,7 @@ use uuid::Uuid;
 pub struct HealthStatus {
     pub status: String,
     pub daemon_instance: String,
+    pub daemon_epoch: u64,
     pub build: String,
 }
 
@@ -58,6 +59,7 @@ pub struct Daemon {
     kernel: Kernel,
     workspace_id: WorkspaceId,
     instance_id: String,
+    epoch: u64,
     session_token: String,
     recovery_summary: String,
     trace_spans: Mutex<Vec<DaemonSpan>>,
@@ -116,6 +118,7 @@ impl Daemon {
         let instance_id = format!("daemon-{}", Uuid::new_v4());
         let writer_lease = store.acquire_writer(&instance_id)?;
         let recovery = store.recover()?;
+        let epoch = store.allocate_daemon_epoch()?;
         let recovery_summary = format!(
             "recovered={}, quarantined={}, removedIncomplete={}",
             recovery.recovered_transactions,
@@ -127,6 +130,7 @@ impl Daemon {
             kernel: Kernel::new(store, registry),
             workspace_id,
             instance_id,
+            epoch,
             session_token: format!("session-{}-{}", Uuid::new_v4(), Uuid::new_v4()),
             recovery_summary,
             trace_spans: Mutex::new(Vec::new()),
@@ -139,6 +143,7 @@ impl Daemon {
         HealthStatus {
             status: "healthy".into(),
             daemon_instance: self.instance_id.clone(),
+            daemon_epoch: self.epoch,
             build: env!("CARGO_PKG_VERSION").into(),
         }
     }
@@ -185,6 +190,7 @@ impl Daemon {
             protocol_version: JDP_PROTOCOL_VERSION.into(),
             daemon_build: env!("CARGO_PKG_VERSION").into(),
             daemon_instance: self.instance_id.clone(),
+            daemon_epoch: self.epoch,
             workspace_id: self.workspace_id.clone(),
             read_write: true,
             capabilities: tool_catalog()
@@ -296,7 +302,11 @@ impl Daemon {
                 ),
             );
         }
-        let context = RequestContext::local("local-jdp-client");
+        let context = RequestContext::local("local-jdp-client").for_daemon_command(
+            request.request_id.as_str(),
+            self.instance_id.clone(),
+            self.epoch,
+        );
         let base = request.base_revision.clone();
         let outcome: Result<(Value, Option<RevisionId>), KernelError> = match request
             .operation
@@ -488,6 +498,21 @@ impl Daemon {
                     let revision = value.revision.clone();
                     encode(value).map(|value| (value, Some(revision)))
                 }),
+            operation::CHANGE_PROPOSAL_DECIDE => {
+                parse_input::<ProposalDecisionInput>(&request.input)
+                    .and_then(|input| {
+                        self.kernel.decide_change_proposal(
+                            &request.project_id,
+                            input,
+                            &request.idempotency_key,
+                            &context,
+                        )
+                    })
+                    .and_then(|value| {
+                        let revision = value.project_head.clone();
+                        encode(value).map(|value| (value, Some(revision)))
+                    })
+            }
             operation::TASK_EVENTS => parse_input::<EventsInput>(&request.input)
                 .and_then(|input| {
                     self.kernel

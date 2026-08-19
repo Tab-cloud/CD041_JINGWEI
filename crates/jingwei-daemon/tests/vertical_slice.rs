@@ -5,10 +5,13 @@ use jingwei_jdp::{
     CompileJdlInput, CompileJdlOutput, EditCommandGroup, EditCommitOutput, EditPreviewOutput,
     EditPublishOutput, EditSessionInfo, EditSessionOpenInput, EditSessionRef, JDP_PROTOCOL_VERSION,
     JdpClient, JdpRequest, JdpResponse, PatchApplyInput, PatchInput, PatchOperation, PatchOutput,
-    Precondition, ProjectCreateInput, ProjectInfo, QueryInput, QueryOutput, SemanticEditCommand,
-    operation,
+    Precondition, ProjectCreateInput, ProjectInfo, ProposalDecisionInput, ProposalDecisionOutput,
+    QueryInput, QueryOutput, SemanticEditCommand, operation,
 };
-use jingwei_jir::{CanonicalValue, IdempotencyKey, ProjectId, RequestId, RevisionId, WorkspaceId};
+use jingwei_jir::{
+    CanonicalValue, IdempotencyKey, ProjectId, ProposalAction, ProposalId, RequestId, RevisionId,
+    WorkspaceId,
+};
 use jingwei_kernel::ExtensionRegistryBuilder;
 use serde_json::json;
 use tempfile::tempdir;
@@ -103,6 +106,15 @@ async fn cli_daemon_style_slice_is_atomic_idempotent_and_conflict_safe() {
         .await
         .unwrap();
     assert_failure_code(conflict, "idempotency_conflict");
+
+    accept_proposal(
+        &client,
+        &workspace,
+        &project,
+        first_output.proposal_id,
+        "accept-patch",
+    )
+    .await;
 
     let stale: JdpResponse<PatchOutput> = client
         .send(request(
@@ -234,7 +246,7 @@ async fn draft_edits_do_not_move_project_until_publish_and_support_undo_redo() {
             &workspace,
             &project,
             operation::EDIT_PUBLISH,
-            Some(project_revision),
+            Some(project_revision.clone()),
             "draft-publish",
             EditSessionRef {
                 edit_session_id: session.edit_session_id,
@@ -247,8 +259,17 @@ async fn draft_edits_do_not_move_project_until_publish_and_support_undo_redo() {
         project_info(&client, &workspace, &project, "after-publish")
             .await
             .current_revision,
-        published.revision
+        project_revision
     );
+    let accepted = accept_proposal(
+        &client,
+        &workspace,
+        &project,
+        published.proposal_id,
+        "accept-draft",
+    )
+    .await;
+    assert_eq!(accepted.project_head, published.revision);
 }
 
 async fn create_project(
@@ -295,7 +316,57 @@ async fn compile_jdl(
         ))
         .await
         .unwrap();
-    success(response).revision
+    let compiled = success(response);
+    let revision = compiled.revision.clone();
+    accept_proposal(
+        client,
+        workspace,
+        project,
+        compiled.proposal_id,
+        &format!("{key}-accept"),
+    )
+    .await;
+    revision
+}
+
+async fn accept_proposal(
+    client: &InMemoryClient,
+    workspace: &WorkspaceId,
+    project: &ProjectId,
+    proposal_id: ProposalId,
+    key: &str,
+) -> ProposalDecisionOutput {
+    let input = ProposalDecisionInput {
+        proposal_id,
+        action: ProposalAction::Accept,
+        reason: Some("integration review".into()),
+    };
+    let response: JdpResponse<ProposalDecisionOutput> = client
+        .send(request(
+            workspace,
+            project,
+            operation::CHANGE_PROPOSAL_DECIDE,
+            None,
+            key,
+            input.clone(),
+        ))
+        .await
+        .unwrap();
+    let accepted = success(response);
+    assert!(!accepted.idempotent_replay);
+    let replay: JdpResponse<ProposalDecisionOutput> = client
+        .send(request(
+            workspace,
+            project,
+            operation::CHANGE_PROPOSAL_DECIDE,
+            None,
+            key,
+            input,
+        ))
+        .await
+        .unwrap();
+    assert!(success(replay).idempotent_replay);
+    accepted
 }
 
 async fn query_component(

@@ -3,6 +3,7 @@
 mod canonical;
 mod graph;
 mod ids;
+mod lifecycle;
 mod migration;
 mod quantity;
 mod revision;
@@ -13,12 +14,19 @@ pub use graph::{
     Provenance, SchemaDescriptor, SchemaRegistry,
 };
 pub use ids::{
-    ArtifactId, EdgeId, EntityId, EvidenceId, ExecutionId, IdempotencyKey, InvalidId, ProjectId,
-    RequestId, RevisionId, SessionId, TaskId, WorkspaceId,
+    ArtifactId, AssessmentId, AttestationId, CommitId, DecisionId, EdgeId, EntityId, EvidenceId,
+    ExecutionId, GateResultId, IdempotencyKey, InvalidId, InvocationId, ProjectId, ProposalId,
+    ReleaseId, ReleaseRequestId, RequestId, RevisionId, RevokeId, SessionId, TaskId, WorkspaceId,
+};
+pub use lifecycle::{
+    ApprovalAttestation, AuthenticatedActorRef, ChangeProposal, DependencyLocks,
+    EffectiveReleaseStatus, GateResult, GateStatus, InvocationCorrelation, InvocationSourceKind,
+    MaturityAssessment, MaturityLevel, ProposalAction, ProposalDecisionRecord, ReleaseRecord,
+    ReleaseRequest, RevisionCommitRecord, RevokeRecord,
 };
 pub use migration::{MigrationError, MigrationRegistry, SchemaMigration};
 pub use quantity::{Dimension, Quantity, QuantityError, Unit};
-pub use revision::{RevisionMetadata, RevisionSnapshot, RevisionStatus, RevisionVerificationError};
+pub use revision::{RevisionMetadata, RevisionSnapshot, RevisionVerificationError};
 
 /// Schema version of the canonical Phase 0 JIR model.
-pub const JIR_SCHEMA_VERSION: &str = "0.1";
+pub const JIR_SCHEMA_VERSION: &str = "0.2";

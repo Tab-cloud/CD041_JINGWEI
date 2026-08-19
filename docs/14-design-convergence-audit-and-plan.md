@@ -52,7 +52,7 @@ P2 的 RF/SI/PI、高压/安规、HDI/BGA、刚挠、多人协作和云端服务
 | Runtime→daemon reconciliation | Blocked | sidecar capability 为 `false` |
 | CLI/Agent/GUI 同一 patch 同 revision | Blocked | GUI 仍是 mock DesignClient |
 | 真实 Runtime/UI adapter 与事件回放 | Blocked | UI 仅显示 sidecar process health |
-| JDL/JIR 最小编译与 migration | Partial pass | compiler/kernel tests 有覆盖；规范 schema/迁移仍需 Phase 0 黄金矩阵 |
+| JDL/JIR 最小编译与 migration | Pass（Slice 0） | JIR 0.2 canonical identity、显式备份 store migration、newer read-only/downgrade refusal、proposal CAS 和负向测试通过；黄金板 round-trip 仍属 Slice 3 |
 | KiCad schematic/PCB projection | Partial pass | KiCad 10 PCB DRC/Gerber/Drill 通过；完整 JIR↔KiCad round-trip 未通过 |
 | 原生 ERC/DRC 与 reference 差异映射 | Partial pass | domain rules/fixtures 已有；真实同板双后端 equivalence 未完成 |
 | Freerouting DSN/SES 真实闭环 | Blocked | adapter 存在，受控可执行文件与真实 gate 未交付 |
@@ -68,6 +68,11 @@ P2 的 RF/SI/PI、高压/安规、HDI/BGA、刚挠、多人协作和云端服务
 同一份状态矩阵。
 
 ### Slice 0：规范类型和迁移收拢
+
+状态（2026-08-20）：**Pass**。Rust 已成为 revision/lifecycle schema 的唯一规范源；旧 store 显式迁移、活动
+writer/pending transaction 拒绝、完整 identity/journal 校验、proposal 不移动 head 与接受时 CAS、daemon
+instance/epoch/invocation correlation、生成 TypeScript/JSON Schema 和 CLI migration/decision 都有自动化与真实 CLI
+纵向证据。详细记录见 `handoffs/slice-0-canonical-lifecycle-2026-08-20.md`。
 
 目标：消除继续开发会放大的数据模型歧义。
 
@@ -185,5 +190,5 @@ revision enum；proposal 接受使用 project head compare-and-swap。
 
 ## 6. 下一步
 
-从 Slice 0 开始：先迁移 revision/maturity/release schema，并同时设计 Runtime 正式本地 RPC，以便 Slice 1 能
+Slice 0 已闭合，下一步进入 Slice 1：实现 Runtime 正式本地 RPC、Tauri endpoint discovery 和真实 UI adapter，以便
 立即替换 mock clients。两项完成前，不继续扩展新的 UI fixture、router heuristic 或高级板型。

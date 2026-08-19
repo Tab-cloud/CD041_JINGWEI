@@ -8,8 +8,9 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use jingwei_jir::{
-    ArtifactId, ExecutionId, IdempotencyKey, ProjectId, RequestId, RevisionId, RevisionSnapshot,
-    SessionId, WorkspaceId,
+    ArtifactId, ChangeProposal, CommitId, ExecutionId, IdempotencyKey, InvocationCorrelation,
+    ProjectId, ProposalAction, ProposalDecisionRecord, ProposalId, RequestId, RevisionCommitRecord,
+    RevisionId, RevisionSnapshot, SessionId, WorkspaceId,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -50,8 +51,8 @@ pub struct OperationJournalRecord {
     pub base_revision: Option<RevisionId>,
     pub result_revision: RevisionId,
     pub normalized_input_hash: String,
-    pub actor: String,
-    pub created_at: DateTime<Utc>,
+    pub commit_id: CommitId,
+    pub correlation: InvocationCorrelation,
     pub operations: Value,
     #[serde(default)]
     pub artifact_refs: Vec<String>,
@@ -86,7 +87,7 @@ pub struct StoredEvent {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case", tag = "kind", content = "sessionId")]
 pub enum PointerTarget {
-    ProjectCurrent,
+    ProjectHead,
     Draft(SessionId),
     None,
 }
@@ -94,6 +95,8 @@ pub enum PointerTarget {
 /// Validated inputs to one atomic store transaction.
 pub struct CommitRequest {
     pub snapshot: RevisionSnapshot,
+    pub commit_record: RevisionCommitRecord,
+    pub proposal: Option<ChangeProposal>,
     pub journal: OperationJournalRecord,
     pub idempotency: IdempotencyRecord,
     pub event: StoredEvent,
@@ -119,6 +122,17 @@ pub struct RecoveryReport {
     pub removed_incomplete_transactions: usize,
 }
 
+/// Result of an explicit, backed-up workspace schema migration.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreMigrationReport {
+    pub source_version: u32,
+    pub target_version: u32,
+    pub backup_path: PathBuf,
+    pub migrated_revisions: usize,
+    pub migrated_commits: usize,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WriterOwner {
@@ -134,6 +148,8 @@ struct PointerRecord {
     revision_id: RevisionId,
     transaction_id: String,
     created_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    proposal_decision: Option<ProposalDecisionRecord>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -145,6 +161,8 @@ struct TransactionManifest {
     result_revision: RevisionId,
     pointer_target: PointerTarget,
     pointer_sequence: Option<u64>,
+    commit_file: String,
+    proposal_file: Option<String>,
     journal_file: String,
     idempotency_file: String,
     event_file: String,
@@ -191,12 +209,17 @@ impl WorkspaceStore {
         let root = absolute_normalized(root.as_ref())?;
         let layout = Layout::new(root);
         let metadata: WorkspaceMetadata = read_json(&layout.workspace_metadata())?;
-        let read_only_reason = (metadata.schema_version > STORE_SCHEMA_VERSION).then(|| {
-            format!(
+        let read_only_reason = match metadata.schema_version.cmp(&STORE_SCHEMA_VERSION) {
+            std::cmp::Ordering::Greater => Some(format!(
                 "workspace schema {} is newer than supported {}",
                 metadata.schema_version, STORE_SCHEMA_VERSION
-            )
-        });
+            )),
+            std::cmp::Ordering::Less => Some(format!(
+                "workspace schema {} requires explicit migration to {}",
+                metadata.schema_version, STORE_SCHEMA_VERSION
+            )),
+            std::cmp::Ordering::Equal => None,
+        };
         Ok(Self {
             layout,
             metadata,
@@ -212,6 +235,165 @@ impl WorkspaceStore {
     /// Returns the reason writes are disabled, if any.
     pub fn read_only_reason(&self) -> Option<&str> {
         self.read_only_reason.as_deref()
+    }
+
+    /// Migrates a version-1 store to the current schema after creating a complete control backup.
+    pub fn migrate(root: impl AsRef<Path>) -> Result<StoreMigrationReport, StoreError> {
+        let root = absolute_normalized(root.as_ref())?;
+        let layout = Layout::new(root);
+        let metadata_path = layout.workspace_metadata();
+        let mut metadata: WorkspaceMetadata = read_json(&metadata_path)?;
+        if metadata.schema_version > STORE_SCHEMA_VERSION {
+            return Err(StoreError::DowngradeRefused {
+                found: metadata.schema_version,
+                supported: STORE_SCHEMA_VERSION,
+            });
+        }
+        if metadata.schema_version == STORE_SCHEMA_VERSION {
+            return Err(StoreError::MigrationNotRequired(STORE_SCHEMA_VERSION));
+        }
+        if metadata.schema_version != 1 {
+            return Err(StoreError::UnsupportedMigration {
+                from: metadata.schema_version,
+                to: STORE_SCHEMA_VERSION,
+            });
+        }
+
+        fs::create_dir_all(layout.locks())?;
+        let owner_path = layout.locks().join("writer.lock");
+        let lock_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&owner_path)?;
+        let _migration_lease = WriterLease::acquire(
+            lock_file,
+            owner_path,
+            &WriterOwner {
+                instance_id: format!("store-migration-{}", Uuid::new_v4()),
+                process_id: std::process::id(),
+                acquired_at: Utc::now(),
+            },
+        )?;
+        if layout.transactions().is_dir()
+            && fs::read_dir(layout.transactions())?
+                .next()
+                .transpose()?
+                .is_some()
+        {
+            return Err(StoreError::MigrationPendingTransactions);
+        }
+
+        let source_version = metadata.schema_version;
+        let backup_root = layout
+            .control()
+            .join("migration-backups")
+            .join(format!("store-v{source_version}-{}", Uuid::new_v4()));
+        fs::create_dir_all(&backup_root)?;
+        copy_tree_excluding(&layout.control(), &backup_root, "migration-backups")?;
+
+        let mut migrated_revisions = 0;
+        let mut migrated_commits = 0;
+        for project_entry in fs::read_dir(layout.projects())? {
+            let project_entry = project_entry?;
+            if !project_entry.file_type()?.is_dir() {
+                continue;
+            }
+            let project_root = project_entry.path();
+            let revisions = project_root.join("revisions");
+            for revision_path in sorted_files(&revisions)? {
+                let mut value: Value = read_json(&revision_path)?;
+                let revision_metadata = value
+                    .get_mut("metadata")
+                    .and_then(Value::as_object_mut)
+                    .ok_or(StoreError::LegacyMigrationInvariant)?;
+                for legacy_field in [
+                    "createdAt",
+                    "createdBy",
+                    "status",
+                    "artifactRefs",
+                    "evidenceRefs",
+                ] {
+                    revision_metadata.remove(legacy_field);
+                }
+                let snapshot: RevisionSnapshot = serde_json::from_value(value.clone())?;
+                snapshot.verify()?;
+                replace_json(&revision_path, &value)?;
+                migrated_revisions += 1;
+            }
+
+            let commits = project_root.join("commits");
+            fs::create_dir_all(&commits)?;
+            let journal = project_root.join("journal");
+            for journal_path in sorted_files(&journal)? {
+                let mut value: Value = read_json(&journal_path)?;
+                if value.get("commitId").is_some() {
+                    continue;
+                }
+                let legacy_hash = jingwei_jir::canonical_sha256(&value)
+                    .map_err(jingwei_jir::RevisionVerificationError::from)?;
+                let project_id: ProjectId = value_field(&value, "projectId")?.parse()?;
+                let revision_id: RevisionId = value_field(&value, "resultRevision")?.parse()?;
+                let request_id: RequestId = value_field(&value, "requestId")?.parse()?;
+                let execution_id = value_field(&value, "executionId")?.to_owned();
+                let actor = value_field(&value, "actor")?.to_owned();
+                let issued_at: DateTime<Utc> = serde_json::from_value(
+                    value
+                        .get("createdAt")
+                        .cloned()
+                        .ok_or(StoreError::LegacyMigrationInvariant)?,
+                )?;
+                let commit_id = CommitId::new(format!("commit-migration-{legacy_hash}"))?;
+                let correlation = InvocationCorrelation {
+                    invocation_id: jingwei_jir::InvocationId::new(format!(
+                        "invocation-migration-{legacy_hash}"
+                    ))?,
+                    source_kind: jingwei_jir::InvocationSourceKind::SystemMigration,
+                    source_id: execution_id,
+                    request_id,
+                    daemon_instance_id: None,
+                    daemon_epoch: None,
+                };
+                let commit_record = RevisionCommitRecord {
+                    id: commit_id.clone(),
+                    project_id,
+                    revision_id,
+                    actor: jingwei_jir::AuthenticatedActorRef {
+                        subject: actor,
+                        issuer: "legacy-store-v1".into(),
+                        authentication_method: "legacy-unverified".into(),
+                        role_claims: std::collections::BTreeSet::new(),
+                    },
+                    issued_at,
+                    correlation: correlation.clone(),
+                };
+                replace_json(&commits.join(format!("{commit_id}.json")), &commit_record)?;
+                let journal_object = value
+                    .as_object_mut()
+                    .ok_or(StoreError::LegacyMigrationInvariant)?;
+                journal_object.remove("actor");
+                journal_object.remove("createdAt");
+                journal_object.insert("commitId".into(), serde_json::to_value(commit_id)?);
+                journal_object.insert("correlation".into(), serde_json::to_value(correlation)?);
+                replace_json(&journal_path, &value)?;
+                migrated_commits += 1;
+            }
+        }
+
+        metadata.schema_version = STORE_SCHEMA_VERSION;
+        replace_json(&metadata_path, &metadata)?;
+        let migrated = Self::open(layout.root())?;
+        if migrated.read_only_reason().is_some() {
+            return Err(StoreError::LegacyMigrationInvariant);
+        }
+        Ok(StoreMigrationReport {
+            source_version,
+            target_version: STORE_SCHEMA_VERSION,
+            backup_path: backup_root,
+            migrated_revisions,
+            migrated_commits,
+        })
     }
 
     /// Acquires the process-level exclusive writer lease.
@@ -236,6 +418,22 @@ impl WorkspaceStore {
         WriterLease::acquire(file, owner_path, &owner)
     }
 
+    /// Allocates the next durable daemon epoch while the caller holds the writer lease.
+    pub fn allocate_daemon_epoch(&self) -> Result<u64, StoreError> {
+        self.ensure_writable()?;
+        let path = self.layout.daemon_epoch();
+        let current = if path.is_file() {
+            read_json::<u64>(&path)?
+        } else {
+            0
+        };
+        let next = current
+            .checked_add(1)
+            .ok_or(StoreError::DaemonEpochExhausted)?;
+        replace_json(&path, &next)?;
+        Ok(next)
+    }
+
     /// Creates immutable project metadata and its subdirectories.
     pub fn create_project(&self, metadata: &ProjectMetadata) -> Result<(), StoreError> {
         self.ensure_writable()?;
@@ -244,6 +442,8 @@ impl WorkspaceStore {
         fs::create_dir_all(&root)?;
         for path in [
             self.layout.revisions(&metadata.project_id),
+            self.layout.commits(&metadata.project_id),
+            self.layout.proposals(&metadata.project_id),
             self.layout.journal(&metadata.project_id),
             self.layout.idempotency(&metadata.project_id),
             self.layout.current_pointers(&metadata.project_id),
@@ -362,6 +562,15 @@ impl WorkspaceStore {
         self.ensure_writable()?;
         validate_commit(&request)?;
         let project = &request.snapshot.metadata.project_id;
+        if let Some(proposal) = &request.proposal {
+            let current_head = self.current_revision(project)?;
+            if current_head != Some(proposal.base_project_head.clone()) {
+                return Err(StoreError::StaleBase {
+                    expected: Some(proposal.base_project_head.clone()),
+                    actual: current_head,
+                });
+            }
+        }
         let current = self.pointer_revision(project, &request.pointer_target)?;
         if current != request.expected_pointer {
             return Err(StoreError::StaleBase {
@@ -370,7 +579,7 @@ impl WorkspaceStore {
             });
         }
         let pointer_sequence = match request.pointer_target {
-            PointerTarget::ProjectCurrent => Some(next_pointer_sequence(
+            PointerTarget::ProjectHead => Some(next_pointer_sequence(
                 &self.layout.current_pointers(project),
             )?),
             PointerTarget::Draft(ref session) => {
@@ -384,9 +593,18 @@ impl WorkspaceStore {
         let transaction = self.layout.transactions().join(&transaction_id);
         fs::create_dir(&transaction)?;
         let journal_file = format!("{}.json", request.journal.execution_id);
+        let commit_file = format!("{}.json", request.commit_record.id);
+        let proposal_file = request
+            .proposal
+            .as_ref()
+            .map(|proposal| format!("{}.json", hex::encode(proposal.id.as_str().as_bytes())));
         let idempotency_file = format!("{}.json", key_hash(&request.idempotency.key));
         let event_file = format!("{:020}.json", request.event.sequence);
         write_new_json(&transaction.join("revision.json"), &request.snapshot)?;
+        write_new_json(&transaction.join("commit.json"), &request.commit_record)?;
+        if let Some(proposal) = &request.proposal {
+            write_new_json(&transaction.join("proposal.json"), proposal)?;
+        }
         write_new_json(&transaction.join("journal.json"), &request.journal)?;
         write_new_json(&transaction.join("idempotency.json"), &request.idempotency)?;
         write_new_json(&transaction.join("event.json"), &request.event)?;
@@ -397,6 +615,8 @@ impl WorkspaceStore {
             result_revision: request.snapshot.metadata.id.clone(),
             pointer_target: request.pointer_target,
             pointer_sequence,
+            commit_file,
+            proposal_file,
             journal_file,
             idempotency_file,
             event_file,
@@ -518,6 +738,85 @@ impl WorkspaceStore {
         Ok(events)
     }
 
+    /// Reads one immutable change proposal.
+    pub fn proposal(
+        &self,
+        project: &ProjectId,
+        proposal: &ProposalId,
+    ) -> Result<ChangeProposal, StoreError> {
+        read_json(&self.layout.proposal(project, proposal))
+    }
+
+    /// Returns the effective append-only proposal decision, including accepted pointer records.
+    pub fn proposal_decision(
+        &self,
+        project: &ProjectId,
+        proposal: &ProposalId,
+    ) -> Result<Option<ProposalDecisionRecord>, StoreError> {
+        for path in sorted_files(&self.layout.current_pointers(project))? {
+            let pointer: PointerRecord = read_json(&path)?;
+            if pointer
+                .proposal_decision
+                .as_ref()
+                .is_some_and(|decision| &decision.proposal_id == proposal)
+            {
+                return Ok(pointer.proposal_decision);
+            }
+        }
+        let mut decisions = sorted_files(&self.layout.proposal_decisions(project, proposal))?;
+        decisions
+            .pop()
+            .map_or(Ok(None), |path| read_json(&path).map(Some))
+    }
+
+    /// Appends reject/withdraw, or atomically couples accept to a project-head CAS pointer record.
+    pub fn decide_proposal(
+        &self,
+        project: &ProjectId,
+        decision: &ProposalDecisionRecord,
+    ) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        let proposal = self.proposal(project, &decision.proposal_id)?;
+        if proposal.project_id != *project {
+            return Err(StoreError::CommitInvariant);
+        }
+        if self.proposal_decision(project, &proposal.id)?.is_some() {
+            return Err(StoreError::ProposalAlreadyDecided(proposal.id));
+        }
+        match decision.action {
+            ProposalAction::Accept => {
+                let current = self.current_revision(project)?;
+                if current != Some(proposal.base_project_head.clone()) {
+                    return Err(StoreError::StaleBase {
+                        expected: Some(proposal.base_project_head),
+                        actual: current,
+                    });
+                }
+                self.revision(project, &proposal.proposed_revision)?;
+                let sequence = next_pointer_sequence(&self.layout.current_pointers(project))?;
+                let pointer = PointerRecord {
+                    sequence,
+                    revision_id: proposal.proposed_revision,
+                    transaction_id: format!("proposal-{}", decision.id),
+                    created_at: Utc::now(),
+                    proposal_decision: Some(decision.clone()),
+                };
+                write_new_json(
+                    &self
+                        .layout
+                        .current_pointers(project)
+                        .join(format!("{sequence:020}.json")),
+                    &pointer,
+                )
+            }
+            ProposalAction::Reject | ProposalAction::Withdraw => {
+                let directory = self.layout.proposal_decisions(project, &proposal.id);
+                fs::create_dir_all(&directory)?;
+                write_new_json(&directory.join(format!("{}.json", decision.id)), decision)
+            }
+        }
+    }
+
     fn ensure_writable(&self) -> Result<(), StoreError> {
         if let Some(reason) = &self.read_only_reason {
             Err(StoreError::ReadOnly(reason.clone()))
@@ -532,7 +831,7 @@ impl WorkspaceStore {
         target: &PointerTarget,
     ) -> Result<Option<RevisionId>, StoreError> {
         match target {
-            PointerTarget::ProjectCurrent => self.current_revision(project),
+            PointerTarget::ProjectHead => self.current_revision(project),
             PointerTarget::Draft(session) => self.draft_revision(project, session),
             PointerTarget::None => Ok(None),
         }
@@ -556,6 +855,22 @@ impl WorkspaceStore {
         transaction: &Path,
         manifest: &TransactionManifest,
     ) -> Result<(), StoreError> {
+        install_immutable(
+            &transaction.join("commit.json"),
+            &self
+                .layout
+                .commits(&manifest.project_id)
+                .join(&manifest.commit_file),
+        )?;
+        if let Some(proposal_file) = &manifest.proposal_file {
+            install_immutable(
+                &transaction.join("proposal.json"),
+                &self
+                    .layout
+                    .proposals(&manifest.project_id)
+                    .join(proposal_file),
+            )?;
+        }
         install_immutable(
             &transaction.join("journal.json"),
             &self
@@ -584,7 +899,7 @@ impl WorkspaceStore {
             return Ok(());
         };
         let directory = match &manifest.pointer_target {
-            PointerTarget::ProjectCurrent => self.layout.current_pointers(&manifest.project_id),
+            PointerTarget::ProjectHead => self.layout.current_pointers(&manifest.project_id),
             PointerTarget::Draft(session) => {
                 self.layout.draft_pointers(&manifest.project_id, session)
             }
@@ -604,6 +919,7 @@ impl WorkspaceStore {
             revision_id: manifest.result_revision.clone(),
             transaction_id: manifest.transaction_id.clone(),
             created_at: Utc::now(),
+            proposal_decision: None,
         };
         write_new_json(&path, &pointer)
     }
@@ -644,12 +960,28 @@ fn validate_commit(request: &CommitRequest) -> Result<(), StoreError> {
     request.snapshot.verify()?;
     if request.snapshot.metadata.id != request.journal.result_revision
         || request.snapshot.metadata.id != request.idempotency.result_revision
+        || request.snapshot.metadata.id != request.commit_record.revision_id
         || request.snapshot.metadata.project_id != request.journal.project_id
         || request.snapshot.metadata.project_id != request.idempotency.project_id
+        || request.snapshot.metadata.project_id != request.commit_record.project_id
+        || request.journal.commit_id != request.commit_record.id
+        || request.journal.correlation != request.commit_record.correlation
         || request.journal.idempotency_key != request.idempotency.key
         || request.journal.normalized_input_hash != request.idempotency.normalized_input_hash
     {
         return Err(StoreError::CommitInvariant);
+    }
+    if let Some(proposal) = &request.proposal
+        && (proposal.project_id != request.snapshot.metadata.project_id
+            || proposal.proposed_revision != request.snapshot.metadata.id
+            || proposal.created_by_commit != request.commit_record.id)
+    {
+        return Err(StoreError::CommitInvariant);
+    }
+    let journal_hash = jingwei_jir::canonical_sha256(&request.journal.operations)
+        .map_err(jingwei_jir::RevisionVerificationError::from)?;
+    if request.snapshot.metadata.operation_journal_hash != journal_hash {
+        return Err(StoreError::JournalLinkageMismatch);
     }
     Ok(())
 }
@@ -727,7 +1059,11 @@ fn install_immutable(source: &Path, destination: &Path) -> Result<(), StoreError
 
 #[cfg(test)]
 mod tests {
-    use jingwei_jir::{JirGraph, RevisionSnapshot, RevisionStatus};
+    use jingwei_jir::{
+        AuthenticatedActorRef, ChangeProposal, CommitId, DecisionId, InvocationCorrelation,
+        InvocationId, InvocationSourceKind, JirGraph, ProposalAction, ProposalDecisionRecord,
+        ProposalId, RevisionCommitRecord, RevisionSnapshot,
+    };
     use serde_json::json;
     use tempfile::tempdir;
 
@@ -760,6 +1096,250 @@ mod tests {
     }
 
     #[test]
+    fn version_one_store_requires_explicit_backed_up_migration() {
+        let directory = tempdir().unwrap();
+        let store = WorkspaceStore::create(
+            directory.path(),
+            WorkspaceId::new("ws-migration-v1").unwrap(),
+        )
+        .unwrap();
+        let lease = store.acquire_writer("migration-fixture").unwrap();
+        let project = ProjectId::new("project-migration-v1").unwrap();
+        store
+            .create_project(&ProjectMetadata {
+                project_id: project.clone(),
+                name: "legacy".into(),
+                created_at: Utc::now(),
+            })
+            .unwrap();
+        let initial = snapshot(&project, Vec::new(), "legacy-initial");
+        let revision_id = initial.metadata.id.clone();
+        store
+            .commit(commit_request(
+                initial,
+                None,
+                1,
+                "legacy-initial",
+                PointerTarget::ProjectHead,
+            ))
+            .unwrap();
+        drop(lease);
+
+        let revision_path = store.layout.revision(&project, &revision_id);
+        let mut revision_value: Value = read_json(&revision_path).unwrap();
+        let metadata = revision_value["metadata"].as_object_mut().unwrap();
+        metadata.insert("createdAt".into(), json!(Utc::now()));
+        metadata.insert("createdBy".into(), json!("legacy-user"));
+        metadata.insert("status".into(), json!("candidate"));
+        metadata.insert("artifactRefs".into(), json!([]));
+        metadata.insert("evidenceRefs".into(), json!([]));
+        replace_json(&revision_path, &revision_value).unwrap();
+
+        let journal_path = sorted_files(&store.layout.journal(&project))
+            .unwrap()
+            .pop()
+            .unwrap();
+        let mut journal_value: Value = read_json(&journal_path).unwrap();
+        let journal_object = journal_value.as_object_mut().unwrap();
+        journal_object.remove("commitId");
+        journal_object.remove("correlation");
+        journal_object.insert("actor".into(), json!("legacy-user"));
+        journal_object.insert("createdAt".into(), json!(Utc::now()));
+        replace_json(&journal_path, &journal_value).unwrap();
+        fs::remove_dir_all(store.layout.commits(&project)).unwrap();
+
+        let mut metadata: WorkspaceMetadata =
+            read_json(&store.layout.workspace_metadata()).unwrap();
+        metadata.schema_version = 1;
+        replace_json(&store.layout.workspace_metadata(), &metadata).unwrap();
+
+        let legacy = WorkspaceStore::open(directory.path()).unwrap();
+        assert!(
+            legacy
+                .read_only_reason()
+                .unwrap()
+                .contains("requires explicit migration")
+        );
+        assert!(matches!(
+            legacy.acquire_writer("must-fail"),
+            Err(StoreError::ReadOnly(_))
+        ));
+
+        let report = WorkspaceStore::migrate(directory.path()).unwrap();
+        assert_eq!(report.source_version, 1);
+        assert_eq!(report.target_version, STORE_SCHEMA_VERSION);
+        assert_eq!(report.migrated_revisions, 1);
+        assert_eq!(report.migrated_commits, 1);
+        assert!(report.backup_path.join("workspace.json").is_file());
+
+        let migrated = WorkspaceStore::open(directory.path()).unwrap();
+        assert!(migrated.read_only_reason().is_none());
+        migrated.revision(&project, &revision_id).unwrap();
+        assert_eq!(
+            sorted_files(&migrated.layout.commits(&project))
+                .unwrap()
+                .len(),
+            1
+        );
+        let journal: OperationJournalRecord = read_json(&journal_path).unwrap();
+        assert_eq!(
+            journal.correlation.source_kind,
+            InvocationSourceKind::SystemMigration
+        );
+    }
+
+    #[test]
+    fn newer_store_is_read_only_and_refuses_downgrade() {
+        let directory = tempdir().unwrap();
+        let store = WorkspaceStore::create(
+            directory.path(),
+            WorkspaceId::new("ws-newer-store").unwrap(),
+        )
+        .unwrap();
+        let mut metadata = store.metadata().clone();
+        metadata.schema_version = STORE_SCHEMA_VERSION + 1;
+        replace_json(&store.layout.workspace_metadata(), &metadata).unwrap();
+
+        let newer = WorkspaceStore::open(directory.path()).unwrap();
+        assert!(
+            newer
+                .read_only_reason()
+                .unwrap()
+                .contains("newer than supported")
+        );
+        assert!(matches!(
+            WorkspaceStore::migrate(directory.path()),
+            Err(StoreError::DowngradeRefused { .. })
+        ));
+    }
+
+    #[test]
+    fn migration_refuses_an_active_writer_or_pending_transaction() {
+        let directory = tempdir().unwrap();
+        let store = WorkspaceStore::create(
+            directory.path(),
+            WorkspaceId::new("ws-migration-safety").unwrap(),
+        )
+        .unwrap();
+        let lease = store.acquire_writer("active-writer").unwrap();
+        let mut metadata = store.metadata().clone();
+        metadata.schema_version = 1;
+        replace_json(&store.layout.workspace_metadata(), &metadata).unwrap();
+        assert!(matches!(
+            WorkspaceStore::migrate(directory.path()),
+            Err(StoreError::WriterAlreadyHeld)
+        ));
+        drop(lease);
+
+        fs::create_dir_all(store.layout.transactions().join("pending")).unwrap();
+        assert!(matches!(
+            WorkspaceStore::migrate(directory.path()),
+            Err(StoreError::MigrationPendingTransactions)
+        ));
+    }
+
+    #[test]
+    fn proposals_do_not_move_head_until_one_atomic_accept_decision() {
+        let directory = tempdir().unwrap();
+        let store = WorkspaceStore::create(
+            directory.path(),
+            WorkspaceId::new("ws-proposal-cas").unwrap(),
+        )
+        .unwrap();
+        let _lease = store.acquire_writer("proposal-test").unwrap();
+        let project = ProjectId::new("project-proposal-cas").unwrap();
+        store
+            .create_project(&ProjectMetadata {
+                project_id: project.clone(),
+                name: "proposal-cas".into(),
+                created_at: Utc::now(),
+            })
+            .unwrap();
+        let initial = snapshot(&project, Vec::new(), "proposal-initial");
+        let initial_id = initial.metadata.id.clone();
+        store
+            .commit(commit_request(
+                initial,
+                None,
+                1,
+                "proposal-initial",
+                PointerTarget::ProjectHead,
+            ))
+            .unwrap();
+
+        let first = snapshot(&project, vec![initial_id.clone()], "proposal-first");
+        let first_id = first.metadata.id.clone();
+        let first_proposal_id = ProposalId::new("proposal-first").unwrap();
+        let mut first_request =
+            commit_request(first, None, 2, "proposal-first", PointerTarget::None);
+        first_request.proposal = Some(ChangeProposal {
+            id: first_proposal_id.clone(),
+            project_id: project.clone(),
+            base_project_head: initial_id.clone(),
+            proposed_revision: first_id.clone(),
+            created_by_commit: first_request.commit_record.id.clone(),
+            issued_at: Utc::now(),
+        });
+        store.commit(first_request).unwrap();
+
+        let second = snapshot(&project, vec![initial_id.clone()], "proposal-second");
+        let second_id = second.metadata.id.clone();
+        let second_proposal_id = ProposalId::new("proposal-second").unwrap();
+        let mut second_request =
+            commit_request(second, None, 3, "proposal-second", PointerTarget::None);
+        second_request.proposal = Some(ChangeProposal {
+            id: second_proposal_id.clone(),
+            project_id: project.clone(),
+            base_project_head: initial_id.clone(),
+            proposed_revision: second_id,
+            created_by_commit: second_request.commit_record.id.clone(),
+            issued_at: Utc::now(),
+        });
+        store.commit(second_request).unwrap();
+        assert_eq!(store.current_revision(&project).unwrap(), Some(initial_id));
+
+        let accept_first = ProposalDecisionRecord {
+            id: DecisionId::new("decision-accept-first").unwrap(),
+            proposal_id: first_proposal_id.clone(),
+            action: ProposalAction::Accept,
+            actor: AuthenticatedActorRef {
+                subject: "reviewer".into(),
+                issuer: "test".into(),
+                authentication_method: "test".into(),
+                role_claims: ["hardware-reviewer".into()].into_iter().collect(),
+            },
+            issued_at: Utc::now(),
+            reason: Some("reviewed".into()),
+        };
+        store.decide_proposal(&project, &accept_first).unwrap();
+        assert_eq!(store.current_revision(&project).unwrap(), Some(first_id));
+        assert_eq!(
+            store
+                .proposal_decision(&project, &first_proposal_id)
+                .unwrap(),
+            Some(accept_first)
+        );
+
+        let stale_accept = ProposalDecisionRecord {
+            id: DecisionId::new("decision-stale-second").unwrap(),
+            proposal_id: second_proposal_id,
+            action: ProposalAction::Accept,
+            actor: AuthenticatedActorRef {
+                subject: "reviewer".into(),
+                issuer: "test".into(),
+                authentication_method: "test".into(),
+                role_claims: std::collections::BTreeSet::new(),
+            },
+            issued_at: Utc::now(),
+            reason: None,
+        };
+        assert!(matches!(
+            store.decide_proposal(&project, &stale_accept),
+            Err(StoreError::StaleBase { .. })
+        ));
+    }
+
+    #[test]
     fn every_commit_boundary_recovers_to_one_clean_pointer() {
         for crash in [
             CrashPoint::AfterPrepare,
@@ -787,18 +1367,19 @@ mod tests {
                     None,
                     1,
                     "initial",
-                    PointerTarget::ProjectCurrent,
+                    PointerTarget::ProjectHead,
                 ))
                 .unwrap();
-            let next = snapshot(&project, vec![initial_id.clone()], "next");
+            let next_key = format!("next-{crash:?}");
+            let next = snapshot(&project, vec![initial_id.clone()], &next_key);
             let next_id = next.metadata.id.clone();
             let result = store.commit_with_crash(
                 commit_request(
                     next,
                     Some(initial_id.clone()),
                     2,
-                    &format!("next-{crash:?}"),
-                    PointerTarget::ProjectCurrent,
+                    &next_key,
+                    PointerTarget::ProjectHead,
                 ),
                 Some(crash),
             );
@@ -832,9 +1413,7 @@ mod tests {
             project.clone(),
             parents,
             graph,
-            "test",
-            jingwei_jir::canonical_sha256(&marker).unwrap(),
-            RevisionStatus::Candidate,
+            jingwei_jir::canonical_sha256(&json!({"key": marker})).unwrap(),
         )
         .unwrap()
     }
@@ -850,19 +1429,43 @@ mod tests {
         let result = snapshot.metadata.id.clone();
         let idempotency_key = IdempotencyKey::new(format!("idem-{key}")).unwrap();
         let input_hash = jingwei_jir::canonical_sha256(&key).unwrap();
+        let request_id = RequestId::new(format!("request-{key}")).unwrap();
+        let commit_id = CommitId::generate();
+        let correlation = InvocationCorrelation {
+            invocation_id: InvocationId::generate(),
+            source_kind: InvocationSourceKind::SystemMigration,
+            source_id: "store-test".into(),
+            request_id: request_id.clone(),
+            daemon_instance_id: Some("daemon-test".into()),
+            daemon_epoch: Some(1),
+        };
         CommitRequest {
             snapshot,
+            commit_record: RevisionCommitRecord {
+                id: commit_id.clone(),
+                project_id: project.clone(),
+                revision_id: result.clone(),
+                actor: AuthenticatedActorRef {
+                    subject: "store-test".into(),
+                    issuer: "test".into(),
+                    authentication_method: "test".into(),
+                    role_claims: std::collections::BTreeSet::new(),
+                },
+                issued_at: Utc::now(),
+                correlation: correlation.clone(),
+            },
+            proposal: None,
             journal: OperationJournalRecord {
                 execution_id: ExecutionId::new(format!("execution-{key}")).unwrap(),
-                request_id: RequestId::new(format!("request-{key}")).unwrap(),
+                request_id,
                 project_id: project.clone(),
                 idempotency_key: idempotency_key.clone(),
                 operation: "test.commit".into(),
                 base_revision: base.clone(),
                 result_revision: result.clone(),
                 normalized_input_hash: input_hash.clone(),
-                actor: "test".into(),
-                created_at: Utc::now(),
+                commit_id,
+                correlation,
                 operations: json!({"key": key}),
                 artifact_refs: Vec::new(),
                 evidence_refs: Vec::new(),
@@ -894,6 +1497,49 @@ fn write_new_json(path: &Path, value: &impl Serialize) -> Result<(), StoreError>
     write_new_bytes(path, &bytes)
 }
 
+fn replace_json(path: &Path, value: &impl Serialize) -> Result<(), StoreError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let temporary = path.with_extension(format!("migration-{}.tmp", Uuid::new_v4()));
+    write_new_json(&temporary, value)?;
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
+    fs::rename(temporary, path)?;
+    Ok(())
+}
+
+fn copy_tree_excluding(
+    source: &Path,
+    destination: &Path,
+    excluded_name: &str,
+) -> Result<(), StoreError> {
+    fs::create_dir_all(destination)?;
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        if entry.file_name() == std::ffi::OsStr::new(excluded_name)
+            || entry.file_name() == std::ffi::OsStr::new("writer.lock")
+        {
+            continue;
+        }
+        let target = destination.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_tree_excluding(&entry.path(), &target, excluded_name)?;
+        } else if entry.file_type()?.is_file() {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
+}
+
+fn value_field<'a>(value: &'a Value, field: &str) -> Result<&'a str, StoreError> {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .ok_or(StoreError::LegacyMigrationInvariant)
+}
+
 fn write_new_bytes(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
     file.write_all(bytes)?;
@@ -921,6 +1567,24 @@ pub enum StoreError {
     WriterAlreadyHeld,
     #[error("workspace is read-only: {0}")]
     ReadOnly(String),
+    #[error("workspace schema {found} is newer than supported {supported}; downgrade refused")]
+    DowngradeRefused { found: u32, supported: u32 },
+    #[error("workspace schema {0} is already current; migration is not required")]
+    MigrationNotRequired(u32),
+    #[error("no supported store migration from schema {from} to {to}")]
+    UnsupportedMigration { from: u32, to: u32 },
+    #[error("legacy store does not contain the fields required for a safe migration")]
+    LegacyMigrationInvariant,
+    #[error(
+        "workspace has pending transactions; recover them with the matching old version before migration"
+    )]
+    MigrationPendingTransactions,
+    #[error("workspace daemon epoch counter is exhausted")]
+    DaemonEpochExhausted,
+    #[error("change proposal has already been decided: {0}")]
+    ProposalAlreadyDecided(ProposalId),
+    #[error(transparent)]
+    InvalidId(#[from] jingwei_jir::InvalidId),
     #[error("project name is empty, overlong, or contains control characters")]
     InvalidProjectName,
     #[error("stale base revision: expected {expected:?}, actual {actual:?}")]
@@ -930,6 +1594,8 @@ pub enum StoreError {
     },
     #[error("commit objects do not refer to the same project, revision, key, and input")]
     CommitInvariant,
+    #[error("revision operation journal hash does not match the committed journal operations")]
+    JournalLinkageMismatch,
     #[error("immutable store object collision at {0}")]
     ImmutableCollision(PathBuf),
     #[error("append-only pointer sequence collision")]

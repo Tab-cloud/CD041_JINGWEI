@@ -6,8 +6,7 @@ use jingwei_jdp::{
     PatchOperation, SemanticEditCommand, ValidationOutput,
 };
 use jingwei_jir::{
-    CanonicalValue, IdempotencyKey, ProjectId, RequestId, RevisionId, RevisionSnapshot,
-    RevisionStatus, SessionId,
+    CanonicalValue, IdempotencyKey, ProjectId, RequestId, RevisionId, RevisionSnapshot, SessionId,
 };
 use jingwei_store::PointerTarget;
 use serde::{Deserialize, Serialize};
@@ -66,9 +65,7 @@ impl Kernel {
             project_id.clone(),
             vec![base_revision.clone()],
             source.graph,
-            &context.actor,
             jingwei_jir::canonical_sha256(&operations)?,
-            RevisionStatus::Draft,
         )?;
         let lease_expires_at = Utc::now()
             + Duration::seconds(i64::try_from(lease_seconds.clamp(30, 86_400)).unwrap_or(86_400));
@@ -94,6 +91,7 @@ impl Kernel {
                 response: serde_json::to_value(&info)?,
                 pointer_target: PointerTarget::Draft(session_id.clone()),
                 expected_pointer: None,
+                proposal: None,
             },
             context,
         )?;
@@ -198,9 +196,7 @@ impl Kernel {
             project_id.clone(),
             vec![group.base_draft_revision.clone()],
             applied.graph,
-            &context.actor,
             jingwei_jir::canonical_sha256(&operation_record)?,
-            RevisionStatus::Draft,
         )?;
         let output = EditCommitOutput {
             draft_revision: snapshot.metadata.id.clone(),
@@ -219,6 +215,7 @@ impl Kernel {
                 response: serde_json::to_value(&output)?,
                 pointer_target: PointerTarget::Draft(group.edit_session_id.clone()),
                 expected_pointer: Some(group.base_draft_revision.clone()),
+                proposal: None,
             },
             context,
         )?;
@@ -336,12 +333,12 @@ impl Kernel {
             project_id.clone(),
             vec![current.clone(), state.draft_head_revision.clone()],
             draft.graph,
-            &context.actor,
             jingwei_jir::canonical_sha256(&operations)?,
-            RevisionStatus::Candidate,
         )?;
+        let proposal_id = jingwei_jir::ProposalId::generate();
         let output = EditPublishOutput {
             revision: snapshot.metadata.id.clone(),
+            proposal_id: proposal_id.clone(),
             diff: base.graph.diff(&snapshot.graph),
         };
         self.commit(
@@ -357,8 +354,12 @@ impl Kernel {
                 }))?,
                 operations,
                 response: serde_json::to_value(&output)?,
-                pointer_target: PointerTarget::ProjectCurrent,
-                expected_pointer: Some(current),
+                pointer_target: PointerTarget::None,
+                expected_pointer: None,
+                proposal: Some(crate::kernel::ProposalMeta {
+                    id: proposal_id,
+                    base_project_head: current,
+                }),
             },
             context,
         )?;
@@ -390,9 +391,7 @@ impl Kernel {
             project_id.clone(),
             vec![state.draft_head_revision.clone()],
             applied.graph,
-            &context.actor,
             jingwei_jir::canonical_sha256(&record)?,
-            RevisionStatus::Draft,
         )?;
         let output = EditCommitOutput {
             draft_revision: snapshot.metadata.id.clone(),
@@ -411,6 +410,7 @@ impl Kernel {
                 response: serde_json::to_value(&output)?,
                 pointer_target: PointerTarget::Draft(state.session_id.clone()),
                 expected_pointer: Some(state.draft_head_revision.clone()),
+                proposal: None,
             },
             context,
         )?;
