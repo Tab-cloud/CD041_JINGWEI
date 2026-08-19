@@ -7,3 +7,4 @@
 /.jingwei/
 **/*.tmp
 **/*.bak
+**/*.kicad_prl

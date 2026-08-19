@@ -3,7 +3,11 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$KicadCli,
 
-    [string]$RepositoryRoot = ''
+    [string]$RepositoryRoot = '',
+
+    [string]$BoardPath = '',
+
+    [string]$ReportPath = 'testdata\physical\reports\kicad-10.0.5-reference-gate.json'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,7 +18,7 @@ $repository = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $executable = (Resolve-Path -LiteralPath $KicadCli).Path
 $lockPath = Join-Path $repository 'toolchains\kicad-10.0.5-windows.json'
 $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
-$version = (& $executable version).Trim()
+$version = (& $executable --version).Trim()
 if ($LASTEXITCODE -ne 0 -or $version -ne $lock.version) {
     throw "KiCad version pin failed: expected $($lock.version), observed $version"
 }
@@ -23,9 +27,13 @@ if ($hash -ne $lock.sha256) {
     throw "KiCad executable hash pin failed: expected $($lock.sha256), observed $hash"
 }
 
-$boards = @(Get-ChildItem -LiteralPath (Join-Path $repository 'testdata\physical\candidates') -Filter 'board.kicad_pcb' -File -Recurse)
+$boards = if ([string]::IsNullOrWhiteSpace($BoardPath)) {
+    @(Get-ChildItem -LiteralPath (Join-Path $repository 'testdata\physical\candidates') -Filter 'board.kicad_pcb' -File -Recurse)
+} else {
+    @(Get-Item -LiteralPath (Join-Path $repository $BoardPath))
+}
 if ($boards.Count -ne 1) {
-    throw "Expected exactly one golden KiCad PCB projection, found $($boards.Count)"
+    throw "Expected exactly one KiCad PCB projection, found $($boards.Count)"
 }
 $board = $boards[0]
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ("jingwei-kicad-reference-" + [Guid]::NewGuid().ToString('N'))
@@ -115,9 +123,10 @@ try {
             'named engineering and release signoffs'
         )
     }
-    $reportPath = Join-Path $repository 'testdata\physical\reports\kicad-10.0.5-reference-gate.json'
-    $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding utf8
-    Write-Output "KiCad reference gate passed: $reportPath"
+    $resolvedReportPath = Join-Path $repository $ReportPath
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $resolvedReportPath) | Out-Null
+    $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resolvedReportPath -Encoding utf8
+    Write-Output "KiCad reference gate passed: $resolvedReportPath"
 }
 finally {
     $resolvedTemporaryRoot = [IO.Path]::GetFullPath($temporaryRoot)

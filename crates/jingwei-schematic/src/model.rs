@@ -416,6 +416,19 @@ impl SchematicGraph {
                 insert_contains(&mut result, &symbol.id, &pin.id)?;
             }
         }
+        for interface in self.interfaces.values() {
+            insert_serialized(
+                &mut result,
+                interface.id.clone(),
+                "logical.interface",
+                interface,
+                Vec::new(),
+            )?;
+            insert_contains(&mut result, &interface.module_id, &interface.id)?;
+            if let Some(net_id) = &interface.net_id {
+                insert_connects(&mut result, &interface.id, net_id)?;
+            }
+        }
         for net in self.nets.values() {
             insert_serialized(
                 &mut result,
@@ -427,6 +440,45 @@ impl SchematicGraph {
             for pin_id in &net.pin_ids {
                 insert_connects(&mut result, pin_id, &net.id)?;
             }
+        }
+        for wire in self.wires.values() {
+            insert_serialized(
+                &mut result,
+                wire.id.clone(),
+                "logical.wire",
+                wire,
+                Vec::new(),
+            )?;
+            insert_contains(&mut result, &wire.sheet_id, &wire.id)?;
+            insert_connects(&mut result, &wire.id, &wire.net_id)?;
+        }
+        for bus in self.buses.values() {
+            insert_serialized(&mut result, bus.id.clone(), "logical.bus", bus, Vec::new())?;
+            insert_contains(&mut result, &bus.sheet_id, &bus.id)?;
+            for net_id in &bus.member_net_ids {
+                insert_connects(&mut result, &bus.id, net_id)?;
+            }
+        }
+        for label in self.labels.values() {
+            insert_serialized(
+                &mut result,
+                label.id.clone(),
+                "logical.label",
+                label,
+                Vec::new(),
+            )?;
+            insert_contains(&mut result, &label.sheet_id, &label.id)?;
+            insert_connects(&mut result, &label.id, &label.net_id)?;
+        }
+        for no_connect in self.no_connects.values() {
+            insert_serialized(
+                &mut result,
+                no_connect.id.clone(),
+                "logical.no-connect",
+                no_connect,
+                no_connect.evidence_refs.clone(),
+            )?;
+            insert_connects(&mut result, &no_connect.id, &no_connect.pin_id)?;
         }
         for test_point in self.test_points.values() {
             insert_serialized(
@@ -443,6 +495,87 @@ impl SchematicGraph {
             .map_err(|error| GraphInvariantError::JirConversion(error.to_string()))?;
         Ok(result)
     }
+
+    /// Reconstructs the native logical graph from its namespaced JIR projection.
+    pub fn from_jir_graph(graph: &JirGraph) -> Result<Self, GraphInvariantError> {
+        let roots = graph
+            .entities
+            .values()
+            .filter(|entity| entity.kind.as_str() == "logical.schematic")
+            .collect::<Vec<_>>();
+        if roots.len() != 1 {
+            return Err(GraphInvariantError::JirConversion(format!(
+                "expected one logical.schematic root, found {}",
+                roots.len()
+            )));
+        }
+        let root = roots[0];
+        let schema_version = root
+            .properties
+            .as_value()
+            .get("schemaVersion")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| {
+                GraphInvariantError::JirConversion(
+                    "logical.schematic root has no schemaVersion".into(),
+                )
+            })?
+            .to_owned();
+        let mut result = Self {
+            id: root.id.clone(),
+            schema_version,
+            ..Self::default()
+        };
+        let mut pins = BTreeMap::<EntityId, PinInstance>::new();
+        for entity in graph.entities.values() {
+            match entity.kind.as_str() {
+                "logical.sheet" => insert_decoded(&mut result.sheets, entity)?,
+                "logical.module" => insert_decoded(&mut result.modules, entity)?,
+                "logical.interface" => insert_decoded(&mut result.interfaces, entity)?,
+                "logical.symbol" => insert_decoded(&mut result.symbols, entity)?,
+                "logical.pin" => insert_decoded(&mut pins, entity)?,
+                "logical.net" => insert_decoded(&mut result.nets, entity)?,
+                "logical.wire" => insert_decoded(&mut result.wires, entity)?,
+                "logical.bus" => insert_decoded(&mut result.buses, entity)?,
+                "logical.label" => insert_decoded(&mut result.labels, entity)?,
+                "logical.no-connect" => insert_decoded(&mut result.no_connects, entity)?,
+                "logical.test-point" => insert_decoded(&mut result.test_points, entity)?,
+                _ => {}
+            }
+        }
+        for (pin_id, pin) in pins {
+            let symbol = result
+                .symbols
+                .get_mut(&pin.symbol_id)
+                .ok_or_else(|| GraphInvariantError::MissingSymbol(pin.symbol_id.to_string()))?;
+            if let Some(embedded) = symbol.pins.get(&pin_id) {
+                if embedded != &pin {
+                    return Err(GraphInvariantError::JirConversion(format!(
+                        "embedded and standalone pin differ: {pin_id}"
+                    )));
+                }
+            } else {
+                symbol.pins.insert(pin_id, pin);
+            }
+        }
+        result.validate()?;
+        Ok(result)
+    }
+}
+
+fn insert_decoded<T>(
+    output: &mut BTreeMap<EntityId, T>,
+    entity: &JirEntity,
+) -> Result<(), GraphInvariantError>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    let value: T = serde_json::from_value(entity.properties.as_value().clone())
+        .map_err(|error| GraphInvariantError::JirConversion(error.to_string()))?;
+    if output.insert(entity.id.clone(), value).is_some() {
+        return Err(GraphInvariantError::DuplicateEntity(entity.id.to_string()));
+    }
+    Ok(())
 }
 
 fn insert_serialized<T: Serialize>(

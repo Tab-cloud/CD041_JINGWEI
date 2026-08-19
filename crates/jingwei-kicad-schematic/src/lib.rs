@@ -18,7 +18,9 @@ pub use native::{
     build_native_artifact, parse_native_schematic, serialize_native_schematic,
     serialize_object_map, serialize_symbol_library, serialize_symbol_library_table,
 };
-pub use projection::{parse_projection, project_schematic, serialize_projection};
+pub use projection::{
+    parse_projection, project_schematic, serialize_projection, verify_projection_equivalence,
+};
 pub use registration::{
     LogicalModuleRegistration, logical_module_registration, register_logical_module,
 };

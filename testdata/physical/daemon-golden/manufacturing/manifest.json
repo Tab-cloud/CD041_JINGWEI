@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "manufacturing-candidate-manifest-v0.1",
+  "candidateId": "pcb-candidate-logical-golden-rev-001-placement-baseline-grid-cluster-v1-000000004a573034-route-manhattan-reference-router-v1-000000004a573034--jdp",
+  "maturity": "L3-manufacturing-candidate-at-most",
+  "sourceRevision": "logical-golden-rev-001",
+  "designRevision": "pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034",
+  "boardSha256": "17e4cda6b8c2e1cf8e6ae6feb5a1de4c06e1545fc68d64b59a841b64e6b8ad57",
+  "manufacturerProfileId": "jlcpcb-standard-v0",
+  "manufacturerProfileVersion": "2026-08-19.1",
+  "variant": "default",
+  "toolchain": {
+    "jingweiManufacturing": "0.1.0",
+    "jingweiNativeDrc": "jingwei-native-pcb-drc-v1",
+    "kicadProjection": "jingwei-kicad-pcb-v1",
+    "manufacturerProfile": "jlcpcb-standard-v0@2026-08-19.1"
+  },
+  "validation": {
+    "kicadReferenceDrc": "not-executed",
+    "nativeDrc": "passed-with-explicit-coverage",
+    "packageReadback": "pending-independent-verifier"
+  },
+  "outputs": [
+    {
+      "role": "assembly-preview",
+      "path": "assembly/assembly-preview.svg",
+      "sha256": "b881098cc8054ca9169e8e277b405660a0fde4e08f7b794dbdf432ef5cbbc147",
+      "bytes": 624
+    },
+    {
+      "role": "bom",
+      "path": "assembly/bom.csv",
+      "sha256": "f33e60cb310a2faa9d023c2fab6c08e254fb6f272fa4800e94816995ff4807d9",
+      "bytes": 167
+    },
+    {
+      "role": "cpl",
+      "path": "assembly/cpl.csv",
+      "sha256": "004df2d7f6ab1476d013dcc7e4a56ed7e0308f4549eecd2e3b4afbbfade5b0a6",
+      "bytes": 117
+    },
+    {
+      "role": "gerber-copper-back",
+      "path": "fabrication/board-B_Cu.gbr",
+      "sha256": "5b51c989f2461131fbe3dbc39a3608fcea0ed2dc913df09e4c00f0c43a6a9700",
+      "bytes": 162
+    },
+    {
+      "role": "gerber-mask-back",
+      "path": "fabrication/board-B_Mask.gbr",
+      "sha256": "3fde22026845abff03b8f9a0dcda971c06a3456e76c873a31c42f509b0e820cd",
+      "bytes": 175
+    },
+    {
+      "role": "gerber-silkscreen-back",
+      "path": "fabrication/board-B_Silkscreen.gbr",
+      "sha256": "8a4bdd7f75bdf34112c7ce105cc177caec78fc0d5f052a7e08f50d100ecdf15e",
+      "bytes": 181
+    },
+    {
+      "role": "gerber-outline",
+      "path": "fabrication/board-Edge_Cuts.gbr",
+      "sha256": "1ec1a140b155f6d5732c2bd09272e75b4ddf6d91afff3563224258b35f2c7f7f",
+      "bytes": 272
+    },
+    {
+      "role": "gerber-copper-front",
+      "path": "fabrication/board-F_Cu.gbr",
+      "sha256": "01d276493fcf0649364fa0895f43c1199f9b51c6fa9395b3b85d0709606c0e57",
+      "bytes": 493
+    },
+    {
+      "role": "gerber-mask-front",
+      "path": "fabrication/board-F_Mask.gbr",
+      "sha256": "c78bb53ba33beb5a232413d679e19cd84bd55dab4561d80b85e6af01b273d5a3",
+      "bytes": 176
+    },
+    {
+      "role": "gerber-silkscreen-front",
+      "path": "fabrication/board-F_Silkscreen.gbr",
+      "sha256": "db7b35f6f362abb851a966499460597fa521b59d9e411e408839925e551caba4",
+      "bytes": 182
+    },
+    {
+      "role": "drill",
+      "path": "fabrication/board-PTH-NPTH.drl",
+      "sha256": "e1e687142da88ef1c42e17285dc5d6f6090670a96cec9448119f5135c88ee18f",
+      "bytes": 220
+    },
+    {
+      "role": "gerber-job",
+      "path": "fabrication/board-job.gbrjob",
+      "sha256": "b112a20dc9ffd3d63813e82df8975ae88c88fc0a3d16c07a7964ac9b81fe5472",
+      "bytes": 1183
+    },
+    {
+      "role": "ipc356",
+      "path": "fabrication/board.ipc",
+      "sha256": "36671f4b1430be37b348364814269157bbcff350d34c163be4ff95327846a0f5",
+      "bytes": 501
+    },
+    {
+      "role": "step-native-candidate",
+      "path": "mechanical/board.step",
+      "sha256": "cfe8571f36a7cbd609c80a260eebcd0bc60007ae55573a323c3bc9a5e6147656",
+      "bytes": 635
+    },
+    {
+      "role": "kicad-pcb-projection",
+      "path": "projection/board.kicad_pcb",
+      "sha256": "1f4f06426cb891f95a52ac1081e1cf0efb3c38cb8af0682b99b9be4ce621150d",
+      "bytes": 3671
+    },
+    {
+      "role": "projection-coverage",
+      "path": "projection/coverage.json",
+      "sha256": "6c9bb0ee23c0321cf84b9dc65f4e91e222e88d42436bbde81d5725dbb1689de1",
+      "bytes": 631
+    },
+    {
+      "role": "projection-object-map",
+      "path": "projection/object-map.json",
+      "sha256": "d5f9de531bf3a24a8551862a19d0e134aca6f75bc92281ffb750783c1fd1810b",
+      "bytes": 2309
+    },
+    {
+      "role": "native-drc-report",
+      "path": "reports/native-drc.json",
+      "sha256": "9a59b9fc6e2a90214b1122a1ca15db92b6aa693dc9ff7535f1e9b78658feff94",
+      "bytes": 3006
+    },
+    {
+      "role": "reference-gate-report",
+      "path": "reports/reference-gates.json",
+      "sha256": "e6ca7d5586eb1a536c0452491e60833c26e83544b6b71719d80f8b3b27a4b2f1",
+      "bytes": 345
+    },
+    {
+      "role": "jir-pcb-candidate",
+      "path": "source/board-candidate.json",
+      "sha256": "138f1d9dc819f169080586c00ca963999bb5254d894f918c19f4e03b6a687f8d",
+      "bytes": 7940
+    },
+    {
+      "role": "revision-reference",
+      "path": "source/revision.json",
+      "sha256": "76ad92c9f0d2d80327b62056181d9c43f3c95e3582eaa13902429a17fbf360bb",
+      "bytes": 349
+    }
+  ],
+  "openGates": [
+    "pinned KiCad 10.0.5 reference DRC/export not executed in native exporter",
+    "independent package verifier must pass after manifest creation",
+    "manufacturer DFM not performed",
+    "physical prototype not built or tested",
+    "named engineering and release signoffs missing"
+  ]
+}

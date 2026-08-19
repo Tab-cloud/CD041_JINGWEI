@@ -50,14 +50,14 @@ P2 的 RF/SI/PI、高压/安规、HDI/BGA、刚挠、多人协作和云端服务
 | 正式 Rust→TypeScript binding | Pass | reproducible codegen 与真实 daemon integration test |
 | Runtime→daemon trace context | Pass | 正式 binding + Windows named pipe + Rust child span |
 | Runtime→daemon reconciliation | Pass（Slice 2） | 正式 sidecar capability 为 `true`；真实 pipe 丢响应后按 executionId/response hash 对账并精确重放 |
-| CLI/Agent/GUI 同一 patch 同 revision | Partial pass | GUI 已使用真实 DesignTransport 并通过真实检查点；同一黄金板 patch 的三入口等价门禁留在 Slice 3 |
+| CLI/Agent/GUI 同一 patch 同 revision | Pass（受限命令集） | 原理图/PCB display、hit-test、move、preview/commit/undo/redo 均走同一 JDP/Kernel；UI adapter 合同测试覆盖原生 ID |
 | 真实 Runtime/UI adapter 与事件回放 | Pass（Slice 1） | 独立 Runtime RPC pipe、Tauri native bridge、真实 Runtime/Design clients、显式 fixture、durable replay 与已安装 UI 通过 |
 | JDL/JIR 最小编译与 migration | Pass（Slice 0） | JIR 0.2 canonical identity、显式备份 store migration、newer read-only/downgrade refusal、proposal CAS 和负向测试通过；黄金板 round-trip 仍属 Slice 3 |
-| KiCad schematic/PCB projection | Partial pass | KiCad 10 PCB DRC/Gerber/Drill 通过；完整 JIR↔KiCad round-trip 未通过 |
-| 原生 ERC/DRC 与 reference 差异映射 | Partial pass | domain rules/fixtures 已有；真实同板双后端 equivalence 未完成 |
+| KiCad schematic/PCB projection | Pass（声明的受限子集） | daemon CAS 投影、object map、结构 round-trip/semantic equivalence、固定 KiCad 10.0.5 ERC/DRC/渲染/制造导出通过；任意外部/unknown feature 导入仍 fail closed |
+| 原生 ERC/DRC 与 reference 差异映射 | Pass（黄金板） | native ERC/DRC 与同 revision KiCad 10.0.5 reference gate 均通过，工具版本/哈希和输入哈希留证 |
 | Freerouting DSN/SES 真实闭环 | Blocked | adapter 存在，受控可执行文件与真实 gate 未交付 |
 | 供应商与真实器件证据 | Blocked | 当前以 fixtures/本地模型为主，无已批准商业 provider snapshot |
-| 制造包完整格式与独立 parser | Partial pass | reference fabrication gate 通过；智能格式与独立全包验证未闭环 |
+| 制造包完整格式与独立 parser | Pass（受限双层候选） | 同一物理 revision 的 Gerber/drill/BOM/CPL/IPC-356/STEP/manifest 经独立回读并进入 CAS；仍不是工厂或量产批准 |
 | Windows 签名安装、升级/回滚/卸载 | Partial pass | 安装/卸载和 sidecar 路径通过；签名、升级、回滚未完成 |
 | 商业模型真实工具调用 | Blocked by environment | 缺少 `OPENAI_API_KEY` 与 `JINGWEI_OPENAI_MODEL`，live test 明确跳过 |
 | 真实黄金板人工审查/样板 | Blocked | 尚无具名硬件/PCB 审查、工厂 DFM、实物样板和测试记录 |
@@ -129,6 +129,11 @@ current revision，深浅主题切换和退出零残留均通过。旧 schema v1
 
 ### Slice 3：黄金板真实 logical 闭环
 
+状态（2026-08-20）：**Pass（受控合成黄金板）**。正式 daemon 可创建四器件/十二引脚/六网络逻辑图，
+经 proposal 审批后运行原生 ERC、原生 display/hit-test、draft move/undo/redo 和 CAS KiCad schematic 投影；
+固定 KiCad 10.0.5 的二进制哈希、ERC 零违规和 SVG 渲染门禁通过。器件料号和库验证是明确标注的合成数据，
+真实供应商快照仍归 Slice 4，不能据此声称真实 MPN 已获供应链批准。
+
 目标：自然语言需求到受控原理图 candidate，不使用 UI fixture。
 
 - 冻结温湿度/RS-485 黄金板 DesignIntent；
@@ -151,6 +156,12 @@ current revision，深浅主题切换和退出零残留均通过。旧 schema v1
 退出条件：过期/撤销/冲突数据能阻断候选，不能靠相似名称静默绑定。
 
 ### Slice 5：真实 physical 与制造候选
+
+状态（2026-08-20）：**Pass（受限双层黄金板 / L3 at most）**。`Board` 已进入权威 JIR 并带可检查的
+child mirror；daemon 实际执行创建、布局、可取消 reference route、native DRC、display/hit-test、人工 move 和
+KiCad PCB CAS 投影。相同 revision 导出的 24 项制造制品经独立 parser/manifest/hash 门禁通过，KiCad 10.0.5
+对 daemon 生成板报告 0 DRC/0 unconnected 并成功导出 Gerber/Drill。Freerouting 仍是可选外部后端且当前未安装；
+原生 fallback 已用于黄金板。制造商 DFM、实物样板和签核仍阻止 L4/L5。
 
 目标：黄金板从约束到可上传制造候选。
 
@@ -207,5 +218,5 @@ current revision，深浅主题切换和退出零残留均通过。旧 schema v1
 
 ## 6. 下一步
 
-Slice 0、Slice 1 与 Slice 2 已闭合，下一步进入 Slice 3：以温湿度/RS-485 黄金板打通真实 logical graph、原生
-schematic display-list、KiCad schematic round-trip/equivalence 和安装版人工编辑，不使用 UI fixture。
+Slice 0-3 与受限双层板 Slice 5 已闭合；下一步收拢 Slice 4 的供应快照/库审批撤销/影响分析，以及 Slice 6 的
+assessment/invalidation/release-request。外部凭据、组织签名、工厂和样板门禁保持独立阻塞。

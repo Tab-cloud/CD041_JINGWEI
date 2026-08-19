@@ -5,6 +5,7 @@
 //! the responsibility of the task-02 kernel transaction service.
 
 mod edit_view;
+mod jir;
 mod logical;
 mod model;
 
@@ -12,6 +13,7 @@ pub use edit_view::{
     CrossProbeResult, DisplayGeometry, DisplayItem, DisplayList, EditCandidate, EditPreview,
     HitTestResult, SemanticEditCommand, ViewRequest,
 };
+pub use jir::PCB_ROOT_ENTITY_ID;
 pub use logical::{
     ComponentInstanceRef, FootprintDefinitionRef, LogicalConstraint, LogicalNet, LogicalNetlist,
     LogicalPinRef, PadDefinition,

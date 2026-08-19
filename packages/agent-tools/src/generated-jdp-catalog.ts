@@ -16,9 +16,10 @@ export interface RustGeneratedJdpTool {
     | "waiver"
     | "release-candidate"
     | "production-release"
-  effect: "read-only" | "revision-write" | "draft-write" | "task-control" | "artifact-read"
+  effect: "read-only" | "revision-write" | "draft-write" | "task-control" | "artifact-read" | "artifact-write"
   resourceClaimTemplate: string[]
   idempotent: boolean
+  requiresBaseRevision: boolean
   cancellable: boolean
   defaultTimeoutMs: number
   protocolVersion: string
@@ -46,7 +47,11 @@ export function registerRustGeneratedJdpCatalog(
         permission: `jdp:${tool.permission}`,
         effects: effectsFor(tool.effect),
         resourceClaims: [...tool.resourceClaimTemplate],
-        write: tool.effect === "revision-write" || tool.effect === "draft-write",
+        write:
+          tool.effect === "revision-write" ||
+          tool.effect === "draft-write" ||
+          tool.effect === "artifact-write",
+        requiresBaseRevision: tool.requiresBaseRevision,
         cancellable: tool.cancellable,
         timeoutMs: tool.defaultTimeoutMs,
       },
@@ -69,6 +74,7 @@ function assertCompatible(tool: RustGeneratedJdpTool): void {
 
 function effectsFor(effect: RustGeneratedJdpTool["effect"]): Effect[] {
   if (effect === "read-only" || effect === "artifact-read") return ["read"]
+  if (effect === "artifact-write") return ["workspace-write"]
   if (effect === "revision-write" || effect === "draft-write" || effect === "task-control") {
     return ["design-write"]
   }

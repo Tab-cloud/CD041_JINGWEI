@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "jingwei-kicad-schematic-gate/0.1",
+  "generatedAt": "2026-08-19T18:02:08.0830763Z",
+  "passed": true,
+  "tool": {
+    "name": "kicad-cli",
+    "version": "10.0.5",
+    "expectedVersion": "10.0.5",
+    "sha256": "fc142e3b4c13af868501fcbc9312dd94ad62d3c05882f97a23b6fd9f8118d0c3",
+    "expectedSha256": "fc142e3b4c13af868501fcbc9312dd94ad62d3c05882f97a23b6fd9f8118d0c3",
+    "versionMatches": true,
+    "hashMatches": true
+  },
+  "input": {
+    "schematic": "design.kicad_sch",
+    "schematicSha256": "7d768d463d7df2f59193fd500ba328ba1098d9c6c7e3ff4d9bb440baf414e193",
+    "projection": "design.projection.json",
+    "projectionSha256": "1e12dd8dcfd6ae00a04b3fd8ef1d34b0e5aab251259614fcf5bbd7f0dcac272a"
+  },
+  "erc": {
+    "exitCode": 0,
+    "zeroViolations": true,
+    "violationCount": 0,
+    "output": "发现 0 条违规项\n已将 ERC 报告保存到文件 D:/Projects/CD041_LUBAN/jingwei-agent-integration/testdata/logical/golden-rs485/kicad/design.erc.json",
+    "report": "design.erc.json"
+  },
+  "render": {
+    "exitCode": 0,
+    "svgCount": 1,
+    "output": "已绘制到 'D:\\Projects\\CD041_LUBAN\\jingwei-agent-integration\\testdata\\logical\\golden-rs485\\kicad\\rendered\\design.svg'。\n完成。",
+    "files": [
+      "design.svg"
+    ]
+  },
+  "commands": [
+    "kicad-cli sch erc --format json --severity-all --exit-code-violations --output <report> <schematic>",
+    "kicad-cli sch export svg --output <directory> <schematic>"
+  ]
+}

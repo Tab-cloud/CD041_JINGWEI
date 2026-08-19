@@ -14,6 +14,7 @@ export interface GeneratedJdpToolDefinition {
   effects: Array<"read" | "design-write" | "workspace-write" | "process" | "network" | "hardware" | "release">
   resourceClaims: string[]
   write: boolean
+  requiresBaseRevision?: boolean
   cancellable?: boolean
   timeoutMs?: number
 }
@@ -73,7 +74,9 @@ export function registerGeneratedJdpTool(
         input,
         traceContext: context.traceContext,
       }
-      if (definition.write && !request.baseRevision) throw new Error("JDP write requires baseRevision")
+      if (definition.requiresBaseRevision && !request.baseRevision) {
+        throw new Error("JDP revision write requires baseRevision")
+      }
       const span = tracer.startSpan(
         "jdp.request",
         {

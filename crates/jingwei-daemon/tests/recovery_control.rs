@@ -145,6 +145,7 @@ fn descriptor(name: &str, permission: Permission) -> ToolDescriptor {
         effect: Effect::ReadOnly,
         resource_claim_template: vec!["workspace:{workspaceId}".into()],
         idempotent: true,
+        requires_base_revision: false,
         cancellable: true,
         default_timeout_ms: 30_000,
         protocol_version: JDP_PROTOCOL_VERSION.into(),

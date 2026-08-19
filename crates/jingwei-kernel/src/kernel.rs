@@ -4,7 +4,8 @@ use std::collections::BTreeSet;
 
 use chrono::Utc;
 use jingwei_jdp::{
-    CompileJdlOutput, DiffOutput, ExplainOutput, PatchInput, PatchOutput, PatchProposal,
+    CompileJdlOutput, DesignHitTestInput, DesignProjectInput, DesignProjectOutput, DesignViewInput,
+    DiffOutput, DisplayList, ExplainOutput, HitTestResult, PatchInput, PatchOutput, PatchProposal,
     ProjectInfo, ProposalDecisionInput, ProposalDecisionOutput, ProtocolDiagnostic, QueryInput,
     QueryOutput, ValidateInput, ValidationFinding, ValidationOutput,
 };
@@ -136,6 +137,7 @@ impl Kernel {
                 KernelError::CorruptProject("project has no current revision".into())
             })?,
         };
+        let graph = self.store.revision(project_id, &revision)?.graph;
         module
             .execute(
                 ToolContext {
@@ -143,6 +145,7 @@ impl Kernel {
                     project_id: project_id.clone(),
                     revision,
                     capabilities: context.capabilities.iter().cloned().collect(),
+                    graph,
                 },
                 ToolRequest {
                     name: operation.to_owned(),
@@ -671,6 +674,94 @@ impl Kernel {
             .await)
     }
 
+    /// Renders one immutable revision through an explicitly selected semantic view provider.
+    pub async fn view(
+        &self,
+        project_id: &ProjectId,
+        input: &DesignViewInput,
+        context: &RequestContext,
+    ) -> Result<DisplayList, KernelError> {
+        require(context, "design.read")?;
+        let snapshot = self.store.revision(project_id, &input.request.revision)?;
+        let provider = self
+            .registry
+            .view_provider(&input.provider)
+            .ok_or_else(|| KernelError::CapabilityUnavailable(input.provider.clone()))?;
+        provider
+            .view(&snapshot.graph, &input.request)
+            .await
+            .map_err(KernelError::DomainTool)
+    }
+
+    /// Hit-tests one immutable revision through the same provider used to render it.
+    pub async fn hit_test(
+        &self,
+        project_id: &ProjectId,
+        input: &DesignHitTestInput,
+        context: &RequestContext,
+    ) -> Result<HitTestResult, KernelError> {
+        require(context, "design.read")?;
+        let snapshot = self.store.revision(project_id, &input.request.revision)?;
+        let provider = self
+            .registry
+            .view_provider(&input.provider)
+            .ok_or_else(|| KernelError::CapabilityUnavailable(input.provider.clone()))?;
+        provider
+            .hit_test(&snapshot.graph, &input.request)
+            .await
+            .map_err(KernelError::DomainTool)
+    }
+
+    /// Stores a deterministic projection as content-addressed artifacts owned by the kernel.
+    pub async fn project(
+        &self,
+        project_id: &ProjectId,
+        input: &DesignProjectInput,
+        context: &RequestContext,
+    ) -> Result<DesignProjectOutput, KernelError> {
+        require(context, "design.read")?;
+        let snapshot = self.store.revision(project_id, &input.revision)?;
+        let provider = self
+            .registry
+            .projection_backend(&input.provider)
+            .ok_or_else(|| KernelError::CapabilityUnavailable(input.provider.clone()))?;
+        let mut projected = provider
+            .project(
+                &snapshot.graph,
+                &crate::ProjectionRequest {
+                    backend: input.provider.clone(),
+                    revision: input.revision.clone(),
+                    options: input.options.clone(),
+                },
+            )
+            .await
+            .map_err(KernelError::DomainTool)?;
+        let mut stored = Vec::new();
+        for artifact in projected.artifacts {
+            let record = self
+                .store
+                .put_artifact(&artifact.bytes, artifact.media_type.clone())?;
+            projected.artifact_refs.push(record.id.to_string());
+            stored.push(json!({
+                "name": artifact.name,
+                "artifactId": record.id,
+                "mediaType": record.media_type,
+                "sha256": record.sha256,
+                "byteLength": record.byte_length,
+            }));
+        }
+        if let Some(mapping) = projected.mapping.as_object_mut() {
+            mapping.insert("artifacts".into(), Value::Array(stored));
+        }
+        Ok(DesignProjectOutput {
+            provider: input.provider.clone(),
+            revision: input.revision.clone(),
+            artifact_refs: projected.artifact_refs,
+            evidence_refs: projected.evidence_refs,
+            mapping: projected.mapping,
+        })
+    }
+
     fn current_snapshot(&self, project_id: &ProjectId) -> Result<RevisionSnapshot, KernelError> {
         let revision = self
             .store
@@ -697,7 +788,7 @@ impl Kernel {
             .map_err(Into::into)
     }
 
-    async fn validate_graph(
+    pub(crate) async fn validate_graph(
         &self,
         revision: RevisionId,
         graph: &JirGraph,
@@ -727,7 +818,11 @@ impl Kernel {
             let provider_output = provider.validate(graph, &validation_context).await;
             output.valid &= provider_output.valid;
             output.findings.extend(provider_output.findings);
-            output.providers_run.push(name.clone());
+            if provider_output.providers_run.is_empty() {
+                output.providers_run.push(name.clone());
+            } else {
+                output.providers_run.extend(provider_output.providers_run);
+            }
         }
         output
     }

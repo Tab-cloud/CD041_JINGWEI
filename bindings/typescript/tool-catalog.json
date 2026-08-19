@@ -14,6 +14,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -35,6 +36,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -55,6 +57,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -76,6 +79,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -96,6 +100,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -116,6 +121,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -136,6 +142,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": true,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -157,6 +164,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -177,8 +185,73 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Render a bounded semantic display list from an immutable JIR revision",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.view",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Hit-test semantic display geometry using stable JIR identities",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.hit_test",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Materialize a deterministic external projection into content-addressed artifacts",
+    "effect": "artifact-write",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "design.project",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}",
+      "project:{projectId}"
     ],
     "schemaVersion": "0.2"
   },
@@ -197,6 +270,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -218,6 +292,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -238,6 +313,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -259,6 +335,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -280,6 +357,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -301,6 +379,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -322,6 +401,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -343,6 +423,7 @@
     },
     "permission": "review-decision",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}",
       "project:{projectId}"
@@ -364,6 +445,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -384,6 +466,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -404,6 +487,7 @@
     },
     "permission": "candidate-write",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -424,6 +508,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -444,6 +529,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -464,6 +550,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],
@@ -484,6 +571,7 @@
     },
     "permission": "read",
     "protocolVersion": "0.1",
+    "requiresBaseRevision": false,
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"
     ],

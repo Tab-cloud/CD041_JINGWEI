@@ -3,7 +3,7 @@
 use chrono::{DateTime, Duration, Utc};
 use jingwei_jdp::{
     EditCommandGroup, EditCommitOutput, EditPreviewOutput, EditPublishOutput, EditSessionInfo,
-    PatchOperation, SemanticEditCommand, ValidationOutput,
+    PatchOperation, SemanticEditCommand,
 };
 use jingwei_jir::{
     CanonicalValue, IdempotencyKey, ProjectId, RequestId, RevisionId, RevisionSnapshot, SessionId,
@@ -113,7 +113,7 @@ impl Kernel {
     }
 
     /// Translates and validates commands, but never creates a revision.
-    pub fn preview_edit(
+    pub async fn preview_edit(
         &self,
         project_id: &ProjectId,
         group: &EditCommandGroup,
@@ -132,7 +132,14 @@ impl Kernel {
             .revision(project_id, &group.base_draft_revision)?;
         let operations = self.translate_commands(&snapshot.graph, &group.commands)?;
         let applied = apply_patch_to_graph(&snapshot.graph, &operations, context)?;
-        let validation = core_validation(&applied.graph);
+        let validation = self
+            .validate_graph(
+                group.base_draft_revision.clone(),
+                &applied.graph,
+                Vec::new(),
+                group.expected_postconditions.clone(),
+            )
+            .await;
         let preview_hash = jingwei_jir::canonical_sha256(&json!({
             "base": group.base_draft_revision,
             "commands": group.commands,
@@ -147,7 +154,7 @@ impl Kernel {
 
     /// Commits a previewed command group as one immutable draft revision.
     #[allow(clippy::too_many_arguments)]
-    pub fn commit_edit(
+    pub async fn commit_edit(
         &self,
         project_id: &ProjectId,
         group: &EditCommandGroup,
@@ -179,12 +186,6 @@ impl Kernel {
             ));
         }
         let applied = apply_patch_to_graph(&source.graph, &operations, context)?;
-        let validation = core_validation(&applied.graph);
-        if !validation.valid {
-            return Err(KernelError::Postcondition(
-                "draft graph failed validation".into(),
-            ));
-        }
         let operation_record = json!({
             "kind": "edit-command",
             "commands": group.commands,
@@ -198,6 +199,20 @@ impl Kernel {
             applied.graph,
             jingwei_jir::canonical_sha256(&operation_record)?,
         )?;
+        let validation = self
+            .validate_graph(
+                snapshot.metadata.id.clone(),
+                &snapshot.graph,
+                Vec::new(),
+                group.expected_postconditions.clone(),
+            )
+            .await;
+        if !validation.valid {
+            return Err(KernelError::Postcondition(format!(
+                "draft graph failed registered validation: {} finding(s)",
+                validation.findings.len()
+            )));
+        }
         let output = EditCommitOutput {
             draft_revision: snapshot.metadata.id.clone(),
             validation,
@@ -232,7 +247,7 @@ impl Kernel {
     }
 
     /// Creates a new draft revision by applying the prior command group's inverse.
-    pub fn undo_edit(
+    pub async fn undo_edit(
         &self,
         project_id: &ProjectId,
         session_id: &SessionId,
@@ -256,10 +271,11 @@ impl Kernel {
             idempotency_key,
             context,
         )
+        .await
     }
 
     /// Creates a new draft revision by reapplying the next command group.
-    pub fn redo_edit(
+    pub async fn redo_edit(
         &self,
         project_id: &ProjectId,
         session_id: &SessionId,
@@ -283,6 +299,7 @@ impl Kernel {
             idempotency_key,
             context,
         )
+        .await
     }
 
     /// Adds a durable metadata checkpoint and extends the lease without changing JIR.
@@ -370,7 +387,7 @@ impl Kernel {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn apply_history_step(
+    async fn apply_history_step(
         &self,
         project_id: &ProjectId,
         mut state: DraftState,
@@ -393,9 +410,23 @@ impl Kernel {
             applied.graph,
             jingwei_jir::canonical_sha256(&record)?,
         )?;
+        let validation = self
+            .validate_graph(
+                snapshot.metadata.id.clone(),
+                &snapshot.graph,
+                Vec::new(),
+                vec!["graph.integrity".into(), "native-erc".into()],
+            )
+            .await;
+        if !validation.valid {
+            return Err(KernelError::Postcondition(format!(
+                "draft history step failed registered validation: {} finding(s)",
+                validation.findings.len()
+            )));
+        }
         let output = EditCommitOutput {
             draft_revision: snapshot.metadata.id.clone(),
-            validation: core_validation(&snapshot.graph),
+            validation,
             diff: source.graph.diff(&snapshot.graph),
         };
         self.commit(
@@ -506,14 +537,6 @@ impl DraftState {
             lease_expires_at: self.lease_expires_at,
             state: self.state.clone(),
         }
-    }
-}
-
-fn core_validation(graph: &jingwei_jir::JirGraph) -> ValidationOutput {
-    ValidationOutput {
-        valid: graph.validate().is_ok(),
-        findings: Vec::new(),
-        providers_run: vec!["core.graph-integrity".into()],
     }
 }
 

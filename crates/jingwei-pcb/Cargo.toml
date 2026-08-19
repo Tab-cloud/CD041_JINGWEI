@@ -9,6 +9,7 @@ description = "Canonical Phase 0 PCB candidate model, semantic editing and views
 [dependencies]
 hex.workspace = true
 jingwei-geometry = { path = "../jingwei-geometry" }
+jingwei-jir = { path = "../jingwei-jir" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

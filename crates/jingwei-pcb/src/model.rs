@@ -52,6 +52,9 @@ pub enum PcbError {
     /// A semantic edit is malformed.
     #[error("invalid edit: {0}")]
     InvalidEdit(String),
+    /// JIR conversion or mirror validation failed.
+    #[error("PCB JIR conversion failed: {0}")]
+    JirConversion(String),
 }
 
 /// Copper or non-copper board layer kind.

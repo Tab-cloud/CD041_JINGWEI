@@ -11,14 +11,14 @@ use std::{
 use chrono::Utc;
 use futures_util::FutureExt;
 use jingwei_jdp::{
-    ArtifactGetInput, ArtifactGetOutput, CapabilityState, CompileJdlInput, DiffInput,
-    EditCommandGroup, EditSessionOpenInput, EditSessionRef, ErrorDetail, EventsInput,
-    ExecutionReconcileInput, ExecutionReconcileOutput, ExecutionStatus, ExplainInput,
-    FindingSummary, HandshakeRequest, HandshakeResponse, JDP_PROTOCOL_VERSION, JdpFailure,
-    JdpRequest, JdpResponse, JdpSuccess, PatchApplyInput, PatchInput, Permission,
-    ProjectCreateInput, ProposalDecisionInput, QueryInput, SuggestedAction, SuggestedActionKind,
-    TaskRef, TaskState, TaskWaitInput, TraceContext, ValidateInput, WorkspaceCapabilities,
-    operation, tool_catalog,
+    ArtifactGetInput, ArtifactGetOutput, CapabilityState, CompileJdlInput, DesignHitTestInput,
+    DesignProjectInput, DesignViewInput, DiffInput, EditCommandGroup, EditSessionOpenInput,
+    EditSessionRef, ErrorDetail, EventsInput, ExecutionReconcileInput, ExecutionReconcileOutput,
+    ExecutionStatus, ExplainInput, FindingSummary, HandshakeRequest, HandshakeResponse,
+    JDP_PROTOCOL_VERSION, JdpFailure, JdpRequest, JdpResponse, JdpSuccess, PatchApplyInput,
+    PatchInput, Permission, ProjectCreateInput, ProposalDecisionInput, QueryInput, SuggestedAction,
+    SuggestedActionKind, TaskRef, TaskState, TaskWaitInput, TraceContext, ValidateInput,
+    WorkspaceCapabilities, operation, tool_catalog,
 };
 use jingwei_jir::{ExecutionId, ProjectId, RevisionId, TaskId, WorkspaceId};
 use jingwei_kernel::{ExtensionRegistry, Kernel, KernelError, RequestContext};
@@ -550,6 +550,30 @@ impl Daemon {
                     .and_then(|value| encode(value).map(|value| (value, None))),
                 Err(error) => Err(error),
             },
+            operation::DESIGN_VIEW => match parse_input::<DesignViewInput>(&request.input) {
+                Ok(input) => self
+                    .kernel
+                    .view(&request.project_id, &input, &context)
+                    .await
+                    .and_then(|value| encode(value).map(|value| (value, None))),
+                Err(error) => Err(error),
+            },
+            operation::DESIGN_HIT_TEST => match parse_input::<DesignHitTestInput>(&request.input) {
+                Ok(input) => self
+                    .kernel
+                    .hit_test(&request.project_id, &input, &context)
+                    .await
+                    .and_then(|value| encode(value).map(|value| (value, None))),
+                Err(error) => Err(error),
+            },
+            operation::DESIGN_PROJECT => match parse_input::<DesignProjectInput>(&request.input) {
+                Ok(input) => self
+                    .kernel
+                    .project(&request.project_id, &input, &context)
+                    .await
+                    .and_then(|value| encode(value).map(|value| (value, None))),
+                Err(error) => Err(error),
+            },
             operation::EDIT_SESSION_OPEN => {
                 match parse_input::<EditSessionOpenInput>(&request.input) {
                     Ok(input) => self
@@ -569,51 +593,66 @@ impl Daemon {
                     Err(error) => Err(error),
                 }
             }
-            operation::EDIT_COMMAND_PREVIEW => parse_input::<EditCommandGroup>(&request.input)
-                .and_then(|input| {
-                    self.kernel
+            operation::EDIT_COMMAND_PREVIEW => {
+                match parse_input::<EditCommandGroup>(&request.input) {
+                    Ok(input) => self
+                        .kernel
                         .preview_edit(&request.project_id, &input, &context)
-                })
-                .and_then(|value| encode(value).map(|value| (value, None))),
-            operation::EDIT_COMMAND_COMMIT => parse_input::<EditCommandGroup>(&request.input)
-                .and_then(|input| {
-                    self.kernel.commit_edit(
-                        &request.project_id,
-                        &input,
-                        request.request_id.clone(),
-                        request.idempotency_key.clone(),
-                        &context,
-                    )
-                })
-                .and_then(|value| {
-                    let revision = value.draft_revision.clone();
-                    encode(value).map(|value| (value, Some(revision)))
-                }),
+                        .await
+                        .and_then(|value| encode(value).map(|value| (value, None))),
+                    Err(error) => Err(error),
+                }
+            }
+            operation::EDIT_COMMAND_COMMIT => {
+                match parse_input::<EditCommandGroup>(&request.input) {
+                    Ok(input) => self
+                        .kernel
+                        .commit_edit(
+                            &request.project_id,
+                            &input,
+                            request.request_id.clone(),
+                            request.idempotency_key.clone(),
+                            &context,
+                        )
+                        .await
+                        .and_then(|value| {
+                            let revision = value.draft_revision.clone();
+                            encode(value).map(|value| (value, Some(revision)))
+                        }),
+                    Err(error) => Err(error),
+                }
+            }
             operation::EDIT_UNDO | operation::EDIT_REDO => {
-                parse_input::<EditSessionRef>(&request.input)
-                    .and_then(|input| {
-                        if request.operation == operation::EDIT_UNDO {
-                            self.kernel.undo_edit(
-                                &request.project_id,
-                                &input.edit_session_id,
-                                request.request_id.clone(),
-                                request.idempotency_key.clone(),
-                                &context,
-                            )
+                match parse_input::<EditSessionRef>(&request.input) {
+                    Ok(input) => {
+                        let result = if request.operation == operation::EDIT_UNDO {
+                            self.kernel
+                                .undo_edit(
+                                    &request.project_id,
+                                    &input.edit_session_id,
+                                    request.request_id.clone(),
+                                    request.idempotency_key.clone(),
+                                    &context,
+                                )
+                                .await
                         } else {
-                            self.kernel.redo_edit(
-                                &request.project_id,
-                                &input.edit_session_id,
-                                request.request_id.clone(),
-                                request.idempotency_key.clone(),
-                                &context,
-                            )
-                        }
-                    })
-                    .and_then(|value| {
-                        let revision = value.draft_revision.clone();
-                        encode(value).map(|value| (value, Some(revision)))
-                    })
+                            self.kernel
+                                .redo_edit(
+                                    &request.project_id,
+                                    &input.edit_session_id,
+                                    request.request_id.clone(),
+                                    request.idempotency_key.clone(),
+                                    &context,
+                                )
+                                .await
+                        };
+                        result.and_then(|value| {
+                            let revision = value.draft_revision.clone();
+                            encode(value).map(|value| (value, Some(revision)))
+                        })
+                    }
+                    Err(error) => Err(error),
+                }
             }
             operation::EDIT_CHECKPOINT => parse_input::<EditSessionRef>(&request.input)
                 .and_then(|input| {

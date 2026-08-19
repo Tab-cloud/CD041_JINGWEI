@@ -1,14 +1,15 @@
 use async_trait::async_trait;
 use jingwei_components::{DesignIntent, classify_risk};
+use jingwei_erc::{ErcContext, LibraryBindingStatus, run_native_erc};
 use jingwei_jdp::{
     DisplayList, Effect, HitTestRequest, HitTestResult, PatchOperation, Permission,
-    SemanticEditCommand, ToolDescriptor, ValidationOutput, ViewRequest,
+    SemanticEditCommand, ToolDescriptor, ValidationFinding, ValidationOutput, ViewRequest,
 };
 use jingwei_jir::{CanonicalValue, EntityId, SchemaDescriptor};
 use jingwei_kernel::{
-    DomainToolModule, ExtensionRegistryBuilder, ProjectionBackend, ProjectionRequest,
-    ProjectionResult, RegistryError, SemanticEditHandler, ToolContext, ToolRequest, ToolResult,
-    ValidationContext, ValidationProvider, ViewProvider,
+    DomainToolModule, ExtensionRegistryBuilder, ProjectionArtifact, ProjectionBackend,
+    ProjectionRequest, ProjectionResult, RegistryError, SemanticEditHandler, ToolContext,
+    ToolRequest, ToolResult, ValidationContext, ValidationProvider, ViewProvider,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -128,6 +129,7 @@ pub fn logical_module_registration() -> LogicalModuleRegistration {
                 "logical:{projectId}".to_owned(),
             ],
             idempotent: true,
+            requires_base_revision: matches!(effect, Effect::RevisionWrite | Effect::DraftWrite),
             cancellable: false,
             default_timeout_ms: 30_000,
             protocol_version: jingwei_jdp::JDP_PROTOCOL_VERSION.to_owned(),
@@ -181,6 +183,7 @@ pub fn register_logical_module(
     builder = builder.view_provider(LogicalViewProvider)?;
     builder = builder.projection(LogicalProjectionBackend)?;
     builder = builder.edit_handler(LogicalSetPropertyHandler)?;
+    builder = builder.edit_handler(LogicalMoveSymbolHandler)?;
     for kind in metadata.entity_schema_kinds {
         builder = builder.entity_schema(open_schema(kind))?;
     }
@@ -213,7 +216,7 @@ impl DomainToolModule for LogicalToolModule {
             .filter(|descriptor| {
                 matches!(
                     descriptor.name.as_str(),
-                    "requirement_compile" | "risk_classify"
+                    "requirement_compile" | "risk_classify" | "schematic_create"
                 )
             })
             .collect()
@@ -239,6 +242,47 @@ impl DomainToolModule for LogicalToolModule {
                 let intent: DesignIntent = serde_json::from_value(request.input)
                     .map_err(|error| format!("invalid DesignIntent: {error}"))?;
                 serde_json::to_value(classify_risk(&intent)).map_err(|error| error.to_string())?
+            }
+            "schematic_create" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Input {
+                    graph: jingwei_schematic::SchematicGraph,
+                }
+                let input: Input = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid SchematicGraph input: {error}"))?;
+                let graph = input
+                    .graph
+                    .to_jir_graph()
+                    .map_err(|error| error.to_string())?;
+                let entity_count = graph.entities.len();
+                let edge_count = graph.edges.len();
+                return Ok(ToolResult {
+                    candidate_operations: graph
+                        .entities
+                        .into_values()
+                        .map(|entity| PatchOperation::AddEntity { entity })
+                        .chain(
+                            graph
+                                .edges
+                                .into_values()
+                                .map(|edge| PatchOperation::AddEdge { edge }),
+                        )
+                        .collect(),
+                    data: json!({
+                        "graphId": input.graph.id,
+                        "entityCount": entity_count,
+                        "edgeCount": edge_count,
+                        "candidateOnly": true,
+                    }),
+                    artifact_refs: Vec::new(),
+                    evidence_refs: input
+                        .graph
+                        .symbols
+                        .values()
+                        .flat_map(|symbol| symbol.evidence_refs.iter().cloned())
+                        .collect(),
+                });
             }
             _ => {
                 return Err(format!(
@@ -269,16 +313,60 @@ impl ValidationProvider for LogicalGraphValidator {
         graph: &jingwei_jir::JirGraph,
         _context: &ValidationContext,
     ) -> ValidationOutput {
-        let invalid = graph
+        if !graph
             .entities
             .values()
-            .filter(|entity| entity.kind.as_str().starts_with("logical."))
-            .any(|entity| entity.schema_version.trim().is_empty());
-        ValidationOutput {
-            valid: !invalid,
-            findings: Vec::new(),
-            providers_run: vec![self.name().to_owned()],
+            .any(|entity| entity.kind.as_str() == "logical.schematic")
+        {
+            return ValidationOutput {
+                valid: true,
+                findings: Vec::new(),
+                providers_run: vec![self.name().to_owned()],
+            };
         }
+        let schematic = match jingwei_schematic::SchematicGraph::from_jir_graph(graph) {
+            Ok(schematic) => schematic,
+            Err(error) => {
+                return ValidationOutput {
+                    valid: false,
+                    findings: vec![ValidationFinding {
+                        code: "SCH.JIR_ROUND_TRIP".into(),
+                        severity: "blocking".into(),
+                        summary: error.to_string(),
+                        object_refs: Vec::new(),
+                        fingerprint: "schematic-jir-round-trip".into(),
+                    }],
+                    providers_run: vec![self.name().to_owned()],
+                };
+            }
+        };
+        let library_bindings = schematic
+            .symbols
+            .values()
+            .map(|symbol| {
+                let status = if symbol
+                    .properties
+                    .get("library.verification")
+                    .map(String::as_str)
+                    == Some("verified-exact")
+                {
+                    LibraryBindingStatus::VerifiedExact
+                } else {
+                    LibraryBindingStatus::Unverified
+                };
+                (symbol.id.clone(), status)
+            })
+            .collect();
+        let mut output = run_native_erc(
+            &schematic,
+            &ErcContext {
+                library_bindings,
+                project_risk_profile: "low-voltage-general".into(),
+            },
+        )
+        .to_jdp_validation();
+        output.providers_run.insert(0, self.name().to_owned());
+        output
     }
 }
 
@@ -290,16 +378,42 @@ impl ViewProvider for LogicalViewProvider {
         "logical.schematic-view"
     }
 
-    async fn view(&self, request: &ViewRequest) -> Result<DisplayList, String> {
-        Ok(DisplayList {
-            revision: request.revision.clone(),
-            primitives: Vec::new(),
-            artifact_refs: Vec::new(),
-        })
+    async fn view(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        request: &ViewRequest,
+    ) -> Result<DisplayList, String> {
+        if !graph
+            .entities
+            .values()
+            .any(|entity| entity.kind.as_str() == "logical.schematic")
+        {
+            return Ok(DisplayList {
+                revision: request.revision.clone(),
+                primitives: Vec::new(),
+                artifact_refs: Vec::new(),
+            });
+        }
+        let schematic = jingwei_schematic::SchematicGraph::from_jir_graph(graph)
+            .map_err(|error| error.to_string())?;
+        Ok(jingwei_schematic::display_list(&schematic, request))
     }
 
-    async fn hit_test(&self, _request: &HitTestRequest) -> Result<HitTestResult, String> {
-        Ok(HitTestResult { hits: Vec::new() })
+    async fn hit_test(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        request: &HitTestRequest,
+    ) -> Result<HitTestResult, String> {
+        if !graph
+            .entities
+            .values()
+            .any(|entity| entity.kind.as_str() == "logical.schematic")
+        {
+            return Ok(HitTestResult { hits: Vec::new() });
+        }
+        let schematic = jingwei_schematic::SchematicGraph::from_jir_graph(graph)
+            .map_err(|error| error.to_string())?;
+        Ok(jingwei_schematic::hit_test(&schematic, request))
     }
 }
 
@@ -311,14 +425,53 @@ impl ProjectionBackend for LogicalProjectionBackend {
         "logical.kicad-schematic"
     }
 
-    async fn project(&self, request: &ProjectionRequest) -> Result<ProjectionResult, String> {
+    async fn project(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        request: &ProjectionRequest,
+    ) -> Result<ProjectionResult, String> {
+        let schematic = jingwei_schematic::SchematicGraph::from_jir_graph(graph)
+            .map_err(|error| error.to_string())?;
+        let model = crate::project_schematic(&schematic).map_err(|error| error.to_string())?;
+        let projection = crate::serialize_projection(&model).map_err(|error| error.to_string())?;
+        let native = crate::build_native_artifact(&model).map_err(|error| error.to_string())?;
         Ok(ProjectionResult {
+            artifacts: vec![
+                ProjectionArtifact {
+                    name: "design.kicad_sch".into(),
+                    media_type: "application/x-kicad-schematic".into(),
+                    bytes: native.schematic,
+                },
+                ProjectionArtifact {
+                    name: "design.object-map.json".into(),
+                    media_type: "application/json".into(),
+                    bytes: native.object_map,
+                },
+                ProjectionArtifact {
+                    name: crate::KICAD_NATIVE_SYMBOL_LIBRARY_FILE.into(),
+                    media_type: "application/x-kicad-symbol-library".into(),
+                    bytes: native.symbol_library,
+                },
+                ProjectionArtifact {
+                    name: "sym-lib-table".into(),
+                    media_type: "text/plain".into(),
+                    bytes: native.symbol_library_table,
+                },
+                ProjectionArtifact {
+                    name: "design.projection.json".into(),
+                    media_type: "application/json".into(),
+                    bytes: projection,
+                },
+            ],
             artifact_refs: Vec::new(),
             evidence_refs: Vec::new(),
             mapping: json!({
                 "backend": request.backend,
                 "revision": request.revision,
-                "state": "registered; artifact materialization requires a domain tool input",
+                "sourceGraphId": model.source_graph_id,
+                "targetKiCadVersion": model.target_kicad_version,
+                "coverage": model.coverage,
+                "nativeSummary": native.summary,
             }),
         })
     }
@@ -354,6 +507,48 @@ impl SemanticEditHandler for LogicalSetPropertyHandler {
             entity_id,
             key: payload.key,
             value: CanonicalValue::new(payload.value).map_err(|error| error.to_string())?,
+        }])
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MoveSymbolPayload {
+    symbol_id: String,
+    position: jingwei_schematic::PointMm,
+}
+
+struct LogicalMoveSymbolHandler;
+
+impl SemanticEditHandler for LogicalMoveSymbolHandler {
+    fn command_kind(&self) -> &'static str {
+        "schematic.move-symbol"
+    }
+
+    fn translate(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        command: &SemanticEditCommand,
+    ) -> Result<Vec<PatchOperation>, String> {
+        let payload: MoveSymbolPayload = serde_json::from_value(command.payload.clone())
+            .map_err(|error| format!("invalid schematic move-symbol payload: {error}"))?;
+        let entity_id = EntityId::new(payload.symbol_id).map_err(|error| error.to_string())?;
+        let entity = graph
+            .entities
+            .get(&entity_id)
+            .ok_or_else(|| format!("logical symbol does not exist: {entity_id}"))?;
+        if entity.kind.as_str() != "logical.symbol" {
+            return Err(format!(
+                "move-symbol target is not a logical.symbol: {entity_id}"
+            ));
+        }
+        Ok(vec![PatchOperation::SetProperty {
+            entity_id,
+            key: "position".into(),
+            value: CanonicalValue::new(
+                serde_json::to_value(payload.position).map_err(|error| error.to_string())?,
+            )
+            .map_err(|error| error.to_string())?,
         }])
     }
 }
@@ -422,7 +617,10 @@ mod tests {
             vec!["logical.schematic-view"]
         );
         assert_eq!(registry.projection_names(), vec!["logical.kicad-schematic"]);
-        assert_eq!(registry.edit_handler_names(), vec!["logical.set-property"]);
+        assert_eq!(
+            registry.edit_handler_names(),
+            vec!["logical.set-property", "schematic.move-symbol"]
+        );
         assert!(
             registry
                 .entity_schema_kinds()

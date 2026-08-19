@@ -22,6 +22,9 @@ pub mod operation {
     pub const DESIGN_PATCH_APPLY: &str = "design.patch.apply";
     pub const DESIGN_DIFF: &str = "design.diff";
     pub const DESIGN_VALIDATE: &str = "design.validate";
+    pub const DESIGN_VIEW: &str = "design.view";
+    pub const DESIGN_HIT_TEST: &str = "design.hit_test";
+    pub const DESIGN_PROJECT: &str = "design.project";
     pub const EDIT_SESSION_OPEN: &str = "edit_session.open";
     pub const EDIT_COMMAND_PREVIEW: &str = "edit_command.preview";
     pub const EDIT_COMMAND_COMMIT: &str = "edit_command.commit";
@@ -248,6 +251,39 @@ pub struct ValidateInput {
     pub revision: Option<RevisionId>,
     #[serde(default)]
     pub scopes: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesignViewInput {
+    pub provider: String,
+    pub request: crate::ViewRequest,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesignHitTestInput {
+    pub provider: String,
+    pub request: crate::HitTestRequest,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesignProjectInput {
+    pub provider: String,
+    pub revision: RevisionId,
+    #[serde(default)]
+    pub options: Value,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesignProjectOutput {
+    pub provider: String,
+    pub revision: RevisionId,
+    pub artifact_refs: Vec<String>,
+    pub evidence_refs: Vec<String>,
+    pub mapping: Value,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize)]

@@ -1,0 +1,435 @@
+{
+  "schemaVersion": "jingwei-kicad-schematic-projection/0.1",
+  "targetKicadVersion": "10.0.5",
+  "generator": "jingwei-agent",
+  "generatorVersion": "0.1.0",
+  "sourceGraphId": "schematic:golden-rs485",
+  "rootUuid": "ccc7993a-c70c-a4d2-7249-e45486738264",
+  "sheets": {
+    "02c226b7-d39c-042b-74be-320cf67e6a88": "/"
+  },
+  "symbols": [
+    {
+      "uuid": "a26f2e50-d712-18b8-6042-cc42355b0984",
+      "jirEntityId": "symbol:j1",
+      "sheetUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "libraryId": "Connector_Generic:Conn_01x04",
+      "reference": "J1",
+      "value": "JW-TERM-4A",
+      "footprint": null,
+      "xMm": 759.46,
+      "yMm": 429.26,
+      "rotationDeg": 0.0,
+      "mirrored": false,
+      "pins": [
+        {
+          "uuid": "6b5f0d94-b925-bf3a-794e-b0acf2ebee94",
+          "jirEntityId": "pin:J1:1",
+          "number": "1",
+          "name": "RS485_A",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "0c1c4ecc-bf7e-d49a-8ff6-c71c5f1a16f0"
+        },
+        {
+          "uuid": "15a16e93-ebcb-6f44-8c96-d997701a0fa2",
+          "jirEntityId": "pin:J1:2",
+          "number": "2",
+          "name": "RS485_B",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "bd903b72-75d5-efc0-4ebd-0b3f28813c45"
+        }
+      ]
+    },
+    {
+      "uuid": "a27b4973-36b9-dada-268a-d5f2e2dcb457",
+      "jirEntityId": "symbol:u1",
+      "sheetUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "libraryId": "Connector_Generic:Conn_01x04",
+      "reference": "U1",
+      "value": "JW-MCU-32A",
+      "footprint": null,
+      "xMm": 220.98,
+      "yMm": 210.82,
+      "rotationDeg": 0.0,
+      "mirrored": false,
+      "pins": [
+        {
+          "uuid": "c7eec863-2dd3-6583-896c-e977254f0fe3",
+          "jirEntityId": "pin:U1:1",
+          "number": "1",
+          "name": "I2C_SCL",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "84d12fc3-e777-342d-c97a-d52e89d439c7"
+        },
+        {
+          "uuid": "150b2db8-a922-655e-2a40-37c52537f047",
+          "jirEntityId": "pin:U1:2",
+          "number": "2",
+          "name": "I2C_SDA",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "277b8685-0f06-06a4-1151-42774be2d226"
+        },
+        {
+          "uuid": "5922ee1f-88ad-03ab-ea33-8a2496a80061",
+          "jirEntityId": "pin:U1:3",
+          "number": "3",
+          "name": "UART_TX",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "26913015-8bbf-1b9a-02af-1eb91cf1c78e"
+        },
+        {
+          "uuid": "a2131366-a7ec-1d81-aeac-ebd18d684e0c",
+          "jirEntityId": "pin:U1:4",
+          "number": "4",
+          "name": "UART_RX",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "6a1c000c-d28f-ee1d-ad6c-90643fc7054a"
+        }
+      ]
+    },
+    {
+      "uuid": "d97cdcbc-8601-d3a9-de66-5eaa82c84022",
+      "jirEntityId": "symbol:u2",
+      "sheetUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "libraryId": "Connector_Generic:Conn_01x04",
+      "reference": "U2",
+      "value": "JW-TH-44A",
+      "footprint": null,
+      "xMm": 469.9,
+      "yMm": 210.82,
+      "rotationDeg": 0.0,
+      "mirrored": false,
+      "pins": [
+        {
+          "uuid": "923cc142-11e3-fc1e-feb6-2af2bddcfee4",
+          "jirEntityId": "pin:U2:1",
+          "number": "1",
+          "name": "I2C_SCL",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "84d12fc3-e777-342d-c97a-d52e89d439c7"
+        },
+        {
+          "uuid": "aa8c5c09-cbec-cf30-9a26-68dce05976c4",
+          "jirEntityId": "pin:U2:2",
+          "number": "2",
+          "name": "I2C_SDA",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "277b8685-0f06-06a4-1151-42774be2d226"
+        }
+      ]
+    },
+    {
+      "uuid": "b28c3e95-886d-685f-a734-40003eebb379",
+      "jirEntityId": "symbol:u3",
+      "sheetUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "libraryId": "Connector_Generic:Conn_01x04",
+      "reference": "U3",
+      "value": "JW-RS485-8A",
+      "footprint": null,
+      "xMm": 469.9,
+      "yMm": 429.26,
+      "rotationDeg": 0.0,
+      "mirrored": false,
+      "pins": [
+        {
+          "uuid": "948251ca-18aa-e4f5-2ecf-b4c2419ce29b",
+          "jirEntityId": "pin:U3:1",
+          "number": "1",
+          "name": "UART_TX",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "26913015-8bbf-1b9a-02af-1eb91cf1c78e"
+        },
+        {
+          "uuid": "7e5d775a-a9b7-b54f-cbf5-4da03507ae59",
+          "jirEntityId": "pin:U3:2",
+          "number": "2",
+          "name": "UART_RX",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "6a1c000c-d28f-ee1d-ad6c-90643fc7054a"
+        },
+        {
+          "uuid": "b41a3f4b-af7a-5645-8e42-2cb378b13112",
+          "jirEntityId": "pin:U3:3",
+          "number": "3",
+          "name": "RS485_A",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "0c1c4ecc-bf7e-d49a-8ff6-c71c5f1a16f0"
+        },
+        {
+          "uuid": "d37dc662-c725-2dd8-097e-a3fb8a976d4f",
+          "jirEntityId": "pin:U3:4",
+          "number": "4",
+          "name": "RS485_B",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "bd903b72-75d5-efc0-4ebd-0b3f28813c45"
+        }
+      ]
+    }
+  ],
+  "nets": [
+    {
+      "uuid": "84d12fc3-e777-342d-c97a-d52e89d439c7",
+      "jirEntityId": "net:I2C_SCL",
+      "name": "I2C_SCL",
+      "pinUuids": [
+        "923cc142-11e3-fc1e-feb6-2af2bddcfee4",
+        "c7eec863-2dd3-6583-896c-e977254f0fe3"
+      ]
+    },
+    {
+      "uuid": "277b8685-0f06-06a4-1151-42774be2d226",
+      "jirEntityId": "net:I2C_SDA",
+      "name": "I2C_SDA",
+      "pinUuids": [
+        "150b2db8-a922-655e-2a40-37c52537f047",
+        "aa8c5c09-cbec-cf30-9a26-68dce05976c4"
+      ]
+    },
+    {
+      "uuid": "0c1c4ecc-bf7e-d49a-8ff6-c71c5f1a16f0",
+      "jirEntityId": "net:RS485_A",
+      "name": "RS485_A",
+      "pinUuids": [
+        "6b5f0d94-b925-bf3a-794e-b0acf2ebee94",
+        "b41a3f4b-af7a-5645-8e42-2cb378b13112"
+      ]
+    },
+    {
+      "uuid": "bd903b72-75d5-efc0-4ebd-0b3f28813c45",
+      "jirEntityId": "net:RS485_B",
+      "name": "RS485_B",
+      "pinUuids": [
+        "15a16e93-ebcb-6f44-8c96-d997701a0fa2",
+        "d37dc662-c725-2dd8-097e-a3fb8a976d4f"
+      ]
+    },
+    {
+      "uuid": "6a1c000c-d28f-ee1d-ad6c-90643fc7054a",
+      "jirEntityId": "net:UART_RX",
+      "name": "UART_RX",
+      "pinUuids": [
+        "7e5d775a-a9b7-b54f-cbf5-4da03507ae59",
+        "a2131366-a7ec-1d81-aeac-ebd18d684e0c"
+      ]
+    },
+    {
+      "uuid": "26913015-8bbf-1b9a-02af-1eb91cf1c78e",
+      "jirEntityId": "net:UART_TX",
+      "name": "UART_TX",
+      "pinUuids": [
+        "5922ee1f-88ad-03ab-ea33-8a2496a80061",
+        "948251ca-18aa-e4f5-2ecf-b4c2419ce29b"
+      ]
+    }
+  ],
+  "objectMap": [
+    {
+      "jirEntityId": "label:I2C_SCL",
+      "kicadUuid": "b0d4542f-8599-1c0d-1201-6c06524d8714",
+      "objectKind": "label"
+    },
+    {
+      "jirEntityId": "label:I2C_SDA",
+      "kicadUuid": "3165e80c-0be3-d74c-d177-bde3774bb781",
+      "objectKind": "label"
+    },
+    {
+      "jirEntityId": "label:RS485_A",
+      "kicadUuid": "094c39a9-6169-97ec-d783-a8b8c9d4cd69",
+      "objectKind": "label"
+    },
+    {
+      "jirEntityId": "label:RS485_B",
+      "kicadUuid": "17f1da8c-c9b6-245d-4030-43f79712ed81",
+      "objectKind": "label"
+    },
+    {
+      "jirEntityId": "label:UART_RX",
+      "kicadUuid": "babc3190-bac9-e10b-558a-f3872872107c",
+      "objectKind": "label"
+    },
+    {
+      "jirEntityId": "label:UART_TX",
+      "kicadUuid": "e0145dad-0e4f-2efc-2681-66bf4c2bbd8d",
+      "objectKind": "label"
+    },
+    {
+      "jirEntityId": "net:I2C_SCL",
+      "kicadUuid": "84d12fc3-e777-342d-c97a-d52e89d439c7",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "net:I2C_SDA",
+      "kicadUuid": "277b8685-0f06-06a4-1151-42774be2d226",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "net:RS485_A",
+      "kicadUuid": "0c1c4ecc-bf7e-d49a-8ff6-c71c5f1a16f0",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "net:RS485_B",
+      "kicadUuid": "bd903b72-75d5-efc0-4ebd-0b3f28813c45",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "net:UART_RX",
+      "kicadUuid": "6a1c000c-d28f-ee1d-ad6c-90643fc7054a",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "net:UART_TX",
+      "kicadUuid": "26913015-8bbf-1b9a-02af-1eb91cf1c78e",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "pin:J1:1",
+      "kicadUuid": "6b5f0d94-b925-bf3a-794e-b0acf2ebee94",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:J1:2",
+      "kicadUuid": "15a16e93-ebcb-6f44-8c96-d997701a0fa2",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U1:1",
+      "kicadUuid": "c7eec863-2dd3-6583-896c-e977254f0fe3",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U1:2",
+      "kicadUuid": "150b2db8-a922-655e-2a40-37c52537f047",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U1:3",
+      "kicadUuid": "5922ee1f-88ad-03ab-ea33-8a2496a80061",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U1:4",
+      "kicadUuid": "a2131366-a7ec-1d81-aeac-ebd18d684e0c",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U2:1",
+      "kicadUuid": "923cc142-11e3-fc1e-feb6-2af2bddcfee4",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U2:2",
+      "kicadUuid": "aa8c5c09-cbec-cf30-9a26-68dce05976c4",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U3:1",
+      "kicadUuid": "948251ca-18aa-e4f5-2ecf-b4c2419ce29b",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U3:2",
+      "kicadUuid": "7e5d775a-a9b7-b54f-cbf5-4da03507ae59",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U3:3",
+      "kicadUuid": "b41a3f4b-af7a-5645-8e42-2cb378b13112",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:U3:4",
+      "kicadUuid": "d37dc662-c725-2dd8-097e-a3fb8a976d4f",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "schematic:golden-rs485",
+      "kicadUuid": "ccc7993a-c70c-a4d2-7249-e45486738264",
+      "objectKind": "schematic"
+    },
+    {
+      "jirEntityId": "sheet:root",
+      "kicadUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "objectKind": "sheet"
+    },
+    {
+      "jirEntityId": "symbol:j1",
+      "kicadUuid": "a26f2e50-d712-18b8-6042-cc42355b0984",
+      "objectKind": "symbol"
+    },
+    {
+      "jirEntityId": "symbol:u1",
+      "kicadUuid": "a27b4973-36b9-dada-268a-d5f2e2dcb457",
+      "objectKind": "symbol"
+    },
+    {
+      "jirEntityId": "symbol:u2",
+      "kicadUuid": "d97cdcbc-8601-d3a9-de66-5eaa82c84022",
+      "objectKind": "symbol"
+    },
+    {
+      "jirEntityId": "symbol:u3",
+      "kicadUuid": "b28c3e95-886d-685f-a734-40003eebb379",
+      "objectKind": "symbol"
+    },
+    {
+      "jirEntityId": "wire:I2C_SCL",
+      "kicadUuid": "1a60cba7-b069-fe32-017c-490264672a26",
+      "objectKind": "wire"
+    },
+    {
+      "jirEntityId": "wire:I2C_SDA",
+      "kicadUuid": "09a77d1e-efb0-6b44-3eeb-7f744fbb8e54",
+      "objectKind": "wire"
+    },
+    {
+      "jirEntityId": "wire:RS485_A",
+      "kicadUuid": "a2c93a8b-4fe1-1ae8-2ae6-cbcf095f1ea8",
+      "objectKind": "wire"
+    },
+    {
+      "jirEntityId": "wire:RS485_B",
+      "kicadUuid": "c9a2fc67-551f-f6e0-d670-fabbcf0fa636",
+      "objectKind": "wire"
+    },
+    {
+      "jirEntityId": "wire:UART_RX",
+      "kicadUuid": "85ebadb3-9e9a-e8cd-175e-bc054790c9cc",
+      "objectKind": "wire"
+    },
+    {
+      "jirEntityId": "wire:UART_TX",
+      "kicadUuid": "ed3c1f1f-4e26-be50-d841-23a5e9d307ae",
+      "objectKind": "wire"
+    }
+  ],
+  "coverage": {
+    "projectedFeatures": [
+      "hierarchical sheets",
+      "symbol instances and stable references",
+      "pin membership and logical nets",
+      "symbol position, rotation, mirror and footprint reference",
+      "JIR-to-external object map",
+      "native .kicad_sch symbol, pin, net-label and no-connect serialization"
+    ],
+    "coverageGaps": [
+      "explicit wire geometry, buses and graphical annotations remain retained only in JIR",
+      "hierarchical sheets are mapped but native export currently emits the root sheet only"
+    ],
+    "roundTripModelVerified": true,
+    "kicadCliVerified": false
+  }
+}

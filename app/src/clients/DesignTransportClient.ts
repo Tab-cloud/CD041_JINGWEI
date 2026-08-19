@@ -52,6 +52,23 @@ interface QueryOutput {
   edges: Array<{ kind: string; from: string; to: string }>;
 }
 
+type NativeDisplayPrimitive =
+  | { kind: "line"; from: { x: number; y: number }; to: { x: number; y: number }; entityId: string }
+  | { kind: "polyline" | "polygon"; points: Array<{ x: number; y: number }>; entityId: string }
+  | { kind: "text"; position: { x: number; y: number }; text: string; entityId: string }
+  | { kind: "glyph"; position: { x: number; y: number }; name: string; entityId: string }
+  | { kind: "marker"; position: { x: number; y: number }; marker: string; entityId: string };
+
+interface NativeDisplayList {
+  revision: string;
+  primitives: NativeDisplayPrimitive[];
+  artifactRefs: string[];
+}
+
+interface NativeHitTestResult {
+  hits: Array<{ entityId: string; distance: number; primitiveKind: string }>;
+}
+
 export class DesignTransportClient implements DesignClient {
   async getProject(_projectId: string): Promise<ProjectView> {
     void _projectId;
@@ -111,19 +128,43 @@ export class DesignTransportClient implements DesignClient {
   }
 
   async getView(request: ViewRequest): Promise<DisplayList> {
-    await this.assertRevisionExists(request.projectId, request.revision);
+    const output = await this.jdp<NativeDisplayList>(request.projectId, "design.view", {
+      provider: request.view === "schematic" ? "logical.schematic-view" : "physical.pcb-view",
+      request: {
+        revision: request.revision,
+        viewport: {
+          min: { x: request.viewport.x, y: request.viewport.y },
+          max: {
+            x: request.viewport.x + request.viewport.width / request.viewport.zoom,
+            y: request.viewport.y + request.viewport.height / request.viewport.zoom,
+          },
+        },
+        layers: request.visibleLayerIds,
+        levelOfDetail: request.lod,
+        selection: [],
+      },
+    });
     return {
-      revision: request.revision,
+      revision: output.revision,
       view: request.view,
-      primitives: [],
-      totalPrimitives: 0,
-      incrementalToken: `${request.view}:${request.revision}:empty-native-provider`,
+      primitives: output.primitives.map(mapNativePrimitive),
+      totalPrimitives: output.primitives.length,
+      incrementalToken: `${request.view}:${request.revision}:${output.primitives.length}`,
     };
   }
 
   async hitTest(request: HitTestRequest): Promise<HitTestResult> {
-    await this.assertRevisionExists(request.projectId, request.revision);
-    return { entityIds: [], latencyMs: 0 };
+    const started = performance.now();
+    const output = await this.jdp<NativeHitTestResult>(request.projectId, "design.hit_test", {
+      provider: request.view === "schematic" ? "logical.schematic-view" : "physical.pcb-view",
+      request: {
+        revision: request.revision,
+        point: request.point,
+        tolerance: request.tolerance,
+        layers: request.visibleLayerIds,
+      },
+    });
+    return { entityIds: output.hits.map((hit) => hit.entityId), latencyMs: performance.now() - started };
   }
 
   async crossProbe(request: CrossProbeRequest): Promise<CrossProbeResult> {
@@ -253,7 +294,7 @@ export class DesignTransportClient implements DesignClient {
     if (!output.protocolVersions.includes("0.1") || !output.schemaVersions.includes("0.2")) {
       return { contractVersion: "0.1", mode: "real", state: "version-mismatch", reason: "JDP/JIR version mismatch" };
     }
-    const required = ["project.get", "design.query", "edit_session.open", "edit_command.preview", "edit_command.commit"];
+    const required = ["project.get", "design.query", "design.view", "design.hit_test", "edit_session.open", "edit_command.preview", "edit_command.commit"];
     const missing = required.filter((operation) => output.operations[operation] !== "available");
     return {
       contractVersion: "0.1",
@@ -261,10 +302,6 @@ export class DesignTransportClient implements DesignClient {
       state: missing.length === 0 && output.readWrite ? "connected" : "unavailable",
       reason: missing.length === 0 ? "真实 daemon JDP transport" : `缺少真实操作: ${missing.join(", ")}`,
     };
-  }
-
-  private async assertRevisionExists(projectId: string, revision: string): Promise<void> {
-    await this.jdp(projectId, "design.query", { revision, kind: null, ids: [], limit: 1, cursor: null });
   }
 
   private async projectId(): Promise<string> {
@@ -298,6 +335,12 @@ export class DesignTransportClient implements DesignClient {
 }
 
 function mapCommand(command: SemanticEditCommand): { kind: string; payload: unknown } {
+  if (command.kind === "schematic.move_symbol") {
+    return { kind: "schematic.move-symbol", payload: { symbolId: command.entityId, position: command.position } };
+  }
+  if (command.kind === "pcb.move_footprint") {
+    return { kind: "pcb.move-footprint", payload: { footprintId: command.entityId, position: command.position } };
+  }
   if (command.kind === "schematic.set_property") {
     return { kind: "core.set_property", payload: { entityId: command.entityId, key: command.key, value: command.value } };
   }
@@ -308,6 +351,28 @@ function mapCommand(command: SemanticEditCommand): { kind: string; payload: unkn
     "capability_unavailable",
     `真实 daemon 尚未注册人工编辑命令 ${command.kind}；不会回退到 fixture`,
   );
+}
+
+function mapNativePrimitive(primitive: NativeDisplayPrimitive, index: number): DisplayList["primitives"][number] {
+  const base = {
+    id: `${primitive.entityId}:${primitive.kind}:${index}`,
+    entityId: primitive.entityId,
+    layerId: "logical",
+    zIndex: primitive.kind === "polyline" || primitive.kind === "line" ? 5 : 20,
+  };
+  if (primitive.kind === "glyph") {
+    return { ...base, kind: "symbol", position: primitive.position, width: 92, height: 62, label: primitive.name };
+  }
+  if (primitive.kind === "text") {
+    return { ...base, kind: "label", position: primitive.position, label: primitive.text, zIndex: 30 };
+  }
+  if (primitive.kind === "marker") {
+    return { ...base, kind: "pin", position: primitive.position, radius: 4, label: primitive.marker, zIndex: 25 };
+  }
+  if (primitive.kind === "line") {
+    return { ...base, kind: "wire", points: [primitive.from, primitive.to], width: 2 };
+  }
+  return { ...base, kind: "wire", points: primitive.points, width: 2 };
 }
 
 function commandEntityIds(command: SemanticEditCommand): string[] {

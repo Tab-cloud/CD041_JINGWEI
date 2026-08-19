@@ -25,6 +25,10 @@ tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+jingwei-geometry = { path = "../jingwei-geometry" }
+jingwei-kicad-pcb = { path = "../jingwei-kicad-pcb" }
+jingwei-pcb = { path = "../jingwei-pcb" }
+jingwei-schematic = { path = "../jingwei-schematic" }
 tempfile = "3.23.0"
 
 [lints]

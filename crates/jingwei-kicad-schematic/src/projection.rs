@@ -136,9 +136,37 @@ pub fn project_schematic(graph: &SchematicGraph) -> Result<KicadProjectionModel,
                 "hierarchical sheets are mapped but native export currently emits the root sheet only".to_owned(),
             ],
             round_trip_model_verified: true,
-            kicad_cli_verified: true,
+            // A projection cannot certify a tool invocation that has not happened. The
+            // external KiCad gate records that evidence separately with its binary hash.
+            kicad_cli_verified: false,
         },
     })
+}
+
+/// Verifies that a parsed projection is semantically identical to the deterministic
+/// projection of the authoritative logical graph.
+///
+/// This closes the generated model round trip without pretending that arbitrary or
+/// unsupported KiCad edits can be imported. Native files with unknown features remain
+/// read-only until a dedicated importer can preserve those features losslessly.
+pub fn verify_projection_equivalence(
+    graph: &SchematicGraph,
+    model: &KicadProjectionModel,
+) -> Result<(), ProjectionError> {
+    validate_projection(model)?;
+    let expected = project_schematic(graph)?;
+    if expected.source_graph_id != model.source_graph_id
+        || expected.root_uuid != model.root_uuid
+        || expected.sheets != model.sheets
+        || expected.symbols != model.symbols
+        || expected.nets != model.nets
+        || expected.object_map != model.object_map
+    {
+        return Err(ProjectionError::InvalidObjectMap(
+            "projection does not match the authoritative schematic graph".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 fn pin_electrical_type(value: &PinElectricalType) -> &'static str {
@@ -242,6 +270,12 @@ mod tests {
         let reparsed = parse_projection(&bytes).expect("parse");
         assert_eq!(projected, reparsed);
         assert_eq!(reparsed.target_kicad_version, "10.0.5");
-        assert!(reparsed.coverage.kicad_cli_verified);
+        assert!(reparsed.coverage.round_trip_model_verified);
+        assert!(!reparsed.coverage.kicad_cli_verified);
+        verify_projection_equivalence(&graph, &reparsed).expect("semantic equivalence");
+
+        let mut altered = reparsed;
+        altered.sheets.clear();
+        assert!(verify_projection_equivalence(&graph, &altered).is_err());
     }
 }

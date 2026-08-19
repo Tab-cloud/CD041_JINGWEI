@@ -28,6 +28,7 @@ pub enum Effect {
     DraftWrite,
     TaskControl,
     ArtifactRead,
+    ArtifactWrite,
 }
 
 /// Generated descriptor consumed by Agent runtime and policy layers.
@@ -42,6 +43,7 @@ pub struct ToolDescriptor {
     pub effect: Effect,
     pub resource_claim_template: Vec<String>,
     pub idempotent: bool,
+    pub requires_base_revision: bool,
     pub cancellable: bool,
     pub default_timeout_ms: u64,
     pub protocol_version: String,
@@ -104,6 +106,24 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
             "Run core and registered validation providers",
             Permission::Read,
             Effect::ReadOnly,
+        ),
+        (
+            operation::DESIGN_VIEW,
+            "Render a bounded semantic display list from an immutable JIR revision",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            operation::DESIGN_HIT_TEST,
+            "Hit-test semantic display geometry using stable JIR identities",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
+            operation::DESIGN_PROJECT,
+            "Materialize a deterministic external projection into content-addressed artifacts",
+            Permission::CandidateWrite,
+            Effect::ArtifactWrite,
         ),
         (
             operation::EDIT_SESSION_OPEN,
@@ -204,8 +224,10 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
             output_schema: json!({"type": "object"}),
             permission,
             effect,
-            resource_claim_template: if matches!(effect, Effect::RevisionWrite | Effect::DraftWrite)
-            {
+            resource_claim_template: if matches!(
+                effect,
+                Effect::RevisionWrite | Effect::DraftWrite | Effect::ArtifactWrite
+            ) {
                 vec![
                     "workspace:{workspaceId}".into(),
                     "project:{projectId}".into(),
@@ -214,6 +236,12 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
                 vec!["workspace:{workspaceId}".into()]
             },
             idempotent: true,
+            requires_base_revision: matches!(
+                name,
+                operation::DESIGN_COMPILE_JDL
+                    | operation::DESIGN_PATCH_PROPOSE
+                    | operation::DESIGN_PATCH_APPLY
+            ),
             cancellable: matches!(effect, Effect::TaskControl),
             default_timeout_ms: 30_000,
             protocol_version: crate::JDP_PROTOCOL_VERSION.into(),

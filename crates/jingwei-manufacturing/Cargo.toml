@@ -16,17 +16,18 @@ jingwei-kicad-pcb = { path = "../jingwei-kicad-pcb" }
 jingwei-kernel = { path = "../jingwei-kernel" }
 jingwei-jir = { path = "../jingwei-jir" }
 jingwei-pcb = { path = "../jingwei-pcb" }
+jingwei-placement = { path = "../jingwei-placement" }
+jingwei-routing = { path = "../jingwei-routing" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml = "0.9.34"
 sha2.workspace = true
 thiserror.workspace = true
+tokio-util = { version = "0.7.16", features = ["rt"] }
+tempfile = "3.23.0"
 
 [dev-dependencies]
-jingwei-placement = { path = "../jingwei-placement" }
-jingwei-routing = { path = "../jingwei-routing" }
 tokio.workspace = true
-tokio-util = { version = "0.7.16", features = ["rt"] }
 
 [lints]
 workspace = true

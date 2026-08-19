@@ -213,7 +213,7 @@ export function useWorkbenchController() {
       if (intent.phase === "down") {
         void selectAt(intent.point).then((ids) => {
           const entityId = ids[0];
-          const valid = entityId && (view === "schematic" ? entityId.startsWith("symbol-") : entityId.startsWith("footprint-"));
+          const valid = entityId && (view === "schematic" ? entityId.startsWith("symbol") : entityId.startsWith("pcb-footprint"));
           if (valid) dispatch({ type: "interaction-start", interaction: { point: intent.point, entityId } });
           else dispatch({ type: "error", error: view === "schematic" ? "移动工具需要选择 symbol" : "移动工具需要选择 footprint" });
         });

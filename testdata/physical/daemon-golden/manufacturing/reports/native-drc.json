@@ -1,0 +1,99 @@
+{
+  "candidateRevision": "pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034",
+  "boardHash": "17e4cda6b8c2e1cf8e6ae6feb5a1de4c06e1545fc68d64b59a841b64e6b8ad57",
+  "ruleSetVersion": "jingwei-native-pcb-drc-v1",
+  "profileRuleVersion": "jlcpcb-standard-v0@2026-08-19.1",
+  "findings": [],
+  "coverage": [
+    {
+      "capability": "copper-clearance",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "track-width",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "via-drill-annular-ring",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "unconnected-net",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "copper-to-edge",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "courtyard-overlap",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "hole-slot",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "solder-mask-bridge",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "silkscreen-placement",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "keepout-region",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "locked-position",
+      "status": "implemented",
+      "note": "deterministic Phase 0 native rule"
+    },
+    {
+      "capability": "testpoint-coverage",
+      "status": "heuristic",
+      "note": "designator/net-priority heuristic; requires test engineering review"
+    },
+    {
+      "capability": "signal-integrity",
+      "status": "gap",
+      "note": "not implemented; zero native errors does not validate this capability"
+    },
+    {
+      "capability": "power-integrity",
+      "status": "gap",
+      "note": "not implemented; zero native errors does not validate this capability"
+    },
+    {
+      "capability": "thermal-simulation",
+      "status": "gap",
+      "note": "not implemented; zero native errors does not validate this capability"
+    },
+    {
+      "capability": "emc",
+      "status": "gap",
+      "note": "not implemented; zero native errors does not validate this capability"
+    },
+    {
+      "capability": "controlled-impedance",
+      "status": "gap",
+      "note": "not implemented; zero native errors does not validate this capability"
+    },
+    {
+      "capability": "high-speed-return-path",
+      "status": "gap",
+      "note": "not implemented; zero native errors does not validate this capability"
+    }
+  ]
+}

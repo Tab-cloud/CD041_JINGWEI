@@ -18,6 +18,9 @@ pub struct ToolContext {
     pub project_id: jingwei_jir::ProjectId,
     pub revision: RevisionId,
     pub capabilities: Vec<String>,
+    /// Immutable authoritative graph at `revision`; domain tools may derive
+    /// candidate operations from it but cannot move a project pointer.
+    pub graph: jingwei_jir::JirGraph,
 }
 
 /// Generic tool input envelope. Descriptors provide the concrete schema.
@@ -71,8 +74,16 @@ pub trait ValidationProvider: Send + Sync {
 #[async_trait]
 pub trait ViewProvider: Send + Sync {
     fn name(&self) -> &str;
-    async fn view(&self, request: &ViewRequest) -> Result<DisplayList, String>;
-    async fn hit_test(&self, request: &HitTestRequest) -> Result<HitTestResult, String>;
+    async fn view(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        request: &ViewRequest,
+    ) -> Result<DisplayList, String>;
+    async fn hit_test(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        request: &HitTestRequest,
+    ) -> Result<HitTestResult, String>;
 }
 
 /// Projection request to an external or manufacturing representation.
@@ -86,16 +97,29 @@ pub struct ProjectionRequest {
 /// Projection output references; bytes live in the artifact store.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProjectionResult {
+    pub artifacts: Vec<ProjectionArtifact>,
     pub artifact_refs: Vec<String>,
     pub evidence_refs: Vec<String>,
     pub mapping: Value,
+}
+
+/// Bounded projection bytes returned to the kernel for content-addressed storage.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ProjectionArtifact {
+    pub name: String,
+    pub media_type: String,
+    pub bytes: Vec<u8>,
 }
 
 /// Deterministic projection backend.
 #[async_trait]
 pub trait ProjectionBackend: Send + Sync {
     fn name(&self) -> &str;
-    async fn project(&self, request: &ProjectionRequest) -> Result<ProjectionResult, String>;
+    async fn project(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        request: &ProjectionRequest,
+    ) -> Result<ProjectionResult, String>;
 }
 
 /// Translates an extensible semantic command into auditable core patch operations.
@@ -166,6 +190,14 @@ impl ExtensionRegistry {
     /// Looks up a semantic edit handler.
     pub fn edit_handler(&self, kind: &str) -> Option<&Arc<dyn SemanticEditHandler>> {
         self.edit_handlers.get(kind)
+    }
+
+    pub(crate) fn view_provider(&self, name: &str) -> Option<Arc<dyn ViewProvider>> {
+        self.views.get(name).cloned()
+    }
+
+    pub(crate) fn projection_backend(&self, name: &str) -> Option<Arc<dyn ProjectionBackend>> {
+        self.projections.get(name).cloned()
     }
 
     /// Returns all tool descriptors in deterministic order.

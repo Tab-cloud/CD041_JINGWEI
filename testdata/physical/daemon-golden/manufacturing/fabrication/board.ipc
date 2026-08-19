@@ -1,0 +1,9 @@
+C  IPC-D-356A Jingwei Manufacturing Candidate
+C  SOURCE_REVISION logical-golden-rev-001
+C  DESIGN_REVISION pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034
+P  UNITS CUST 0
+317+3V3           pcb-pad:component:J1:1 X+004000Y+018000
+317GND            pcb-pad:component:J1:2 X+006000Y+022000
+317+3V3           pcb-pad:component:R1:1 X+004200Y+005000
+317GND            pcb-pad:component:R1:2 X+005800Y+005000
+999
