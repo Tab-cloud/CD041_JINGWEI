@@ -1,0 +1,39 @@
+{
+  "fixtureVersion": "0.1",
+  "authority": "mock-only-until-rust-generated-binding",
+  "request": {
+    "protocolVersion": "0.1",
+    "requestId": "tool-call-1",
+    "idempotencyKey": "run-1:tool-call-1",
+    "workspaceId": "workspace-1",
+    "projectId": "project-1",
+    "operation": "design.patch.apply",
+    "baseRevision": "revision-1",
+    "input": {
+      "baseRevision": "revision-1",
+      "operations": []
+    }
+  },
+  "success": {
+    "success": true,
+    "requestId": "tool-call-1",
+    "executionId": "execution-1",
+    "baseRevision": "revision-1",
+    "newRevision": "revision-2",
+    "data": {
+      "appliedOperationIds": []
+    },
+    "artifactRefs": [],
+    "evidenceRefs": [],
+    "findings": {
+      "errors": 0,
+      "warnings": 0,
+      "info": 0
+    }
+  },
+  "reconciliation": {
+    "executionId": "execution-1",
+    "idempotencyKey": "run-1:tool-call-1",
+    "status": "succeeded"
+  }
+}

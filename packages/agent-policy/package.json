@@ -1,0 +1,12 @@
+{
+  "name": "@jingwei/agent-policy",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean --external bun:sqlite" },
+  "dependencies": {
+    "@jingwei/agent-events": "workspace:*",
+    "@jingwei/agent-observability": "workspace:*",
+    "@jingwei/agent-protocol": "workspace:*"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "example": "sanitized-runtime-only-not-exported-from-production",
+  "acceptanceBoundary": "not evidence for a Rust daemon child span or cross-runtime tracing",
+  "traceId": "4f7a9c2d1e3b4a5f8877665544332211",
+  "spans": [
+    {
+      "name": "agent.run",
+      "spanId": "1000000000000001",
+      "attributes": {
+        "sessionId": "session-example",
+        "runId": "run-example",
+        "status": "completed"
+      }
+    },
+    {
+      "name": "model.attempt",
+      "parentSpanId": "1000000000000001",
+      "spanId": "1000000000000002",
+      "attributes": {
+        "provider": "fake",
+        "model": "scripted",
+        "faultDomain": "fake-local",
+        "status": "completed"
+      }
+    },
+    {
+      "name": "tool.execution",
+      "parentSpanId": "1000000000000001",
+      "spanId": "1000000000000003",
+      "attributes": {
+        "toolName": "design.patch.apply",
+        "executionId": "execution-example",
+        "effects": "design-write",
+        "status": "succeeded"
+      }
+    },
+    {
+      "name": "jdp.request",
+      "parentSpanId": "1000000000000003",
+      "spanId": "1000000000000004",
+      "attributes": {
+        "operation": "design.patch.apply",
+        "requestId": "tool-call-example",
+        "status": "succeeded"
+      }
+    }
+  ],
+  "excluded": ["prompt", "messages", "JIR payload", "credentials", "tool output"]
+}

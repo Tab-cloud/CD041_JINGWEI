@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "types": ["bun"],
+    "baseUrl": ".",
+    "paths": {
+      "@jingwei/agent-protocol": ["packages/agent-protocol/src/index.ts"],
+      "@jingwei/agent-events": ["packages/agent-events/src/index.ts"],
+      "@jingwei/agent-policy": ["packages/agent-policy/src/index.ts"],
+      "@jingwei/agent-observability": ["packages/agent-observability/src/index.ts"],
+      "@jingwei/agent-tools": ["packages/agent-tools/src/index.ts"],
+      "@jingwei/agent-mcp": ["packages/agent-mcp/src/index.ts"],
+      "@jingwei/agent-runtime": ["packages/agent-runtime/src/index.ts"]
+    }
+  },
+  "include": ["packages/**/*.ts", "testdata/**/*.ts"]
+}

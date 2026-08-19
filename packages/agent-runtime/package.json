@@ -1,0 +1,20 @@
+{
+  "name": "@jingwei/agent-runtime",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --external bun:sqlite"
+  },
+  "dependencies": {
+    "@jingwei/agent-events": "workspace:*",
+    "@jingwei/agent-mcp": "workspace:*",
+    "@jingwei/agent-observability": "workspace:*",
+    "@jingwei/agent-policy": "workspace:*",
+    "@jingwei/agent-protocol": "workspace:*",
+    "@jingwei/agent-tools": "workspace:*",
+    "openai": "7.5.0"
+  }
+}
