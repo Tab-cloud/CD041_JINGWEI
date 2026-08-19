@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "logical-invalid-cases/1",
+  "cases": [
+    {"id": "wrong-mpn-package", "mutation": "bind JW-RS485-8A to DFN-4", "expectedRule": "ERC.FOOTPRINT_BINDING"},
+    {"id": "pin-one-polarity", "mutation": "swap footprint polarity for pad 1", "expectedRule": "LIB.PIN_ONE_POLARITY"},
+    {"id": "missing-pin-pad", "mutation": "remove pad mapping for pin 8", "expectedRule": "LIB.PIN_PAD_MAP"},
+    {"id": "duplicate-pin-pad", "mutation": "map pin 1 twice", "expectedRule": "LIB.PIN_PAD_MAP"},
+    {"id": "over-voltage", "mutation": "drive a 3.6 V maximum pin with 5 V", "expectedRule": "ERC.VOLTAGE_RANGE"},
+    {"id": "power-no-source", "mutation": "remove the V3V3 source role", "expectedRule": "ERC.POWER_NO_SOURCE"},
+    {"id": "output-conflict", "mutation": "connect two push-pull outputs", "expectedRule": "ERC.DRIVER_CONFLICT"},
+    {"id": "unconnected", "mutation": "disconnect a required power pin", "expectedRule": "ERC.UNCONNECTED_REQUIRED"},
+    {"id": "duplicate-address", "mutation": "place two 0x44 devices on I2C1", "expectedRule": "ERC.I2C_ADDRESS"},
+    {"id": "stale-snapshot", "mutation": "set supplier age beyond TTL", "expectedRule": "CMP.STALE_SNAPSHOT"},
+    {"id": "prompt-injection", "mutation": "embed tool instructions in a datasheet field", "expectedBehavior": "preserved as untrusted data"},
+    {"id": "unlicensed-promotion", "mutation": "promote a project-private generated asset", "expectedBehavior": "no approval tool exists in logical module"}
+  ]
+}

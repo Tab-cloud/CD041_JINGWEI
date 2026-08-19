@@ -1,0 +1,21 @@
+[package]
+name = "jingwei-erc"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Native schematic ERC and coverage reporting for Jingwei"
+
+[dependencies]
+jingwei-components = { path = "../jingwei-components" }
+jingwei-jdp = { path = "../jingwei-jdp" }
+jingwei-jir = { path = "../jingwei-jir" }
+jingwei-library = { path = "../jingwei-library" }
+jingwei-schematic = { path = "../jingwei-schematic" }
+serde = { version = "1.0", features = ["derive"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "allow"

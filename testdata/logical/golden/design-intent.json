@@ -1,0 +1,73 @@
+{
+  "id": "intent:golden-sensor-node",
+  "schemaVersion": "logical-domain/0.1",
+  "product": {
+    "purpose": "Collect temperature and humidity and report over RS-485",
+    "useCase": "low-voltage indoor general-purpose sensor node",
+    "regions": ["CN"]
+  },
+  "environment": {
+    "minimumTemperatureC": -20.0,
+    "maximumTemperatureC": 70.0,
+    "indoorOnly": true,
+    "condensationAllowed": false
+  },
+  "risk": "low-voltage-general",
+  "power": {
+    "inputs": [{
+      "name": "VIN",
+      "minimumV": 9.0,
+      "nominalV": 12.0,
+      "maximumV": 24.0,
+      "reversePolarityProtection": true
+    }],
+    "rails": [{"name": "V3V3", "nominalV": 3.3, "maximumCurrentA": 0.5}]
+  },
+  "interfaces": [
+    {"id": "interface:rs485", "kind": "RS-485", "count": 1, "isolation": "none", "connector": "screw-terminal"},
+    {"id": "interface:swd", "kind": "SWD", "count": 1, "isolation": "none", "connector": "debug-header"}
+  ],
+  "mechanical": {
+    "widthMm": 60.0,
+    "heightMm": 40.0,
+    "toleranceMm": 0.2,
+    "mountingHoles": 4,
+    "maximumComponentHeightMm": 12.0
+  },
+  "manufacturing": {
+    "targetManufacturer": "synthetic-standard-2l",
+    "assemblyProvider": "synthetic-assembly",
+    "layers": 2,
+    "material": "FR-4",
+    "assemblySides": "top",
+    "minimumPassivePackage": "0603"
+  },
+  "componentPreferences": [{
+    "id": "preference:active-lifecycle",
+    "statement": "Prefer active-lifecycle parts",
+    "sourceRefs": ["source:fixture-author"],
+    "evidenceRefs": []
+  }],
+  "forbiddenParts": [],
+  "hardConstraints": [{
+    "id": "constraint:exact-mpn",
+    "statement": "Every production component has an exact MPN",
+    "sourceRefs": ["source:fixture-author"],
+    "evidenceRefs": []
+  }],
+  "softPreferences": [],
+  "assumptions": [{
+    "id": "assumption:indoor",
+    "statement": "Indoor non-condensing operation",
+    "sourceRefs": ["source:fixture-author"],
+    "evidenceRefs": []
+  }],
+  "unknowns": [],
+  "conflicts": [],
+  "baseline": {
+    "actor": {"id": "actor:fixture-author", "kind": "test-fixture"},
+    "recordedAt": "2026-08-19T00:00:00Z",
+    "sourceRefs": [{"id": "source:fixture-author", "kind": "synthetic", "evidenceRef": null}],
+    "evidenceRefs": []
+  }
+}

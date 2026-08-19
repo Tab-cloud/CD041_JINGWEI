@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "jingwei-kicad-schematic-projection/0.1",
+  "targetKicadVersion": "10.0.5",
+  "generator": "jingwei-agent",
+  "generatorVersion": "0.1.0",
+  "sourceGraphId": "schematic:kicad-native-reference",
+  "rootUuid": "54943081-f2ef-fefd-3034-92ca2a544d42",
+  "sheets": {
+    "02c226b7-d39c-042b-74be-320cf67e6a88": "/"
+  },
+  "symbols": [
+    {
+      "uuid": "24d80c34-245f-733f-a507-7c9e772b39ed",
+      "jirEntityId": "symbol:sink",
+      "sheetUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "libraryId": "Connector_Generic:Conn_02x01",
+      "reference": "U2",
+      "value": "Signal Sink",
+      "footprint": null,
+      "xMm": 91.44,
+      "yMm": 50.8,
+      "rotationDeg": 0.0,
+      "mirrored": false,
+      "pins": [
+        {
+          "uuid": "b7ff1469-7414-8f47-b6a8-de144587191c",
+          "jirEntityId": "pin:sink-signal",
+          "number": "1",
+          "name": "SIGNAL",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "71b801df-8200-d0a9-29f8-f45e9d395693"
+        },
+        {
+          "uuid": "f67722c4-217e-718b-b0ca-af87656cfc05",
+          "jirEntityId": "pin:sink-ground",
+          "number": "2",
+          "name": "GND",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "bb8b8cd6-012e-2d1e-ac9e-258b0cc682f5"
+        }
+      ]
+    },
+    {
+      "uuid": "4820b9ca-9555-f19b-9486-9da17ab1f286",
+      "jirEntityId": "symbol:source",
+      "sheetUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "libraryId": "Connector_Generic:Conn_01x02",
+      "reference": "U1",
+      "value": "Signal Source",
+      "footprint": null,
+      "xMm": 60.96,
+      "yMm": 50.8,
+      "rotationDeg": 0.0,
+      "mirrored": false,
+      "pins": [
+        {
+          "uuid": "e4b92075-4724-39e7-9b4a-4a9bfab7d935",
+          "jirEntityId": "pin:source-signal",
+          "number": "1",
+          "name": "SIGNAL",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "71b801df-8200-d0a9-29f8-f45e9d395693"
+        },
+        {
+          "uuid": "e876e25a-29ca-7019-26f9-bd490a2c4592",
+          "jirEntityId": "pin:source-ground",
+          "number": "2",
+          "name": "GND",
+          "electricalType": "passive",
+          "requiredConnection": true,
+          "netUuid": "bb8b8cd6-012e-2d1e-ac9e-258b0cc682f5"
+        }
+      ]
+    }
+  ],
+  "nets": [
+    {
+      "uuid": "bb8b8cd6-012e-2d1e-ac9e-258b0cc682f5",
+      "jirEntityId": "net:ground",
+      "name": "GND",
+      "pinUuids": [
+        "e876e25a-29ca-7019-26f9-bd490a2c4592",
+        "f67722c4-217e-718b-b0ca-af87656cfc05"
+      ]
+    },
+    {
+      "uuid": "71b801df-8200-d0a9-29f8-f45e9d395693",
+      "jirEntityId": "net:signal",
+      "name": "SIGNAL",
+      "pinUuids": [
+        "b7ff1469-7414-8f47-b6a8-de144587191c",
+        "e4b92075-4724-39e7-9b4a-4a9bfab7d935"
+      ]
+    }
+  ],
+  "objectMap": [
+    {
+      "jirEntityId": "net:ground",
+      "kicadUuid": "bb8b8cd6-012e-2d1e-ac9e-258b0cc682f5",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "net:signal",
+      "kicadUuid": "71b801df-8200-d0a9-29f8-f45e9d395693",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "pin:sink-ground",
+      "kicadUuid": "f67722c4-217e-718b-b0ca-af87656cfc05",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:sink-signal",
+      "kicadUuid": "b7ff1469-7414-8f47-b6a8-de144587191c",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:source-ground",
+      "kicadUuid": "e876e25a-29ca-7019-26f9-bd490a2c4592",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:source-signal",
+      "kicadUuid": "e4b92075-4724-39e7-9b4a-4a9bfab7d935",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "schematic:kicad-native-reference",
+      "kicadUuid": "54943081-f2ef-fefd-3034-92ca2a544d42",
+      "objectKind": "schematic"
+    },
+    {
+      "jirEntityId": "sheet:root",
+      "kicadUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "objectKind": "sheet"
+    },
+    {
+      "jirEntityId": "symbol:sink",
+      "kicadUuid": "24d80c34-245f-733f-a507-7c9e772b39ed",
+      "objectKind": "symbol"
+    },
+    {
+      "jirEntityId": "symbol:source",
+      "kicadUuid": "4820b9ca-9555-f19b-9486-9da17ab1f286",
+      "objectKind": "symbol"
+    }
+  ],
+  "coverage": {
+    "projectedFeatures": [
+      "hierarchical sheets",
+      "symbol instances and stable references",
+      "pin membership and logical nets",
+      "symbol position, rotation, mirror and footprint reference",
+      "JIR-to-external object map",
+      "native .kicad_sch symbol, pin, net-label and no-connect serialization"
+    ],
+    "coverageGaps": [
+      "explicit wire geometry, buses and graphical annotations remain retained only in JIR",
+      "hierarchical sheets are mapped but native export currently emits the root sheet only"
+    ],
+    "roundTripModelVerified": true,
+    "kicadCliVerified": true
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "jingwei-kicad-object-map/0.1",
+  "sourceGraphId": "schematic:kicad-native-reference",
+  "targetKicadVersion": "10.0.5",
+  "entries": [
+    {
+      "jirEntityId": "net:ground",
+      "kicadUuid": "bb8b8cd6-012e-2d1e-ac9e-258b0cc682f5",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "net:signal",
+      "kicadUuid": "71b801df-8200-d0a9-29f8-f45e9d395693",
+      "objectKind": "net"
+    },
+    {
+      "jirEntityId": "pin:sink-ground",
+      "kicadUuid": "f67722c4-217e-718b-b0ca-af87656cfc05",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:sink-signal",
+      "kicadUuid": "b7ff1469-7414-8f47-b6a8-de144587191c",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:source-ground",
+      "kicadUuid": "e876e25a-29ca-7019-26f9-bd490a2c4592",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "pin:source-signal",
+      "kicadUuid": "e4b92075-4724-39e7-9b4a-4a9bfab7d935",
+      "objectKind": "pin"
+    },
+    {
+      "jirEntityId": "schematic:kicad-native-reference",
+      "kicadUuid": "54943081-f2ef-fefd-3034-92ca2a544d42",
+      "objectKind": "schematic"
+    },
+    {
+      "jirEntityId": "sheet:root",
+      "kicadUuid": "02c226b7-d39c-042b-74be-320cf67e6a88",
+      "objectKind": "sheet"
+    },
+    {
+      "jirEntityId": "symbol:sink",
+      "kicadUuid": "24d80c34-245f-733f-a507-7c9e772b39ed",
+      "objectKind": "symbol"
+    },
+    {
+      "jirEntityId": "symbol:source",
+      "kicadUuid": "4820b9ca-9555-f19b-9486-9da17ab1f286",
+      "objectKind": "symbol"
+    }
+  ]
+}

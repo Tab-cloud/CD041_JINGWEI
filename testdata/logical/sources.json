@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "logical-fixture-sources/1",
+  "classification": "public-synthetic",
+  "license": "CC0-1.0",
+  "realPublicSourceFacts": [],
+  "syntheticFacts": [
+    "all manufacturer and exact MPN identities",
+    "all component parameters and package dimensions",
+    "all prices, stock, lead times and supplier identities",
+    "all schematic connectivity and validation expectations",
+    "all generated KiCad symbols, native schematics and review renderings"
+  ],
+  "restrictedApisUsed": [],
+  "networkRequired": false,
+  "warning": "No fixture value is qualified for a production design."
+}

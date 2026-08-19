@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "logical-catalog-fixture/1",
+  "snapshot": {
+    "id": "snapshot:synthetic-catalog-v1",
+    "sourceName": "jingwei-public-synthetic-catalog",
+    "sourceVersion": "1",
+    "capturedAt": "2026-08-19T00:00:00Z",
+    "ageHours": 0,
+    "license": "CC0-1.0",
+    "cachePolicy": "redistributable",
+    "contentHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "records": [
+    {
+      "manufacturer": "Jingwei Synthetic Semiconductor",
+      "exactMpn": "JW-MCU-32A",
+      "function": "3.3 V microcontroller",
+      "package": {"name": "LQFP-48", "pinCount": 48},
+      "lifecycle": "active",
+      "parameters": {"supplyVoltage": {"kind": "number", "value": 3.3, "unit": "V"}, "unitCost": {"kind": "number", "value": 8.0, "unit": "CNY"}}
+    },
+    {
+      "manufacturer": "Jingwei Synthetic Semiconductor",
+      "exactMpn": "JW-MCU-32B",
+      "function": "3.3 V microcontroller",
+      "package": {"name": "LQFP-48", "pinCount": 48},
+      "lifecycle": "active",
+      "parameters": {"supplyVoltage": {"kind": "number", "value": 3.3, "unit": "V"}, "unitCost": {"kind": "number", "value": 10.0, "unit": "CNY"}}
+    },
+    {
+      "manufacturer": "Jingwei Synthetic Interface",
+      "exactMpn": "JW-RS485-8A",
+      "function": "3.3 V RS-485 transceiver",
+      "package": {"name": "SOIC-8", "pinCount": 8},
+      "lifecycle": "active",
+      "parameters": {"absoluteBusVoltage": {"kind": "number", "value": 24.0, "unit": "V"}, "unitCost": {"kind": "number", "value": 2.2, "unit": "CNY"}}
+    },
+    {
+      "manufacturer": "Jingwei Synthetic Sensors",
+      "exactMpn": "JW-TH-44A",
+      "function": "digital temperature and humidity sensor",
+      "package": {"name": "DFN-4", "pinCount": 4},
+      "lifecycle": "active",
+      "parameters": {"i2cAddress": {"kind": "text", "value": "0x44"}, "unitCost": {"kind": "number", "value": 12.0, "unit": "CNY"}}
+    }
+  ]
+}

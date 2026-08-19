@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "logical-schematic-fixture/1",
+  "graphId": "schematic:golden-sensor-node",
+  "sheets": ["/", "/power", "/controller", "/interfaces"],
+  "components": [
+    {"id": "symbol:u1", "reference": "U1", "exactMpn": "JW-MCU-32A", "module": "controller"},
+    {"id": "symbol:u2", "reference": "U2", "exactMpn": "JW-TH-44A", "module": "sensors"},
+    {"id": "symbol:u3", "reference": "U3", "exactMpn": "JW-RS485-8A", "module": "interfaces"},
+    {"id": "symbol:u4", "reference": "U4", "exactMpn": "JW-LDO-33A", "module": "power"},
+    {"id": "connector:j1", "reference": "J1", "exactMpn": "JW-TERM-4A", "module": "interfaces"},
+    {"id": "connector:j2", "reference": "J2", "exactMpn": "JW-SWD-5A", "module": "controller"}
+  ],
+  "nets": ["VIN_PROTECTED", "V3V3", "GND", "I2C_SCL", "I2C_SDA", "RS485_A", "RS485_B", "SWDIO", "SWCLK"],
+  "requirements": {"allRequiredPinsResolved": true, "powerSourcesDeclared": true, "requiredTestPointsPresent": true}
+}
