@@ -19,7 +19,9 @@ pub use native::{
     serialize_object_map, serialize_symbol_library, serialize_symbol_library_table,
 };
 pub use projection::{parse_projection, project_schematic, serialize_projection};
-pub use registration::{LogicalModuleRegistration, register_logical_module};
+pub use registration::{
+    LogicalModuleRegistration, logical_module_registration, register_logical_module,
+};
 
 /// Typed model schema version.
 pub const KICAD_PROJECTION_SCHEMA_VERSION: &str = "jingwei-kicad-schematic-projection/0.1";

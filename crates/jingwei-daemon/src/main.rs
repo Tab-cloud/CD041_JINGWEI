@@ -3,7 +3,6 @@
 use std::{io::Read, path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
-use jingwei_kernel::ExtensionRegistryBuilder;
 
 #[derive(Parser)]
 #[command(
@@ -46,7 +45,7 @@ async fn run(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
     match arguments.command {
         Command::Doctor { workspace } => {
             let daemon =
-                jingwei_daemon::Daemon::open(workspace, ExtensionRegistryBuilder::new().build())?;
+                jingwei_daemon::Daemon::open(workspace, jingwei_daemon::production_registry()?)?;
             println!("{}", serde_json::to_string_pretty(&daemon.readiness())?);
         }
         #[cfg(windows)]
@@ -59,7 +58,7 @@ async fn run(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
             let token = token.trim().to_owned();
             let daemon = Arc::new(jingwei_daemon::Daemon::open_with_token(
                 workspace,
-                ExtensionRegistryBuilder::new().build(),
+                jingwei_daemon::production_registry()?,
                 token,
             )?);
             loop {

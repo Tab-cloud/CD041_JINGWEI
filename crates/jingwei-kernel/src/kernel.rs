@@ -19,8 +19,8 @@ use jingwei_store::{
 use serde_json::{Value, json};
 
 use crate::{
-    ClaimGuard, ClaimMode, ExtensionRegistry, ResourceClaim, ResourceClaimManager,
-    ValidationContext, apply_patch_to_graph, evaluate_preconditions,
+    ClaimGuard, ClaimMode, ExtensionRegistry, ResourceClaim, ResourceClaimManager, ToolContext,
+    ToolRequest, ToolResult, ValidationContext, apply_patch_to_graph, evaluate_preconditions,
 };
 
 /// Caller identity and daemon-authorized capabilities.
@@ -73,6 +73,50 @@ impl Kernel {
     /// Exposes read-only store APIs to the daemon's artifact and event routes.
     pub const fn store(&self) -> &WorkspaceStore {
         &self.store
+    }
+
+    /// Returns descriptors contributed by executable domain modules.
+    pub fn extension_tool_descriptors(&self) -> Vec<jingwei_jdp::ToolDescriptor> {
+        self.registry.tool_descriptors()
+    }
+
+    /// Executes a candidate-only domain operation without moving a revision pointer.
+    pub async fn execute_domain_tool(
+        &self,
+        project_id: &ProjectId,
+        revision: Option<&RevisionId>,
+        operation: &str,
+        input: Value,
+        context: &RequestContext,
+    ) -> Result<ToolResult, KernelError> {
+        let module = self
+            .registry
+            .tool_module_for(operation)
+            .ok_or_else(|| KernelError::CapabilityUnavailable(operation.to_owned()))?;
+        let revision = match revision {
+            Some(revision) => {
+                self.store.revision(project_id, revision)?;
+                revision.clone()
+            }
+            None => self.store.current_revision(project_id)?.ok_or_else(|| {
+                KernelError::CorruptProject("project has no current revision".into())
+            })?,
+        };
+        module
+            .execute(
+                ToolContext {
+                    actor: context.actor.clone(),
+                    project_id: project_id.clone(),
+                    revision,
+                    capabilities: context.capabilities.iter().cloned().collect(),
+                },
+                ToolRequest {
+                    name: operation.to_owned(),
+                    input,
+                },
+            )
+            .await
+            .map_err(KernelError::DomainTool)
     }
 
     /// Creates project metadata and its deterministic empty initial revision.
@@ -704,6 +748,8 @@ pub enum KernelError {
     InvalidQuery(String),
     #[error("capability unavailable: {0}")]
     CapabilityUnavailable(String),
+    #[error("domain tool failed: {0}")]
+    DomainTool(String),
     #[error("project storage is inconsistent: {0}")]
     CorruptProject(String),
     #[error(transparent)]

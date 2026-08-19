@@ -236,6 +236,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
+name = "equivalent"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -291,6 +297,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-sink"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1944426bf7d03f1d14f708785e4b33efd750b36d48a157b836b3efc15ede8e1d"
+
+[[package]]
 name = "futures-task"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -343,6 +355,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -379,6 +397,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "indexmap"
+version = "2.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
+dependencies = [
+ "equivalent",
+ "hashbrown",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -405,6 +433,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "jingwei-components"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
 name = "jingwei-daemon"
 version = "0.1.0"
 dependencies = [
@@ -415,6 +453,8 @@ dependencies = [
  "jingwei-jdp",
  "jingwei-jir",
  "jingwei-kernel",
+ "jingwei-kicad-schematic",
+ "jingwei-manufacturing",
  "jingwei-store",
  "serde",
  "serde_json",
@@ -422,6 +462,35 @@ dependencies = [
  "thiserror",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "jingwei-drc"
+version = "0.1.0"
+dependencies = [
+ "jingwei-geometry",
+ "jingwei-pcb",
+ "serde",
+]
+
+[[package]]
+name = "jingwei-erc"
+version = "0.1.0"
+dependencies = [
+ "jingwei-components",
+ "jingwei-jdp",
+ "jingwei-jir",
+ "jingwei-library",
+ "jingwei-schematic",
+ "serde",
+]
+
+[[package]]
+name = "jingwei-geometry"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -484,6 +553,120 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "jingwei-kicad-pcb"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "jingwei-geometry",
+ "jingwei-pcb",
+ "serde",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "jingwei-kicad-schematic"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "jingwei-components",
+ "jingwei-erc",
+ "jingwei-jdp",
+ "jingwei-jir",
+ "jingwei-kernel",
+ "jingwei-library",
+ "jingwei-schematic",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "jingwei-library"
+version = "0.1.0"
+dependencies = [
+ "jingwei-components",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "jingwei-manufacturing"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "hex",
+ "jingwei-drc",
+ "jingwei-geometry",
+ "jingwei-jdp",
+ "jingwei-jir",
+ "jingwei-kernel",
+ "jingwei-kicad-pcb",
+ "jingwei-pcb",
+ "jingwei-placement",
+ "jingwei-routing",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "jingwei-pcb"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "jingwei-geometry",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "jingwei-placement"
+version = "0.1.0"
+dependencies = [
+ "jingwei-geometry",
+ "jingwei-pcb",
+ "serde",
+]
+
+[[package]]
+name = "jingwei-routing"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "hex",
+ "jingwei-geometry",
+ "jingwei-pcb",
+ "serde",
+ "sha2",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "jingwei-schematic"
+version = "0.1.0"
+dependencies = [
+ "jingwei-components",
+ "jingwei-jdp",
+ "jingwei-jir",
+ "jingwei-library",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
 ]
 
 [[package]]
@@ -735,6 +918,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ryu"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
 name = "schemars"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -813,6 +1002,19 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -936,6 +1138,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-util"
+version = "0.7.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "futures-util",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
 name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -952,6 +1168,12 @@ name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "utf8parse"

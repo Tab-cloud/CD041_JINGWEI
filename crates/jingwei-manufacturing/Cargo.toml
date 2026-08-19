@@ -7,11 +7,14 @@ license.workspace = true
 description = "Immutable manufacturing-candidate export, manifest and independent verification"
 
 [dependencies]
+async-trait.workspace = true
 hex.workspace = true
 jingwei-drc = { path = "../jingwei-drc" }
 jingwei-geometry = { path = "../jingwei-geometry" }
 jingwei-jdp = { path = "../jingwei-jdp" }
 jingwei-kicad-pcb = { path = "../jingwei-kicad-pcb" }
+jingwei-kernel = { path = "../jingwei-kernel" }
+jingwei-jir = { path = "../jingwei-jir" }
 jingwei-pcb = { path = "../jingwei-pcb" }
 serde.workspace = true
 serde_json.workspace = true

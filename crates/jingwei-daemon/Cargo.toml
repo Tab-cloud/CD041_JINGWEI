@@ -13,7 +13,9 @@ futures-util.workspace = true
 hex.workspace = true
 jingwei-jdp = { path = "../jingwei-jdp" }
 jingwei-jir = { path = "../jingwei-jir" }
+jingwei-kicad-schematic = { path = "../jingwei-kicad-schematic" }
 jingwei-kernel = { path = "../jingwei-kernel" }
+jingwei-manufacturing = { path = "../jingwei-manufacturing" }
 jingwei-store = { path = "../jingwei-store" }
 serde.workspace = true
 serde_json.workspace = true

@@ -145,7 +145,11 @@ impl Daemon {
             daemon_instance: self.instance_id.clone(),
             workspace_id: self.workspace_id.clone(),
             read_write: true,
-            capabilities: tool_catalog().into_iter().map(|tool| tool.name).collect(),
+            capabilities: tool_catalog()
+                .into_iter()
+                .chain(self.kernel.extension_tool_descriptors())
+                .map(|tool| tool.name)
+                .collect(),
         })
     }
 
@@ -449,6 +453,12 @@ impl Daemon {
                         };
                         (tool.name, state)
                     })
+                    .chain(
+                        self.kernel
+                            .extension_tool_descriptors()
+                            .into_iter()
+                            .map(|tool| (tool.name, CapabilityState::Available)),
+                    )
                     .collect::<BTreeMap<_, _>>();
                 encode(WorkspaceCapabilities {
                     protocol_versions: vec![JDP_PROTOCOL_VERSION.into()],
@@ -468,9 +478,17 @@ impl Daemon {
                     "no durable task with that ID is registered".into(),
                 ))
             }
-            _ => Err(KernelError::CapabilityUnavailable(
-                request.operation.clone(),
-            )),
+            _ => self
+                .kernel
+                .execute_domain_tool(
+                    &request.project_id,
+                    request.base_revision.as_ref(),
+                    &request.operation,
+                    request.input.clone(),
+                    &context,
+                )
+                .await
+                .and_then(|value| encode(value).map(|value| (value, None))),
         };
         match outcome {
             Ok((data, new_revision)) => JdpResponse::Success(JdpSuccess {
@@ -534,6 +552,7 @@ fn error_detail(error: &KernelError) -> ErrorDetail {
         KernelError::InvalidPatch(_) => ("invalid_patch", "apply", false),
         KernelError::InvalidQuery(_) => ("invalid_query", "query", false),
         KernelError::CapabilityUnavailable(_) => ("capability_unavailable", "dispatch", false),
+        KernelError::DomainTool(_) => ("domain_tool_failed", "domain-tool", false),
         KernelError::ResourceConflict(_) => ("resource_claim_conflict", "resource-claim", true),
         KernelError::Parse(_) => ("jdl_parse_failed", "parse", false),
         KernelError::Compile(_) => ("jdl_compile_failed", "compile", false),

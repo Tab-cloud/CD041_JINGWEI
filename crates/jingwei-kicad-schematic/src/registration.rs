@@ -1,6 +1,17 @@
-use jingwei_jdp::{Effect, Permission, ToolDescriptor};
+use async_trait::async_trait;
+use jingwei_components::{DesignIntent, classify_risk};
+use jingwei_jdp::{
+    DisplayList, Effect, HitTestRequest, HitTestResult, PatchOperation, Permission,
+    SemanticEditCommand, ToolDescriptor, ValidationOutput, ViewRequest,
+};
+use jingwei_jir::{CanonicalValue, EntityId, SchemaDescriptor};
+use jingwei_kernel::{
+    DomainToolModule, ExtensionRegistryBuilder, ProjectionBackend, ProjectionRequest,
+    ProjectionResult, RegistryError, SemanticEditHandler, ToolContext, ToolRequest, ToolResult,
+    ValidationContext, ValidationProvider, ViewProvider,
+};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{Value, json};
 
 /// Registration bundle consumed by the core registry adapter once available.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,7 +30,7 @@ pub struct LogicalModuleRegistration {
 
 /// Returns all Task 03 tools without claiming revision ownership.
 #[must_use]
-pub fn register_logical_module() -> LogicalModuleRegistration {
+pub fn logical_module_registration() -> LogicalModuleRegistration {
     let definitions = [
         (
             "requirement_compile",
@@ -160,6 +171,193 @@ pub fn register_logical_module() -> LogicalModuleRegistration {
     }
 }
 
+/// Registers the executable logical-domain adapters into the Task 02 registry.
+pub fn register_logical_module(
+    mut builder: ExtensionRegistryBuilder,
+) -> Result<ExtensionRegistryBuilder, RegistryError> {
+    let metadata = logical_module_registration();
+    builder = builder.tool_module(LogicalToolModule)?;
+    builder = builder.validator(LogicalGraphValidator)?;
+    builder = builder.view_provider(LogicalViewProvider)?;
+    builder = builder.projection(LogicalProjectionBackend)?;
+    builder = builder.edit_handler(LogicalSetPropertyHandler)?;
+    for kind in metadata.entity_schema_kinds {
+        builder = builder.entity_schema(open_schema(kind))?;
+    }
+    for kind in metadata.edge_schema_kinds {
+        builder = builder.edge_schema(open_schema(kind))?;
+    }
+    Ok(builder)
+}
+
+fn open_schema(kind: String) -> SchemaDescriptor {
+    SchemaDescriptor {
+        kind,
+        schema_version: jingwei_schematic::SCHEMATIC_SCHEMA_VERSION.to_owned(),
+        json_schema: json!({"type": "object", "additionalProperties": true}),
+    }
+}
+
+struct LogicalToolModule;
+
+#[async_trait]
+impl DomainToolModule for LogicalToolModule {
+    fn module_name(&self) -> &'static str {
+        "jingwei-logical-domain"
+    }
+
+    fn descriptors(&self) -> Vec<ToolDescriptor> {
+        logical_module_registration()
+            .tools
+            .into_iter()
+            .filter(|descriptor| {
+                matches!(
+                    descriptor.name.as_str(),
+                    "requirement_compile" | "risk_classify"
+                )
+            })
+            .collect()
+    }
+
+    async fn execute(
+        &self,
+        _context: ToolContext,
+        request: ToolRequest,
+    ) -> Result<ToolResult, String> {
+        let data = match request.name.as_str() {
+            "requirement_compile" => {
+                let intent: DesignIntent = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid DesignIntent: {error}"))?;
+                serde_json::to_value(
+                    intent
+                        .compile_candidate()
+                        .map_err(|error| error.to_string())?,
+                )
+                .map_err(|error| error.to_string())?
+            }
+            "risk_classify" => {
+                let intent: DesignIntent = serde_json::from_value(request.input)
+                    .map_err(|error| format!("invalid DesignIntent: {error}"))?;
+                serde_json::to_value(classify_risk(&intent)).map_err(|error| error.to_string())?
+            }
+            _ => {
+                return Err(format!(
+                    "logical operation is not executable: {}",
+                    request.name
+                ));
+            }
+        };
+        Ok(ToolResult {
+            candidate_operations: Vec::new(),
+            data,
+            artifact_refs: Vec::new(),
+            evidence_refs: Vec::new(),
+        })
+    }
+}
+
+struct LogicalGraphValidator;
+
+#[async_trait]
+impl ValidationProvider for LogicalGraphValidator {
+    fn name(&self) -> &'static str {
+        "logical.namespaced-graph"
+    }
+
+    async fn validate(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        _context: &ValidationContext,
+    ) -> ValidationOutput {
+        let invalid = graph
+            .entities
+            .values()
+            .filter(|entity| entity.kind.as_str().starts_with("logical."))
+            .any(|entity| entity.schema_version.trim().is_empty());
+        ValidationOutput {
+            valid: !invalid,
+            findings: Vec::new(),
+            providers_run: vec![self.name().to_owned()],
+        }
+    }
+}
+
+struct LogicalViewProvider;
+
+#[async_trait]
+impl ViewProvider for LogicalViewProvider {
+    fn name(&self) -> &'static str {
+        "logical.schematic-view"
+    }
+
+    async fn view(&self, request: &ViewRequest) -> Result<DisplayList, String> {
+        Ok(DisplayList {
+            revision: request.revision.clone(),
+            primitives: Vec::new(),
+            artifact_refs: Vec::new(),
+        })
+    }
+
+    async fn hit_test(&self, _request: &HitTestRequest) -> Result<HitTestResult, String> {
+        Ok(HitTestResult { hits: Vec::new() })
+    }
+}
+
+struct LogicalProjectionBackend;
+
+#[async_trait]
+impl ProjectionBackend for LogicalProjectionBackend {
+    fn name(&self) -> &'static str {
+        "logical.kicad-schematic"
+    }
+
+    async fn project(&self, request: &ProjectionRequest) -> Result<ProjectionResult, String> {
+        Ok(ProjectionResult {
+            artifact_refs: Vec::new(),
+            evidence_refs: Vec::new(),
+            mapping: json!({
+                "backend": request.backend,
+                "revision": request.revision,
+                "state": "registered; artifact materialization requires a domain tool input",
+            }),
+        })
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetPropertyPayload {
+    entity_id: String,
+    key: String,
+    value: Value,
+}
+
+struct LogicalSetPropertyHandler;
+
+impl SemanticEditHandler for LogicalSetPropertyHandler {
+    fn command_kind(&self) -> &'static str {
+        "logical.set-property"
+    }
+
+    fn translate(
+        &self,
+        graph: &jingwei_jir::JirGraph,
+        command: &SemanticEditCommand,
+    ) -> Result<Vec<PatchOperation>, String> {
+        let payload: SetPropertyPayload = serde_json::from_value(command.payload.clone())
+            .map_err(|error| format!("invalid logical set-property payload: {error}"))?;
+        let entity_id = EntityId::new(payload.entity_id).map_err(|error| error.to_string())?;
+        if !graph.entities.contains_key(&entity_id) {
+            return Err(format!("logical entity does not exist: {entity_id}"));
+        }
+        Ok(vec![PatchOperation::SetProperty {
+            entity_id,
+            key: payload.key,
+            value: CanonicalValue::new(payload.value).map_err(|error| error.to_string())?,
+        }])
+    }
+}
+
 fn logical_tool_description(name: &str) -> &'static str {
     match name {
         "requirement_compile" => {
@@ -199,7 +397,7 @@ mod tests {
 
     #[test]
     fn registration_contains_required_tools_without_approval_bypass() {
-        let module = register_logical_module();
+        let module = logical_module_registration();
         let names = module
             .tools
             .iter()
@@ -210,5 +408,25 @@ mod tests {
         assert!(names.contains("schematic_project"));
         assert!(!names.contains("library_approve"));
         assert!(!names.contains("production_release"));
+    }
+
+    #[test]
+    fn executable_registry_contains_all_logical_provider_kinds() {
+        let registry = register_logical_module(ExtensionRegistryBuilder::new())
+            .expect("register logical module")
+            .build();
+        assert_eq!(registry.tool_module_names(), vec!["jingwei-logical-domain"]);
+        assert_eq!(registry.validator_names(), vec!["logical.namespaced-graph"]);
+        assert_eq!(
+            registry.view_provider_names(),
+            vec!["logical.schematic-view"]
+        );
+        assert_eq!(registry.projection_names(), vec!["logical.kicad-schematic"]);
+        assert_eq!(registry.edit_handler_names(), vec!["logical.set-property"]);
+        assert!(
+            registry
+                .entity_schema_kinds()
+                .contains(&"logical.symbol".to_owned())
+        );
     }
 }

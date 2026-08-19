@@ -18,8 +18,8 @@ pub use profile::{
     ProfileValidation, load_profile, validate_profile,
 };
 pub use registration::{
-    PhysicalModuleRegistration, PhysicalToolDescriptor, ReleaseReadiness, register_physical_module,
-    release_readiness,
+    PhysicalModuleRegistration, PhysicalToolDescriptor, ReleaseReadiness,
+    physical_module_registration, register_physical_module, release_readiness,
 };
 pub use verifier::{PackageFinding, PackageVerification, verify_candidate};
 

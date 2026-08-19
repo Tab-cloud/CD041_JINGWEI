@@ -128,9 +128,39 @@ pub struct ExtensionRegistry {
 }
 
 impl ExtensionRegistry {
+    /// Registered domain module names.
+    pub fn tool_module_names(&self) -> Vec<String> {
+        self.tools.keys().cloned().collect()
+    }
+
     /// Registered validator names.
     pub fn validator_names(&self) -> Vec<String> {
         self.validators.keys().cloned().collect()
+    }
+
+    /// Registered view provider names.
+    pub fn view_provider_names(&self) -> Vec<String> {
+        self.views.keys().cloned().collect()
+    }
+
+    /// Registered projection backend names.
+    pub fn projection_names(&self) -> Vec<String> {
+        self.projections.keys().cloned().collect()
+    }
+
+    /// Registered semantic edit command kinds.
+    pub fn edit_handler_names(&self) -> Vec<String> {
+        self.edit_handlers.keys().cloned().collect()
+    }
+
+    /// Registered entity schema kinds.
+    pub fn entity_schema_kinds(&self) -> Vec<String> {
+        self.entity_schemas.keys().cloned().collect()
+    }
+
+    /// Registered edge schema kinds.
+    pub fn edge_schema_kinds(&self) -> Vec<String> {
+        self.edge_schemas.keys().cloned().collect()
     }
 
     /// Looks up a semantic edit handler.
@@ -144,6 +174,18 @@ impl ExtensionRegistry {
             .values()
             .flat_map(|module| module.descriptors())
             .collect()
+    }
+
+    pub(crate) fn tool_module_for(&self, operation: &str) -> Option<Arc<dyn DomainToolModule>> {
+        self.tools
+            .values()
+            .find(|module| {
+                module
+                    .descriptors()
+                    .iter()
+                    .any(|descriptor| descriptor.name == operation)
+            })
+            .cloned()
     }
 }
 
