@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
@@ -62,6 +62,18 @@ struct SidecarHandshake {
 struct SidecarSupervisor {
     statuses: Mutex<HashMap<String, SidecarStatus>>,
     children: Mutex<HashMap<String, CommandChild>>,
+    bootstrap: Mutex<Option<SidecarBootstrap>>,
+}
+
+#[derive(Clone)]
+struct SidecarBootstrap {
+    daemon_session_token: String,
+    runtime_bootstrap_token: String,
+    daemon_pipe_name: String,
+    daemon_workspace: PathBuf,
+    runtime_database: PathBuf,
+    workspace_id: String,
+    project_id: String,
 }
 
 impl SidecarSupervisor {
@@ -84,6 +96,48 @@ impl SidecarSupervisor {
         });
         statuses
     }
+
+    fn bootstrap(&self, app: &AppHandle) -> Result<SidecarBootstrap, String> {
+        let mut current = self
+            .bootstrap
+            .lock()
+            .map_err(|_| "sidecar bootstrap state poisoned".to_string())?;
+        if let Some(bootstrap) = current.as_ref() {
+            return Ok(bootstrap.clone());
+        }
+        let data_root = app
+            .path()
+            .app_local_data_dir()
+            .map_err(|error| format!("无法解析应用数据目录: {error}"))?;
+        fs::create_dir_all(&data_root).map_err(|error| format!("无法创建应用数据目录: {error}"))?;
+        let bootstrap = SidecarBootstrap {
+            daemon_session_token: format!(
+                "daemon-{}-{}",
+                uuid::Uuid::new_v4(),
+                uuid::Uuid::new_v4()
+            ),
+            runtime_bootstrap_token: format!(
+                "runtime-{}-{}",
+                uuid::Uuid::new_v4(),
+                uuid::Uuid::new_v4()
+            ),
+            daemon_pipe_name: format!(r"\\.\pipe\jingwei-desktop-{}", uuid::Uuid::new_v4()),
+            daemon_workspace: data_root.join("daemon-workspace"),
+            runtime_database: data_root.join("runtime").join("runtime.sqlite"),
+            workspace_id: "ws-desktop".into(),
+            project_id: "project-desktop".into(),
+        };
+        *current = Some(bootstrap.clone());
+        Ok(bootstrap)
+    }
+
+    fn shutdown(&self) {
+        if let Ok(mut children) = self.children.lock() {
+            for (_, child) in children.drain() {
+                let _ = child.kill();
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -95,8 +149,11 @@ fn sidecar_status(state: tauri::State<'_, SidecarSupervisor>) -> Vec<SidecarStat
 async fn ensure_sidecars(app: AppHandle) -> Result<Vec<SidecarStatus>, String> {
     let manifest = read_manifest(&app)?;
     validate_manifest(&manifest)?;
-    for entry in manifest.sidecars.clone() {
-        if let Err(reason) = start_sidecar(&app, &manifest, entry.clone()) {
+    let bootstrap = app.state::<SidecarSupervisor>().bootstrap(&app)?;
+    let mut entries = manifest.sidecars.clone();
+    entries.sort_by_key(|entry| if entry.kind == "daemon" { 0 } else { 1 });
+    for entry in entries {
+        if let Err(reason) = start_sidecar(&app, &manifest, entry.clone(), &bootstrap) {
             app.state::<SidecarSupervisor>().set_status(SidecarStatus {
                 kind: entry.kind,
                 state: "unavailable".into(),
@@ -120,6 +177,7 @@ fn start_sidecar(
     app: &AppHandle,
     manifest: &SidecarManifest,
     entry: SidecarEntry,
+    bootstrap: &SidecarBootstrap,
 ) -> Result<(), String> {
     validate_entry(&entry, &manifest.target)?;
     if !entry.bundled {
@@ -137,17 +195,43 @@ fn start_sidecar(
 
     let executable = resolve_resource_path(app, &entry.relative_path)?;
     verify_file_hash(&executable, &entry.sha256)?;
-    let bootstrap_token = uuid::Uuid::new_v4().to_string();
-    let (mut events, child) = app
+    let mut command = app
         .shell()
-        .command(executable.to_string_lossy().to_string())
-        .env(
-            "JINGWEI_DESKTOP_PROTOCOL_VERSION",
-            &manifest.protocol_version,
+        .command(executable.to_string_lossy().to_string());
+    let bootstrap_input = if entry.kind == "daemon" {
+        command = command.args([
+            "serve",
+            "--workspace",
+            &bootstrap.daemon_workspace.display().to_string(),
+            "--workspace-id",
+            &bootstrap.workspace_id,
+            "--pipe-name",
+            &bootstrap.daemon_pipe_name,
+        ]);
+        format!("{}\n", bootstrap.daemon_session_token)
+    } else {
+        format!(
+            "{}\n",
+            serde_json::json!({
+                "bootstrapToken": bootstrap.runtime_bootstrap_token,
+                "daemonPipeName": bootstrap.daemon_pipe_name,
+                "daemonSessionToken": bootstrap.daemon_session_token,
+                "databasePath": bootstrap.runtime_database,
+                "workspaceId": bootstrap.workspace_id,
+                "projectId": bootstrap.project_id,
+            })
         )
-        .env("JINGWEI_BOOTSTRAP_TOKEN", bootstrap_token)
+    };
+    let (mut events, mut child) = command
         .spawn()
         .map_err(|error| format!("无法启动 {} sidecar: {error}", entry.kind))?;
+    if let Err(error) = child.write(bootstrap_input.as_bytes()) {
+        let _ = child.kill();
+        return Err(format!(
+            "无法通过 stdin 初始化 {} sidecar: {error}",
+            entry.kind
+        ));
+    }
 
     app.state::<SidecarSupervisor>()
         .children
@@ -333,7 +417,15 @@ fn resolve_resource_path(app: &AppHandle, relative_path: &str) -> Result<PathBuf
         .path()
         .resource_dir()
         .map_err(|error| error.to_string())?;
-    let target = root.join(relative);
+    let bundled = root.join("sidecars").join(relative);
+    let development = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("sidecars")
+        .join(relative);
+    let target = if bundled.is_file() {
+        bundled
+    } else {
+        development
+    };
     if !target.is_file() {
         return Err(format!("sidecar 文件不存在: {}", entry_name(&target)));
     }
@@ -447,7 +539,11 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("failed to build Jingwei workbench");
-    app.run(|_, _| {});
+    app.run(|app_handle, event| {
+        if matches!(event, RunEvent::Exit | RunEvent::ExitRequested { .. }) {
+            app_handle.state::<SidecarSupervisor>().shutdown();
+        }
+    });
 }
 
 #[cfg(test)]
@@ -537,5 +633,15 @@ mod tests {
         );
         assert!(validate_credential_reference("secret-value".into()).is_err());
         assert!(validate_credential_reference("credential://windows/UPPER".into()).is_err());
+    }
+
+    #[test]
+    fn bundled_sidecars_are_resolved_below_the_sidecars_resource_directory() {
+        let root = Path::new("resource-root");
+        let relative = Path::new("bin/jingwei-daemon.exe");
+        assert_eq!(
+            root.join("sidecars").join(relative),
+            PathBuf::from("resource-root/sidecars/bin/jingwei-daemon.exe")
+        );
     }
 }

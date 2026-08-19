@@ -363,8 +363,21 @@ export function useWorkbenchController() {
 
   const refreshSidecars = useCallback(async () => {
     try {
-      dispatch({ type: "set-sidecars", sidecars: await ensureSidecars() });
-      dispatch({ type: "notice", notice: "已按受控 manifest 重新检查 sidecar；本开发包不会伪装真实进程。" });
+      let sidecars = await ensureSidecars();
+      dispatch({ type: "set-sidecars", sidecars });
+      for (const delayMs of [250, 750, 1_500]) {
+        if (sidecars.every((sidecar) => sidecar.state !== "starting")) break;
+        await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
+        sidecars = await getSidecarStatuses();
+        dispatch({ type: "set-sidecars", sidecars });
+      }
+      const allHealthy = sidecars.length > 0 && sidecars.every((sidecar) => sidecar.state === "healthy");
+      dispatch({
+        type: "notice",
+        notice: allHealthy
+          ? "真实 runtime 与 daemon sidecar 已通过受控 manifest 和版本化 handshake。"
+          : "已按受控 manifest 重新检查 sidecar；未通过的进程不会被伪装为健康。",
+      });
     } catch (error) {
       dispatch({ type: "error", error: errorMessage(error) });
     }

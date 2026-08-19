@@ -108,6 +108,15 @@ importers:
         specifier: 7.5.0
         version: 7.5.0(zod@4.4.3)
 
+  packages/agent-runtime-sidecar:
+    dependencies:
+      '@jingwei/agent-protocol':
+        specifier: workspace:*
+        version: link:../agent-protocol
+      '@jingwei/agent-runtime':
+        specifier: workspace:*
+        version: link:../agent-runtime
+
   packages/agent-tools:
     dependencies:
       '@jingwei/agent-events':

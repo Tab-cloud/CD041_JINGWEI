@@ -96,6 +96,22 @@ impl Daemon {
         Ok(daemon)
     }
 
+    /// Creates a workspace with a launcher-provided token delivered over inherited stdin.
+    pub fn create_with_token(
+        root: impl AsRef<Path>,
+        workspace_id: WorkspaceId,
+        registry: ExtensionRegistry,
+        session_token: String,
+    ) -> Result<Self, DaemonError> {
+        if session_token.len() < 32 || session_token.chars().any(char::is_control) {
+            return Err(DaemonError::Authentication);
+        }
+        let store = WorkspaceStore::create(root, workspace_id)?;
+        let mut daemon = Self::from_store(store, registry)?;
+        daemon.session_token = session_token;
+        Ok(daemon)
+    }
+
     fn from_store(store: WorkspaceStore, registry: ExtensionRegistry) -> Result<Self, DaemonError> {
         let instance_id = format!("daemon-{}", Uuid::new_v4());
         let writer_lease = store.acquire_writer(&instance_id)?;

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "jingwei-windows-sidecar-gate-v0.1",
+  "target": "x86_64-pc-windows-msvc",
+  "protocolVersion": "0.1",
+  "binaries": [
+    {
+      "kind": "daemon",
+      "version": "0.1.0",
+      "sha256": "cf580837946d6331e966c6545c5777ce3dc2a826787209b1e8e8bcdfdf9136c2"
+    },
+    {
+      "kind": "runtime",
+      "version": "0.1.0",
+      "sha256": "5fda5f7162cd83bc1ecbe48d5e6457b574fd77c08f0968fe133a1b689d92167f"
+    }
+  ],
+  "handshakes": {
+    "daemon": {
+      "protocolVersion": "0.1",
+      "version": "0.1.0",
+      "target": "x86_64-pc-windows-msvc",
+      "health": "healthy"
+    },
+    "runtime": {
+      "protocolVersion": "0.1",
+      "version": "0.1.0",
+      "target": "x86_64-pc-windows-msvc",
+      "health": "healthy"
+    }
+  },
+  "runtimeToDaemon": {
+    "connected": true,
+    "availableOperationCount": 23,
+    "requiredOperations": [
+      "requirement_compile",
+      "release_readiness",
+      "workspace.capabilities"
+    ],
+    "reconciliation": false
+  },
+  "commercialOpenAiLiveTest": {
+    "status": "skipped",
+    "reason": "OPENAI_API_KEY and JINGWEI_OPENAI_MODEL are not set"
+  },
+  "uiDataAdapter": {
+    "status": "open",
+    "reason": "workbench canvas still uses versioned UI fixtures; sidecar process health is not presented as real design data"
+  },
+  "productionRelease": false
+}

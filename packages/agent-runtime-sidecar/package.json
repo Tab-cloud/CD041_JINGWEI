@@ -1,0 +1,13 @@
+{
+  "name": "@jingwei/agent-runtime-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jingwei/agent-protocol": "workspace:*",
+    "@jingwei/agent-runtime": "workspace:*"
+  }
+}

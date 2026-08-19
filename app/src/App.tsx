@@ -14,6 +14,7 @@ export default function App() {
   const { state, actions } = useWorkbenchController();
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const sidecarsHealthy = state.sidecars.length > 0 && state.sidecars.every((sidecar) => sidecar.state === "healthy");
 
   if (state.loading) {
     return (
@@ -50,7 +51,9 @@ export default function App() {
         <span>Mock Runtime {state.runtimeCapabilities?.state}</span>
         <span>Mock JDP {state.designCapabilities?.state}</span>
         <span className={`replay-state state-${state.replayState}`}><span className="status-dot" /> replay {state.replayState} · seq {state.lastRuntimeSequence}</span>
-        <span className="ribbon-gap">真实 sidecar、ERC/DRC、制造能力尚未接入</span>
+        <span className="ribbon-gap">
+          {sidecarsHealthy ? "真实 sidecar 进程已接入；画布仍使用 versioned mock adapter" : "真实 sidecar、ERC/DRC、制造能力尚未接入"}
+        </span>
         <button className="ribbon-refresh" onClick={() => void actions.refreshSidecars()} title="按受控 manifest 重新检查 sidecar">
           <RefreshIcon size={12} />重检
         </button>

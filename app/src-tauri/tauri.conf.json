@@ -5,7 +5,7 @@
   "identifier": "com.jingweiagent.workbench.dev",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build && pnpm build:sidecars",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -37,7 +37,7 @@
     "category": "DeveloperTool",
     "shortDescription": "Jingwei Agent semantic EDA workbench development build",
     "longDescription": "Versioned mock/development workbench for semantic schematic and PCB editing. It does not include production sidecars.",
-    "resources": ["sidecars/manifest.json"],
+    "resources": ["sidecars/manifest.json", "sidecars/bin/*"],
     "windows": {
       "webviewInstallMode": {
         "type": "downloadBootstrapper",

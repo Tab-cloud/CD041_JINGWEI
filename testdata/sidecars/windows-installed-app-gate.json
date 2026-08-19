@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "jingwei-windows-installed-app-gate-v0.1",
+  "target": "x86_64-pc-windows-msvc",
+  "installer": {
+    "relativePath": "app/src-tauri/target/release/bundle/nsis/Jingwei Agent Dev_0.1.0_x64-setup.exe",
+    "sizeBytes": 30461443,
+    "sha256": "6b5444c3a6fc2e4cadcb85390b3b6bb77b3f2914ecb6c974a9807fa067d9ac60",
+    "signature": "NotSigned"
+  },
+  "installation": {
+    "mode": "isolated-silent-smoke",
+    "installerExitCode": 0,
+    "manifestSha256": "bfe15da121fa315e6d436be2d5bdd562159f642820e6e8bd6d29ca41d3e30ea7",
+    "workbench": {
+      "sizeBytes": 11902976,
+      "sha256": "81615129dff4c8d416647a5e2845358ffe94c1be35563a18794404aba1918aaa"
+    },
+    "runtime": {
+      "sizeBytes": 113857536,
+      "sha256": "5fda5f7162cd83bc1ecbe48d5e6457b574fd77c08f0968fe133a1b689d92167f"
+    },
+    "daemon": {
+      "sizeBytes": 3932672,
+      "sha256": "cf580837946d6331e966c6545c5777ce3dc2a826787209b1e8e8bcdfdf9136c2"
+    }
+  },
+  "computerUse": {
+    "windowTitle": "精卫 Agent 工作台 · MOCK DEV",
+    "singleRecheckReachedHealthy": true,
+    "runtimeAndDaemonIndicators": "healthy",
+    "installedResourcePathsUsed": true,
+    "themeToggle": "dark-to-light-confirmed",
+    "modelConfigurationUi": "confirmed",
+    "missingEnvironmentVariablesDisplayed": [
+      "OPENAI_API_KEY",
+      "JINGWEI_OPENAI_MODEL"
+    ],
+    "commercialEndpointLiveTest": "blocked-not-executed",
+    "mockDataBoundaryDisplayed": true,
+    "productionReleaseBlocked": true
+  },
+  "exitCleanup": {
+    "workbenchProcessesRemaining": 0,
+    "runtimeProcessesRemaining": 0,
+    "daemonProcessesRemaining": 0
+  },
+  "productionRelease": false
+}

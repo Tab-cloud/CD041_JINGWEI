@@ -1,6 +1,9 @@
 /target/
 /node_modules/
 **/node_modules/
+/packages/*/dist/
+/app/src-tauri/sidecars/bin/*.exe
+/.installer-smoke/
 /.jingwei/
 **/*.tmp
 **/*.bak

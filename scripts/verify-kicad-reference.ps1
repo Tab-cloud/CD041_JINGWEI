@@ -3,10 +3,13 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$KicadCli,
 
-    [string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot)
+    [string]$RepositoryRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $RepositoryRoot = Split-Path -Parent $PSScriptRoot
+}
 $repository = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $executable = (Resolve-Path -LiteralPath $KicadCli).Path
 $lockPath = Join-Path $repository 'toolchains\kicad-10.0.5-windows.json'
