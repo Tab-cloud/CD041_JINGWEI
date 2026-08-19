@@ -2,6 +2,7 @@
 /node_modules/
 **/node_modules/
 /packages/*/dist/
+/dist/
 /app/src-tauri/sidecars/bin/*.exe
 /.installer-smoke/
 /.jingwei/
