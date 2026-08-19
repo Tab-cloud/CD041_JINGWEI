@@ -3,7 +3,7 @@
 mod daemon;
 mod transport;
 
-pub use daemon::{Daemon, DaemonError, HealthStatus, ReadinessStatus};
+pub use daemon::{Daemon, DaemonError, DaemonSpan, HealthStatus, ReadinessStatus};
 pub use transport::InMemoryClient;
 
 /// Composes the production Phase 0 logical and physical domain registry.

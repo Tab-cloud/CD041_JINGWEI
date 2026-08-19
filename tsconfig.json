@@ -12,6 +12,7 @@
     "types": ["bun"],
     "baseUrl": ".",
     "paths": {
+      "@jingwei/jdp-bindings": ["bindings/typescript/src/generated.ts"],
       "@jingwei/agent-protocol": ["packages/agent-protocol/src/index.ts"],
       "@jingwei/agent-events": ["packages/agent-events/src/index.ts"],
       "@jingwei/agent-policy": ["packages/agent-policy/src/index.ts"],
@@ -21,5 +22,5 @@
       "@jingwei/agent-runtime": ["packages/agent-runtime/src/index.ts"]
     }
   },
-  "include": ["packages/**/*.ts", "testdata/**/*.ts"]
+  "include": ["bindings/typescript/src/**/*.ts", "packages/**/*.ts", "testdata/**/*.ts"]
 }

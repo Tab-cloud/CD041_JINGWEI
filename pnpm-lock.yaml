@@ -21,6 +21,12 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
 
+  bindings/typescript:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+
   packages/agent-events:
     dependencies:
       '@jingwei/agent-protocol':
@@ -72,7 +78,11 @@ importers:
         specifier: workspace:*
         version: link:../agent-protocol
 
-  packages/agent-protocol: {}
+  packages/agent-protocol:
+    dependencies:
+      '@jingwei/jdp-bindings':
+        specifier: workspace:*
+        version: link:../../bindings/typescript
 
   packages/agent-runtime:
     dependencies:

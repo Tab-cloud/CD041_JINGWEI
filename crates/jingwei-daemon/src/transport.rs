@@ -274,6 +274,7 @@ mod windows {
                     base_revision: None,
                     deadline_ms: Some(5_000),
                     dry_run: false,
+                    trace_context: None,
                     input: serde_json::json!({}),
                 })
                 .await

@@ -362,6 +362,7 @@ fn request<T: Clone>(
         base_revision,
         deadline_ms: Some(10_000),
         dry_run: false,
+        trace_context: None,
         input,
     }
 }

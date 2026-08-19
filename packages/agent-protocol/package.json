@@ -3,5 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean" }
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean" },
+  "dependencies": {
+    "@jingwei/jdp-bindings": "workspace:*"
+  }
 }

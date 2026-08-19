@@ -16,6 +16,29 @@
       "description": "Opaque `RevisionId` wire identifier.",
       "type": "string"
     },
+    "TraceContext": {
+      "description": "W3C-compatible trace parent carried across the TypeScript/Rust JDP boundary.",
+      "properties": {
+        "spanId": {
+          "type": "string"
+        },
+        "traceFlags": {
+          "default": 1,
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "traceId",
+        "spanId"
+      ],
+      "type": "object"
+    },
     "WorkspaceId": {
       "description": "Opaque `WorkspaceId` wire identifier.",
       "type": "string"
@@ -61,6 +84,16 @@
     },
     "requestId": {
       "$ref": "#/$defs/RequestId"
+    },
+    "traceContext": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TraceContext"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "workspaceId": {
       "$ref": "#/$defs/WorkspaceId"

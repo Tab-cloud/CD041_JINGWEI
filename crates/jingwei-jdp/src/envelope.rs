@@ -5,6 +5,39 @@ use jingwei_jir::{ExecutionId, IdempotencyKey, ProjectId, RequestId, RevisionId,
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+/// W3C-compatible trace parent carried across the TypeScript/Rust JDP boundary.
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceContext {
+    pub trace_id: String,
+    pub span_id: String,
+    #[serde(default = "default_trace_flags")]
+    pub trace_flags: u8,
+}
+
+impl TraceContext {
+    /// Rejects malformed or all-zero W3C trace/span identifiers before dispatch.
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if !valid_hex_id(&self.trace_id, 32) {
+            return Err("traceId must be 32 non-zero hexadecimal characters");
+        }
+        if !valid_hex_id(&self.span_id, 16) {
+            return Err("spanId must be 16 non-zero hexadecimal characters");
+        }
+        Ok(())
+    }
+}
+
+const fn default_trace_flags() -> u8 {
+    1
+}
+
+fn valid_hex_id(value: &str, width: usize) -> bool {
+    value.len() == width
+        && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+        && value.bytes().any(|byte| byte != b'0')
+}
+
 /// Versioned JDP request envelope.
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -21,6 +54,8 @@ pub struct JdpRequest<T> {
     pub deadline_ms: Option<u64>,
     #[serde(default)]
     pub dry_run: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_context: Option<TraceContext>,
     pub input: T,
 }
 
@@ -37,8 +72,36 @@ impl<T> JdpRequest<T> {
             base_revision: self.base_revision,
             deadline_ms: self.deadline_ms,
             dry_run: self.dry_run,
+            trace_context: self.trace_context,
             input,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TraceContext;
+
+    #[test]
+    fn trace_context_accepts_w3c_widths_and_rejects_zero_ids() {
+        let valid = TraceContext {
+            trace_id: "0123456789abcdef0123456789abcdef".into(),
+            span_id: "0123456789abcdef".into(),
+            trace_flags: 1,
+        };
+        assert_eq!(valid.validate(), Ok(()));
+
+        let zero_trace = TraceContext {
+            trace_id: "00000000000000000000000000000000".into(),
+            ..valid.clone()
+        };
+        assert!(zero_trace.validate().is_err());
+
+        let short_span = TraceContext {
+            span_id: "1234".into(),
+            ..valid
+        };
+        assert!(short_span.validate().is_err());
     }
 }
 

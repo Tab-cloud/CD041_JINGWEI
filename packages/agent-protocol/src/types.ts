@@ -1,3 +1,11 @@
+import type {
+  FindingSummary as GeneratedFindingSummary,
+  JdpFailure as GeneratedJdpFailure,
+  JdpRequest as GeneratedJdpRequest,
+  JdpSuccess as GeneratedJdpSuccess,
+  TraceContext as GeneratedTraceContext,
+} from "@jingwei/jdp-bindings"
+
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
@@ -163,11 +171,7 @@ export interface RuntimeCapabilities {
   providers: ProviderCapabilities[]
 }
 
-export interface TraceContext {
-  traceId: string
-  spanId: string
-  traceFlags?: number
-}
+export type TraceContext = GeneratedTraceContext
 
 export interface DurableEvent<T = unknown> {
   schemaVersion: "0.1"
@@ -212,11 +216,7 @@ export interface ProviderCapabilities {
   dataPolicy: Record<string, string | boolean>
 }
 
-export interface FindingSummary {
-  errors: number
-  warnings: number
-  info: number
-}
+export type FindingSummary = GeneratedFindingSummary
 
 export interface JdpCapabilities {
   protocolVersion: "0.1"
@@ -224,38 +224,11 @@ export interface JdpCapabilities {
   reconciliation: boolean
 }
 
-export interface JdpRequest<TInput> {
-  protocolVersion: "0.1"
-  requestId: string
-  idempotencyKey: string
-  workspaceId: string
-  projectId: string
-  operation: string
-  baseRevision?: string
-  deadlineMs?: number
-  dryRun?: boolean
-  input: TInput
-  traceContext?: TraceContext
-}
+export type JdpRequest<TInput> = GeneratedJdpRequest<TInput>
 
-export interface JdpSuccess<TOutput> {
-  success: true
-  requestId: string
-  executionId: string
-  baseRevision?: string
-  newRevision?: string
-  data: TOutput
-  artifactRefs: string[]
-  evidenceRefs: string[]
-  findings: FindingSummary
-}
+export type JdpSuccess<TOutput> = GeneratedJdpSuccess<TOutput>
 
-export interface JdpFailure {
-  success: false
-  requestId: string
-  executionId?: string
-  error: RuntimeFailure
-}
+export type JdpFailure = GeneratedJdpFailure
 
 export interface ExecutionReconciliation {
   executionId: string

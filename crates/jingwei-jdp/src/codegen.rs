@@ -92,6 +92,11 @@ export const JDP_PROTOCOL_VERSION = "0.1" as const;
 export const JIR_SCHEMA_VERSION = "0.1" as const;
 
 export type OpaqueId = string;
+export interface TraceContext {
+  traceId: string;
+  spanId: string;
+  traceFlags?: number;
+}
 export interface JdpRequest<T> {
   protocolVersion: typeof JDP_PROTOCOL_VERSION;
   requestId: OpaqueId;
@@ -101,7 +106,8 @@ export interface JdpRequest<T> {
   operation: string;
   baseRevision?: OpaqueId;
   deadlineMs?: number;
-  dryRun: boolean;
+  dryRun?: boolean;
+  traceContext?: TraceContext;
   input: T;
 }
 export interface FindingSummary { errors: number; warnings: number; info: number }

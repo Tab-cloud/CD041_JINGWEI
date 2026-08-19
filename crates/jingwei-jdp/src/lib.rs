@@ -10,7 +10,7 @@ pub use catalog::{Effect, Permission, ToolDescriptor, tool_catalog};
 pub use codegen::{CodegenError, generate_bindings};
 pub use envelope::{
     ClientError, ErrorDetail, FindingSummary, JdpClient, JdpFailure, JdpRequest, JdpResponse,
-    JdpSuccess, SuggestedAction, SuggestedActionKind,
+    JdpSuccess, SuggestedAction, SuggestedActionKind, TraceContext,
 };
 pub use operations::*;
 pub use view::*;

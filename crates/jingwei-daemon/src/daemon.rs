@@ -1,6 +1,8 @@
 //! Daemon lifecycle, request dispatch, capability negotiation, and error mapping.
 
-use std::{collections::BTreeMap, panic::AssertUnwindSafe, path::Path, time::Duration};
+use std::{
+    collections::BTreeMap, panic::AssertUnwindSafe, path::Path, sync::Mutex, time::Duration,
+};
 
 use futures_util::FutureExt;
 use jingwei_jdp::{
@@ -8,8 +10,8 @@ use jingwei_jdp::{
     EditCommandGroup, EditSessionOpenInput, EditSessionRef, ErrorDetail, EventsInput, ExplainInput,
     FindingSummary, HandshakeRequest, HandshakeResponse, JDP_PROTOCOL_VERSION, JdpFailure,
     JdpRequest, JdpResponse, JdpSuccess, PatchApplyInput, PatchInput, ProjectCreateInput,
-    QueryInput, SuggestedAction, SuggestedActionKind, ValidateInput, WorkspaceCapabilities,
-    operation, tool_catalog,
+    QueryInput, SuggestedAction, SuggestedActionKind, TraceContext, ValidateInput,
+    WorkspaceCapabilities, operation, tool_catalog,
 };
 use jingwei_jir::{ExecutionId, RevisionId, WorkspaceId};
 use jingwei_kernel::{ExtensionRegistry, Kernel, KernelError, RequestContext};
@@ -37,6 +39,20 @@ pub struct ReadinessStatus {
     pub recovery_summary: String,
 }
 
+/// Sanitized daemon-side child span proving cross-runtime trace propagation.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DaemonSpan {
+    pub trace_id: String,
+    pub span_id: String,
+    pub parent_span_id: String,
+    pub trace_flags: u8,
+    pub name: String,
+    pub request_id: String,
+    pub operation: String,
+    pub status: String,
+}
+
 /// Running daemon. Its private lease guarantees one writer for the workspace.
 pub struct Daemon {
     kernel: Kernel,
@@ -44,6 +60,7 @@ pub struct Daemon {
     instance_id: String,
     session_token: String,
     recovery_summary: String,
+    trace_spans: Mutex<Vec<DaemonSpan>>,
     _writer_lease: WriterLease,
 }
 
@@ -96,6 +113,7 @@ impl Daemon {
             instance_id,
             session_token: format!("session-{}-{}", Uuid::new_v4(), Uuid::new_v4()),
             recovery_summary,
+            trace_spans: Mutex::new(Vec::new()),
             _writer_lease: writer_lease,
         })
     }
@@ -122,6 +140,14 @@ impl Daemon {
     /// Provides the high-entropy bootstrap token only to an in-process trusted launcher/client.
     pub fn bootstrap_token(&self) -> &str {
         &self.session_token
+    }
+
+    /// Returns completed sanitized spans for local diagnostics and acceptance evidence.
+    pub fn trace_spans(&self) -> Vec<DaemonSpan> {
+        self.trace_spans
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
     /// Authenticates and negotiates a local connection.
@@ -156,35 +182,56 @@ impl Daemon {
     /// Dispatches one bounded request, containing panic and deadline failures at the service boundary.
     pub async fn dispatch(&self, request: JdpRequest<Value>) -> JdpResponse<Value> {
         let request_id = request.request_id.clone();
+        let trace_span = match request.trace_context.as_ref() {
+            Some(trace_context) => {
+                if let Err(reason) = trace_context.validate() {
+                    return failure(
+                        request_id,
+                        None,
+                        detail("invalid_trace_context", "trace-context", reason, false),
+                    );
+                }
+                Some(new_child_span(
+                    trace_context,
+                    request.request_id.as_str(),
+                    &request.operation,
+                ))
+            }
+            None => None,
+        };
         let deadline = request.deadline_ms;
         let future = AssertUnwindSafe(self.dispatch_inner(request)).catch_unwind();
         let result = if let Some(milliseconds) = deadline {
-            match tokio::time::timeout(
+            if let Ok(result) = tokio::time::timeout(
                 Duration::from_millis(milliseconds.clamp(1, 300_000)),
                 future,
             )
             .await
             {
-                Ok(result) => result,
-                Err(_) => {
-                    return failure(
-                        request_id,
-                        None,
-                        detail(
-                            "deadline_exceeded",
-                            "dispatch",
-                            "request deadline elapsed",
-                            true,
-                        ),
-                    );
-                }
+                result
+            } else {
+                self.complete_trace_span(trace_span, "deadline");
+                return failure(
+                    request_id,
+                    None,
+                    detail(
+                        "deadline_exceeded",
+                        "dispatch",
+                        "request deadline elapsed",
+                        true,
+                    ),
+                );
             }
         } else {
             future.await
         };
-        match result {
-            Ok(response) => response,
-            Err(_) => failure(
+        if let Ok(response) = result {
+            let status = if response.is_success() { "ok" } else { "error" };
+            self.complete_trace_span(trace_span, status);
+            response
+        } else {
+            self.complete_trace_span(trace_span, "panic");
+            failure(
                 request_id,
                 None,
                 detail(
@@ -193,7 +240,17 @@ impl Daemon {
                     "request was safely aborted",
                     false,
                 ),
-            ),
+            )
+        }
+    }
+
+    fn complete_trace_span(&self, span: Option<DaemonSpan>, status: &str) {
+        if let Some(mut span) = span {
+            span.status = status.into();
+            self.trace_spans
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(span);
         }
     }
 
@@ -504,6 +561,21 @@ impl Daemon {
             }),
             Err(error) => failure(request.request_id, Some(execution_id), error_detail(&error)),
         }
+    }
+}
+
+fn new_child_span(parent: &TraceContext, request_id: &str, operation: &str) -> DaemonSpan {
+    let generated = Uuid::new_v4().simple().to_string();
+    let span_id = generated[..16].to_owned();
+    DaemonSpan {
+        trace_id: parent.trace_id.to_ascii_lowercase(),
+        span_id,
+        parent_span_id: parent.span_id.to_ascii_lowercase(),
+        trace_flags: parent.trace_flags,
+        name: "jdp.request.daemon".into(),
+        request_id: request_id.into(),
+        operation: operation.into(),
+        status: "started".into(),
     }
 }
 

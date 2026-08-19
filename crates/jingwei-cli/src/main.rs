@@ -336,6 +336,7 @@ where
             base_revision,
             deadline_ms: Some(30_000),
             dry_run: false,
+            trace_context: None,
             input,
         })
         .await
