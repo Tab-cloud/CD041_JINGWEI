@@ -352,6 +352,26 @@
   {
     "cancellable": false,
     "defaultTimeoutMs": 30000,
+    "description": "Read a terminal execution result after a response is lost",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "execution.reconcile",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
     "description": "Read durable task state",
     "effect": "read-only",
     "idempotent": true,
@@ -383,6 +403,26 @@
       "type": "object"
     },
     "permission": "candidate-write",
+    "protocolVersion": "0.1",
+    "resourceClaimTemplate": [
+      "workspace:{workspaceId}"
+    ],
+    "schemaVersion": "0.2"
+  },
+  {
+    "cancellable": false,
+    "defaultTimeoutMs": 30000,
+    "description": "Wait for a durable task to reach a terminal state",
+    "effect": "read-only",
+    "idempotent": true,
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "task.wait",
+    "outputSchema": {
+      "type": "object"
+    },
+    "permission": "read",
     "protocolVersion": "0.1",
     "resourceClaimTemplate": [
       "workspace:{workspaceId}"

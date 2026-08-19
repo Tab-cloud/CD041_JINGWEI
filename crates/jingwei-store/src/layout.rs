@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use jingwei_jir::{ProjectId, ProposalId, RevisionId, SessionId};
+use jingwei_jir::{ExecutionId, ProjectId, ProposalId, RevisionId, SessionId, TaskId};
 
 #[derive(Clone, Debug)]
 pub(crate) struct Layout {
@@ -97,6 +97,24 @@ impl Layout {
 
     pub(crate) fn quarantine(&self) -> PathBuf {
         self.control().join("quarantine")
+    }
+
+    pub(crate) fn executions(&self) -> PathBuf {
+        self.control().join("executions")
+    }
+
+    pub(crate) fn execution(&self, execution: &ExecutionId) -> PathBuf {
+        self.executions()
+            .join(format!("{}.json", safe_component(execution.as_str())))
+    }
+
+    pub(crate) fn tasks(&self) -> PathBuf {
+        self.control().join("tasks")
+    }
+
+    pub(crate) fn task(&self, task: &TaskId) -> PathBuf {
+        self.tasks()
+            .join(format!("{}.json", safe_component(task.as_str())))
     }
 
     pub(crate) fn locks(&self) -> PathBuf {

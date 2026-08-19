@@ -1,23 +1,31 @@
 //! Daemon lifecycle, request dispatch, capability negotiation, and error mapping.
 
 use std::{
-    collections::BTreeMap, panic::AssertUnwindSafe, path::Path, sync::Mutex, time::Duration,
+    collections::{BTreeMap, HashMap},
+    panic::AssertUnwindSafe,
+    path::Path,
+    sync::Mutex,
+    time::Duration,
 };
 
+use chrono::Utc;
 use futures_util::FutureExt;
 use jingwei_jdp::{
     ArtifactGetInput, ArtifactGetOutput, CapabilityState, CompileJdlInput, DiffInput,
-    EditCommandGroup, EditSessionOpenInput, EditSessionRef, ErrorDetail, EventsInput, ExplainInput,
+    EditCommandGroup, EditSessionOpenInput, EditSessionRef, ErrorDetail, EventsInput,
+    ExecutionReconcileInput, ExecutionReconcileOutput, ExecutionStatus, ExplainInput,
     FindingSummary, HandshakeRequest, HandshakeResponse, JDP_PROTOCOL_VERSION, JdpFailure,
-    JdpRequest, JdpResponse, JdpSuccess, PatchApplyInput, PatchInput, ProjectCreateInput,
-    ProposalDecisionInput, QueryInput, SuggestedAction, SuggestedActionKind, TraceContext,
-    ValidateInput, WorkspaceCapabilities, operation, tool_catalog,
+    JdpRequest, JdpResponse, JdpSuccess, PatchApplyInput, PatchInput, Permission,
+    ProjectCreateInput, ProposalDecisionInput, QueryInput, SuggestedAction, SuggestedActionKind,
+    TaskRef, TaskState, TaskWaitInput, TraceContext, ValidateInput, WorkspaceCapabilities,
+    operation, tool_catalog,
 };
-use jingwei_jir::{ExecutionId, RevisionId, WorkspaceId};
+use jingwei_jir::{ExecutionId, ProjectId, RevisionId, TaskId, WorkspaceId};
 use jingwei_kernel::{ExtensionRegistry, Kernel, KernelError, RequestContext};
-use jingwei_store::{StoreError, WorkspaceStore, WriterLease};
+use jingwei_store::{DurableTaskRecord, ExecutionRecord, StoreError, WorkspaceStore, WriterLease};
 use serde::Serialize;
 use serde_json::Value;
+use tokio::sync::watch;
 use uuid::Uuid;
 
 /// Structured liveness response.
@@ -63,6 +71,7 @@ pub struct Daemon {
     session_token: String,
     recovery_summary: String,
     trace_spans: Mutex<Vec<DaemonSpan>>,
+    active_tasks: Mutex<HashMap<TaskId, watch::Sender<bool>>>,
     _writer_lease: WriterLease,
 }
 
@@ -118,12 +127,14 @@ impl Daemon {
         let instance_id = format!("daemon-{}", Uuid::new_v4());
         let writer_lease = store.acquire_writer(&instance_id)?;
         let recovery = store.recover()?;
+        let interrupted_tasks = store.reconcile_incomplete_tasks()?;
         let epoch = store.allocate_daemon_epoch()?;
         let recovery_summary = format!(
-            "recovered={}, quarantined={}, removedIncomplete={}",
+            "recovered={}, quarantined={}, removedIncomplete={}, interruptedTasks={}",
             recovery.recovered_transactions,
             recovery.quarantined_transactions,
-            recovery.removed_incomplete_transactions
+            recovery.removed_incomplete_transactions,
+            interrupted_tasks,
         );
         let workspace_id = store.metadata().workspace_id.clone();
         Ok(Self {
@@ -134,6 +145,7 @@ impl Daemon {
             session_token: format!("session-{}-{}", Uuid::new_v4(), Uuid::new_v4()),
             recovery_summary,
             trace_spans: Mutex::new(Vec::new()),
+            active_tasks: Mutex::new(HashMap::new()),
             _writer_lease: writer_lease,
         })
     }
@@ -202,14 +214,23 @@ impl Daemon {
     }
 
     /// Dispatches one bounded request, containing panic and deadline failures at the service boundary.
-    pub async fn dispatch(&self, request: JdpRequest<Value>) -> JdpResponse<Value> {
+    pub async fn dispatch(&self, mut request: JdpRequest<Value>) -> JdpResponse<Value> {
         let request_id = request.request_id.clone();
+        let execution_id = request
+            .execution_id
+            .clone()
+            .unwrap_or_else(ExecutionId::generate);
+        request.execution_id = Some(execution_id.clone());
+        let project_id = request.project_id.clone();
+        let idempotency_key = request.idempotency_key.clone();
+        let operation_name = request.operation.clone();
+        let task_id = request.task_id.clone();
         let trace_span = match request.trace_context.as_ref() {
             Some(trace_context) => {
                 if let Err(reason) = trace_context.validate() {
                     return failure(
                         request_id,
-                        None,
+                        Some(execution_id),
                         detail("invalid_trace_context", "trace-context", reason, false),
                     );
                 }
@@ -232,10 +253,15 @@ impl Daemon {
             {
                 result
             } else {
+                self.quarantine_interrupted_task(
+                    &project_id,
+                    task_id.as_ref(),
+                    "request deadline elapsed before the task proved a terminal state",
+                );
                 self.complete_trace_span(trace_span, "deadline");
-                return failure(
+                let response = failure(
                     request_id,
-                    None,
+                    Some(execution_id),
                     detail(
                         "deadline_exceeded",
                         "dispatch",
@@ -243,6 +269,16 @@ impl Daemon {
                         true,
                     ),
                 );
+                return if operation_name == operation::EXECUTION_RECONCILE {
+                    response
+                } else {
+                    self.record_terminal_execution(
+                        &project_id,
+                        &idempotency_key,
+                        &operation_name,
+                        response,
+                    )
+                };
             }
         } else {
             future.await
@@ -252,18 +288,63 @@ impl Daemon {
             self.complete_trace_span(trace_span, status);
             response
         } else {
+            self.quarantine_interrupted_task(
+                &project_id,
+                task_id.as_ref(),
+                "request panicked before the task proved a terminal state",
+            );
             self.complete_trace_span(trace_span, "panic");
-            failure(
+            let response = failure(
                 request_id,
-                None,
+                Some(execution_id),
                 detail(
                     "internal_panic",
                     "service-boundary",
                     "request was safely aborted",
                     false,
                 ),
-            )
+            );
+            if operation_name == operation::EXECUTION_RECONCILE {
+                response
+            } else {
+                self.record_terminal_execution(
+                    &project_id,
+                    &idempotency_key,
+                    &operation_name,
+                    response,
+                )
+            }
         }
+    }
+
+    fn quarantine_interrupted_task(
+        &self,
+        project_id: &ProjectId,
+        task_id: Option<&TaskId>,
+        reason: &str,
+    ) {
+        let Some(task_id) = task_id else {
+            return;
+        };
+        self.active_tasks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(task_id);
+        let Ok(Some(mut record)) = self.kernel.store().task(task_id) else {
+            return;
+        };
+        if record.project_id != *project_id || record.terminal {
+            return;
+        }
+        record.state = "needs-reconciliation".into();
+        record.terminal = true;
+        record.updated_at = Utc::now();
+        record.quarantine_reason = Some(reason.into());
+        record.repair_actions = vec![
+            "inspect isolated task state and output hashes".into(),
+            "resolve quarantine before retrying with a new execution identity".into(),
+        ];
+        let _ = self.kernel.store().put_task(&record);
     }
 
     fn complete_trace_span(&self, span: Option<DaemonSpan>, status: &str) {
@@ -277,7 +358,10 @@ impl Daemon {
     }
 
     async fn dispatch_inner(&self, request: JdpRequest<Value>) -> JdpResponse<Value> {
-        let execution_id = ExecutionId::generate();
+        let execution_id = request
+            .execution_id
+            .clone()
+            .unwrap_or_else(ExecutionId::generate);
         if request.protocol_version != JDP_PROTOCOL_VERSION {
             return failure(
                 request.request_id,
@@ -302,8 +386,64 @@ impl Daemon {
                 ),
             );
         }
+        if request.operation != operation::EXECUTION_RECONCILE {
+            match self.kernel.store().execution(&execution_id) {
+                Ok(Some(record))
+                    if record.project_id == request.project_id
+                        && record.idempotency_key == request.idempotency_key
+                        && record.operation == request.operation =>
+                {
+                    let verified_hash = jingwei_jir::canonical_sha256(&record.response);
+                    if !matches!(verified_hash, Ok(ref hash) if hash == &record.response_hash) {
+                        return failure(
+                            request.request_id,
+                            Some(execution_id),
+                            detail(
+                                "execution_ledger_corrupt",
+                                "reconciliation",
+                                "stored response hash does not match the durable response",
+                                false,
+                            ),
+                        );
+                    }
+                    return serde_json::from_value(record.response).unwrap_or_else(|error| {
+                        failure(
+                            request.request_id,
+                            Some(execution_id),
+                            detail(
+                                "execution_ledger_corrupt",
+                                "reconciliation",
+                                &error.to_string(),
+                                false,
+                            ),
+                        )
+                    });
+                }
+                Ok(Some(_)) => {
+                    return failure(
+                        request.request_id,
+                        Some(execution_id),
+                        detail(
+                            "execution_identity_conflict",
+                            "reconciliation",
+                            "executionId was reused with a different project, operation, or idempotency key",
+                            false,
+                        ),
+                    );
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    return failure(
+                        request.request_id,
+                        Some(execution_id),
+                        error_detail(&KernelError::from(error)),
+                    );
+                }
+            }
+        }
         let context = RequestContext::local("local-jdp-client").for_daemon_command(
             request.request_id.as_str(),
+            execution_id.clone(),
             self.instance_id.clone(),
             self.epoch,
         );
@@ -513,6 +653,24 @@ impl Daemon {
                         encode(value).map(|value| (value, Some(revision)))
                     })
             }
+            operation::EXECUTION_RECONCILE => {
+                parse_input::<ExecutionReconcileInput>(&request.input)
+                    .and_then(|input| self.reconcile_execution(&request.project_id, input))
+                    .and_then(|value| encode(value).map(|value| (value, None)))
+            }
+            operation::TASK_GET => parse_input::<TaskRef>(&request.input)
+                .and_then(|input| self.task_state(&request.project_id, &input.task_id))
+                .and_then(|value| encode(value).map(|value| (value, None))),
+            operation::TASK_CANCEL => parse_input::<TaskRef>(&request.input)
+                .and_then(|input| self.cancel_task(&request.project_id, &input.task_id))
+                .and_then(|value| encode(value).map(|value| (value, None))),
+            operation::TASK_WAIT => match parse_input::<TaskWaitInput>(&request.input) {
+                Ok(input) => self
+                    .wait_task(&request.project_id, &input.task_id, input.timeout_ms)
+                    .await
+                    .and_then(|value| encode(value).map(|value| (value, None))),
+                Err(error) => Err(error),
+            },
             operation::TASK_EVENTS => parse_input::<EventsInput>(&request.input)
                 .and_then(|input| {
                     self.kernel
@@ -540,17 +698,7 @@ impl Daemon {
             operation::WORKSPACE_CAPABILITIES => {
                 let operations = tool_catalog()
                     .into_iter()
-                    .map(|tool| {
-                        let state = if matches!(
-                            tool.name.as_str(),
-                            operation::TASK_GET | operation::TASK_CANCEL
-                        ) {
-                            CapabilityState::CapabilityUnavailable
-                        } else {
-                            CapabilityState::Available
-                        };
-                        (tool.name, state)
-                    })
+                    .map(|tool| (tool.name, CapabilityState::Available))
                     .chain(
                         self.kernel
                             .extension_tool_descriptors()
@@ -571,24 +719,46 @@ impl Daemon {
                 })
                 .map(|value| (value, None))
             }
-            operation::TASK_GET | operation::TASK_CANCEL => {
-                Err(KernelError::CapabilityUnavailable(
-                    "no durable task with that ID is registered".into(),
-                ))
+            _ => {
+                let descriptor = self
+                    .kernel
+                    .extension_tool_descriptors()
+                    .into_iter()
+                    .find(|descriptor| descriptor.name == request.operation);
+                if let Some(descriptor) = descriptor.filter(|descriptor| descriptor.cancellable) {
+                    match request.task_id.clone() {
+                        Some(task_id) => self
+                            .execute_cancellable_domain(
+                                request.project_id.clone(),
+                                request.base_revision.clone(),
+                                request.operation.clone(),
+                                request.input.clone(),
+                                execution_id.clone(),
+                                task_id,
+                                matches!(descriptor.permission, Permission::ExternalProcess),
+                                &context,
+                            )
+                            .await
+                            .map(|value| (value, None)),
+                        None => Err(KernelError::Precondition(
+                            "cancellable operation requires taskId".into(),
+                        )),
+                    }
+                } else {
+                    self.kernel
+                        .execute_domain_tool(
+                            &request.project_id,
+                            request.base_revision.as_ref(),
+                            &request.operation,
+                            request.input.clone(),
+                            &context,
+                        )
+                        .await
+                        .and_then(|value| encode(value).map(|value| (value, None)))
+                }
             }
-            _ => self
-                .kernel
-                .execute_domain_tool(
-                    &request.project_id,
-                    request.base_revision.as_ref(),
-                    &request.operation,
-                    request.input.clone(),
-                    &context,
-                )
-                .await
-                .and_then(|value| encode(value).map(|value| (value, None))),
         };
-        match outcome {
+        let response = match outcome {
             Ok((data, new_revision)) => JdpResponse::Success(JdpSuccess {
                 success: true,
                 request_id: request.request_id,
@@ -601,7 +771,350 @@ impl Daemon {
                 findings: FindingSummary::default(),
             }),
             Err(error) => failure(request.request_id, Some(execution_id), error_detail(&error)),
+        };
+        if request.operation == operation::EXECUTION_RECONCILE {
+            return response;
         }
+        self.record_terminal_execution(
+            &request.project_id,
+            &request.idempotency_key,
+            &request.operation,
+            response,
+        )
+    }
+
+    fn record_terminal_execution(
+        &self,
+        project_id: &ProjectId,
+        idempotency_key: &jingwei_jir::IdempotencyKey,
+        operation_name: &str,
+        response: JdpResponse<Value>,
+    ) -> JdpResponse<Value> {
+        let (request_id, execution_id, status) = match &response {
+            JdpResponse::Success(success) => (
+                success.request_id.clone(),
+                success.execution_id.clone(),
+                "succeeded",
+            ),
+            JdpResponse::Failure(failure) => (
+                failure.request_id.clone(),
+                failure
+                    .execution_id
+                    .clone()
+                    .unwrap_or_else(ExecutionId::generate),
+                "failed",
+            ),
+        };
+        let result = (|| -> Result<(), KernelError> {
+            let value = serde_json::to_value(&response)?;
+            let response_hash = jingwei_jir::canonical_sha256(&value)?;
+            self.kernel.store().record_execution(&ExecutionRecord {
+                execution_id: execution_id.clone(),
+                project_id: project_id.clone(),
+                idempotency_key: idempotency_key.clone(),
+                operation: operation_name.into(),
+                status: status.into(),
+                response_hash,
+                response: value,
+                recorded_at: Utc::now(),
+            })?;
+            Ok(())
+        })();
+        match result {
+            Ok(()) => response,
+            Err(error) => failure(request_id, Some(execution_id), error_detail(&error)),
+        }
+    }
+
+    fn reconcile_execution(
+        &self,
+        project_id: &ProjectId,
+        input: ExecutionReconcileInput,
+    ) -> Result<ExecutionReconcileOutput, KernelError> {
+        if let Some(record) = self.kernel.store().execution(&input.execution_id)? {
+            if record.project_id != *project_id || record.idempotency_key != input.idempotency_key {
+                return Ok(ExecutionReconcileOutput {
+                    execution_id: input.execution_id,
+                    idempotency_key: input.idempotency_key,
+                    status: ExecutionStatus::Unknown,
+                    response_hash: None,
+                    result: None,
+                    quarantine_reason: Some(
+                        "execution and idempotency identities do not refer to the same durable record"
+                            .into(),
+                    ),
+                    repair_actions: vec![
+                        "inspect the original tool execution before retrying".into(),
+                    ],
+                });
+            }
+            return Ok(ExecutionReconcileOutput {
+                execution_id: input.execution_id,
+                idempotency_key: input.idempotency_key,
+                status: if record.status == "succeeded" {
+                    ExecutionStatus::Succeeded
+                } else {
+                    ExecutionStatus::Failed
+                },
+                response_hash: Some(record.response_hash),
+                result: Some(record.response),
+                quarantine_reason: None,
+                repair_actions: Vec::new(),
+            });
+        }
+
+        if let Some(journal) = self
+            .kernel
+            .store()
+            .operation_journal(project_id, &input.execution_id)?
+        {
+            if journal.idempotency_key != input.idempotency_key {
+                return Ok(ExecutionReconcileOutput {
+                    execution_id: input.execution_id,
+                    idempotency_key: input.idempotency_key,
+                    status: ExecutionStatus::Unknown,
+                    response_hash: None,
+                    result: None,
+                    quarantine_reason: Some(
+                        "committed execution has a different idempotency key".into(),
+                    ),
+                    repair_actions: vec!["do not resubmit with a changed identity".into()],
+                });
+            }
+            let idempotency = self
+                .kernel
+                .store()
+                .idempotency(project_id, &input.idempotency_key)?
+                .ok_or_else(|| {
+                    KernelError::CorruptProject(
+                        "journal exists without its atomic idempotency result".into(),
+                    )
+                })?;
+            let reconstructed = serde_json::to_value(JdpSuccess {
+                success: true,
+                request_id: journal.request_id,
+                execution_id: journal.execution_id,
+                base_revision: journal.base_revision,
+                new_revision: Some(journal.result_revision),
+                data: idempotency.response,
+                artifact_refs: journal.artifact_refs,
+                evidence_refs: journal.evidence_refs,
+                findings: FindingSummary::default(),
+            })?;
+            let response_hash = jingwei_jir::canonical_sha256(&reconstructed)?;
+            return Ok(ExecutionReconcileOutput {
+                execution_id: input.execution_id,
+                idempotency_key: input.idempotency_key,
+                status: ExecutionStatus::Succeeded,
+                response_hash: Some(response_hash),
+                result: Some(reconstructed),
+                quarantine_reason: None,
+                repair_actions: Vec::new(),
+            });
+        }
+
+        if self
+            .kernel
+            .store()
+            .idempotency(project_id, &input.idempotency_key)?
+            .is_some()
+        {
+            return Ok(ExecutionReconcileOutput {
+                execution_id: input.execution_id,
+                idempotency_key: input.idempotency_key,
+                status: ExecutionStatus::Unknown,
+                response_hash: None,
+                result: None,
+                quarantine_reason: Some(
+                    "idempotency result exists but the supplied executionId is not its committed execution"
+                        .into(),
+                ),
+                repair_actions: vec!["recover the original executionId from the runtime ledger".into()],
+            });
+        }
+
+        Ok(ExecutionReconcileOutput {
+            execution_id: input.execution_id,
+            idempotency_key: input.idempotency_key,
+            status: ExecutionStatus::NotFound,
+            response_hash: None,
+            result: None,
+            quarantine_reason: None,
+            repair_actions: Vec::new(),
+        })
+    }
+
+    fn task_state(
+        &self,
+        project_id: &ProjectId,
+        task_id: &TaskId,
+    ) -> Result<TaskState, KernelError> {
+        let record = self
+            .kernel
+            .store()
+            .task(task_id)?
+            .filter(|record| record.project_id == *project_id)
+            .ok_or_else(|| KernelError::TaskNotFound(task_id.to_string()))?;
+        Ok(task_state_from_record(record))
+    }
+
+    fn cancel_task(
+        &self,
+        project_id: &ProjectId,
+        task_id: &TaskId,
+    ) -> Result<TaskState, KernelError> {
+        let mut record = self
+            .kernel
+            .store()
+            .task(task_id)?
+            .filter(|record| record.project_id == *project_id)
+            .ok_or_else(|| KernelError::TaskNotFound(task_id.to_string()))?;
+        if record.terminal {
+            return Ok(task_state_from_record(record));
+        }
+        if !record.cancellable {
+            return Err(KernelError::CapabilityUnavailable(format!(
+                "task {task_id} is not cancellable"
+            )));
+        }
+        record.state = "cancel-requested".into();
+        record.updated_at = Utc::now();
+        self.kernel.store().put_task(&record)?;
+        let signalled = self
+            .active_tasks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(task_id)
+            .is_some_and(|sender| sender.send(true).is_ok());
+        if !signalled {
+            record.state = "needs-reconciliation".into();
+            record.terminal = true;
+            record.updated_at = Utc::now();
+            record.quarantine_reason =
+                Some("task owner is unavailable, so cancellation terminal state is unknown".into());
+            record.repair_actions = vec![
+                "inspect the task process and isolated outputs".into(),
+                "resolve quarantine before any retry".into(),
+            ];
+            self.kernel.store().put_task(&record)?;
+        }
+        Ok(task_state_from_record(record))
+    }
+
+    async fn wait_task(
+        &self,
+        project_id: &ProjectId,
+        task_id: &TaskId,
+        timeout_ms: u64,
+    ) -> Result<TaskState, KernelError> {
+        let deadline =
+            tokio::time::Instant::now() + Duration::from_millis(timeout_ms.clamp(1, 300_000));
+        loop {
+            let state = self.task_state(project_id, task_id)?;
+            if state.terminal || tokio::time::Instant::now() >= deadline {
+                return Ok(state);
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn execute_cancellable_domain(
+        &self,
+        project_id: ProjectId,
+        base_revision: Option<RevisionId>,
+        operation_name: String,
+        input: Value,
+        execution_id: ExecutionId,
+        task_id: TaskId,
+        external_side_effects: bool,
+        context: &RequestContext,
+    ) -> Result<Value, KernelError> {
+        if self.kernel.store().task(&task_id)?.is_some() {
+            return Err(KernelError::Precondition(format!(
+                "taskId already exists: {task_id}"
+            )));
+        }
+        let now = Utc::now();
+        let mut record = DurableTaskRecord {
+            task_id: task_id.clone(),
+            project_id: project_id.clone(),
+            execution_id,
+            operation: operation_name.clone(),
+            state: "running".into(),
+            cancellable: true,
+            external_side_effects,
+            terminal: false,
+            created_at: now,
+            updated_at: now,
+            quarantine_reason: None,
+            repair_actions: Vec::new(),
+        };
+        self.kernel.store().put_task(&record)?;
+        let (sender, mut receiver) = watch::channel(false);
+        self.active_tasks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(task_id.clone(), sender);
+
+        let execution = self.kernel.execute_domain_tool(
+            &project_id,
+            base_revision.as_ref(),
+            &operation_name,
+            input,
+            context,
+        );
+        tokio::pin!(execution);
+        let result = tokio::select! {
+            result = &mut execution => {
+                record.state = if result.is_ok() { "succeeded".into() } else { "failed".into() };
+                record.terminal = true;
+                record.updated_at = Utc::now();
+                self.kernel.store().put_task(&record)?;
+                result.and_then(encode)
+            }
+            changed = receiver.changed() => {
+                let cancelled = changed.is_ok() && *receiver.borrow();
+                record.updated_at = Utc::now();
+                record.terminal = true;
+                if !cancelled || external_side_effects {
+                    record.state = "needs-reconciliation".into();
+                    record.quarantine_reason = Some(if external_side_effects {
+                        "external process cancellation did not prove a terminal side-effect state".into()
+                    } else {
+                        "task owner disappeared before cancellation was confirmed".into()
+                    });
+                    record.repair_actions = vec![
+                        "inspect isolated process state and output hashes".into(),
+                        "resolve quarantine before retrying".into(),
+                    ];
+                    self.kernel.store().put_task(&record)?;
+                    Err(KernelError::TaskNeedsReconciliation(task_id.to_string()))
+                } else {
+                    record.state = "cancelled".into();
+                    self.kernel.store().put_task(&record)?;
+                    Err(KernelError::TaskCancelled(task_id.to_string()))
+                }
+            }
+        };
+        self.active_tasks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&task_id);
+        result
+    }
+}
+
+fn task_state_from_record(record: DurableTaskRecord) -> TaskState {
+    TaskState {
+        task_id: record.task_id,
+        state: record.state,
+        cancellable: record.cancellable,
+        terminal: record.terminal,
+        execution_id: record.execution_id,
+        operation: record.operation,
+        quarantine_reason: record.quarantine_reason,
+        repair_actions: record.repair_actions,
     }
 }
 
@@ -666,6 +1179,11 @@ fn error_detail(error: &KernelError) -> ErrorDetail {
         KernelError::InvalidPatch(_) => ("invalid_patch", "apply", false),
         KernelError::InvalidQuery(_) => ("invalid_query", "query", false),
         KernelError::CapabilityUnavailable(_) => ("capability_unavailable", "dispatch", false),
+        KernelError::TaskNotFound(_) => ("task_not_found", "task-control", false),
+        KernelError::TaskCancelled(_) => ("task_cancelled", "task-control", false),
+        KernelError::TaskNeedsReconciliation(_) => {
+            ("task_needs_reconciliation", "safety-quarantine", false)
+        }
         KernelError::DomainTool(_) => ("domain_tool_failed", "domain-tool", false),
         KernelError::ResourceConflict(_) => ("resource_claim_conflict", "resource-claim", true),
         KernelError::Parse(_) => ("jdl_parse_failed", "parse", false),
@@ -680,14 +1198,17 @@ fn error_detail(error: &KernelError) -> ErrorDetail {
         | KernelError::InvalidId(_)
         | KernelError::Json(_) => ("invalid_input_or_state", "validation", false),
     };
+    let repair_required = matches!(error, KernelError::TaskNeedsReconciliation(_));
     let mut detail = detail(code, stage, &error.to_string(), retryable);
     detail.suggested_actions.push(SuggestedAction {
-        kind: if retryable {
+        kind: if retryable || repair_required {
             SuggestedActionKind::Repair
         } else {
             SuggestedActionKind::ChangeInput
         },
-        description: if retryable {
+        description: if repair_required {
+            "inspect and resolve the quarantined task before any retry".into()
+        } else if retryable {
             "retry only after the reported workspace condition changes".into()
         } else {
             "inspect the typed error and submit a corrected request".into()

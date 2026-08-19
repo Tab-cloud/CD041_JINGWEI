@@ -124,6 +124,41 @@ describe("canonical tool settlement", () => {
     expect(result.status).toBe("succeeded")
     expect(client.invocations).toBe(1)
     expect(client.reconciliations).toBe(1)
+    expect(client.executionId).toBe(result.executionId)
+  })
+
+  test("propagates Runtime cancellation to the exact daemon task identity", async () => {
+    const setup = createSetup("allow")
+    const client = new CancellableJdpClient()
+    const tool = registerGeneratedJdpTool(setup.registry, client, {
+      name: "route.start",
+      description: "Start a cancellable route",
+      operation: "route.start",
+      inputSchema: {
+        type: "object",
+        properties: { baseRevision: { type: "string" } },
+        required: ["baseRevision"],
+      },
+      permission: "write-design",
+      effects: ["design-write", "process"],
+      resourceClaims: ["design/board"],
+      write: true,
+      cancellable: true,
+      timeoutMs: 1_000,
+    })
+    const controller = new AbortController()
+    const pending = setup.pipeline.execute({
+      ...request(tool.identity),
+      toolName: tool.descriptor.name,
+      input: { baseRevision: "revision:1" },
+      signal: controller.signal,
+    })
+    await Bun.sleep(0)
+    controller.abort()
+    const result = await pending
+    expect(result.status).toBe("failed")
+    expect(client.cancelledTaskId).toBe(`task-${result.executionId}`)
+    expect(client.executionId).toBe(result.executionId)
   })
 
   test("telemetry retains identifiers but excludes prompts, secrets, and tool output", async () => {
@@ -217,12 +252,15 @@ function request(identity: string) {
 class CommittedJdpClient implements JdpClient {
   invocations = 0
   reconciliations = 0
+  executionId?: string
   async capabilities(): Promise<JdpCapabilities> {
     return { protocolVersion: "0.1", operations: ["design.patch.apply"], reconciliation: true }
   }
   async invoke<TInput, TOutput>(request: JdpRequest<TInput>): Promise<JdpSuccess<TOutput> | JdpFailure> {
     this.invocations++
-    throw new JdpCommittedWithoutResponseError("execution-1", request.idempotencyKey)
+    if (!request.executionId) throw new Error("write request is missing the Runtime execution identity")
+    this.executionId = request.executionId
+    throw new JdpCommittedWithoutResponseError(request.executionId, request.idempotencyKey)
   }
   async *events(): AsyncIterable<DurableEvent> {}
   async cancel(): Promise<void> {}
@@ -244,5 +282,47 @@ class CommittedJdpClient implements JdpClient {
         findings: { errors: 0, warnings: 0, info: 0 },
       },
     }
+  }
+}
+
+class CancellableJdpClient implements JdpClient {
+  executionId?: string
+  cancelledTaskId?: string
+  private settle?: (response: JdpFailure) => void
+
+  async capabilities(): Promise<JdpCapabilities> {
+    return { protocolVersion: "0.1", operations: ["route.start", "task.cancel"], reconciliation: true }
+  }
+
+  invoke<TInput, TOutput>(request: JdpRequest<TInput>): Promise<JdpSuccess<TOutput> | JdpFailure> {
+    if (request.executionId) this.executionId = request.executionId
+    return new Promise((resolve) => {
+      this.settle = resolve
+    })
+  }
+
+  async *events(): AsyncIterable<DurableEvent> {}
+
+  async cancel(taskId: string): Promise<void> {
+    this.cancelledTaskId = taskId
+    this.settle?.({
+      success: false,
+      requestId: "call",
+      ...(this.executionId ? { executionId: this.executionId } : {}),
+      error: {
+        code: "task_cancelled",
+        stage: "task-control",
+        summary: "task cancellation reached a confirmed terminal state",
+        fingerprint: "task-cancelled-test",
+        retryable: false,
+        objectRefs: [],
+        evidenceRefs: [],
+        suggestedActions: [],
+      },
+    })
+  }
+
+  async reconcile(executionId: string, idempotencyKey: string): Promise<ExecutionReconciliation> {
+    return { executionId, idempotencyKey, status: "not-found" }
   }
 }

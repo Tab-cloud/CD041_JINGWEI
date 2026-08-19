@@ -14,6 +14,7 @@ export interface GeneratedJdpToolDefinition {
   effects: Array<"read" | "design-write" | "workspace-write" | "process" | "network" | "hardware" | "release">
   resourceClaims: string[]
   write: boolean
+  cancellable?: boolean
   timeoutMs?: number
 }
 
@@ -51,7 +52,7 @@ export function registerGeneratedJdpTool(
       effects: definition.effects,
       resourceClaims: definition.resourceClaims,
       idempotency: definition.write ? "required" : "supported",
-      cancellation: "supported",
+      cancellation: definition.cancellable ? "supported" : "unsupported",
       timeoutMs: definition.timeoutMs ?? 120_000,
       outputBudget: { inlineBytes: 32_768, overflow: "artifact" },
     },
@@ -64,6 +65,9 @@ export function registerGeneratedJdpTool(
         workspaceId: context.workspaceId,
         projectId: context.projectId,
         operation: definition.operation,
+        ...(definition.write ? { executionId: context.executionId } : {}),
+        ...(definition.cancellable ? { taskId: `task-${context.executionId}` } : {}),
+        deadlineMs: definition.timeoutMs ?? 120_000,
         dryRun: input.dryRun === true,
         ...(typeof input.baseRevision === "string" ? { baseRevision: input.baseRevision } : {}),
         input,
@@ -81,7 +85,13 @@ export function registerGeneratedJdpTool(
         context.traceContext,
       )
       try {
-        const result = await client.invoke<Record<string, unknown>, unknown>(request)
+        const invocation = client.invoke<Record<string, unknown>, unknown>(request)
+        const cancel = () => {
+          if (request.taskId) void cancelRegisteredTask(client, request.taskId)
+        }
+        if (definition.cancellable) context.signal.addEventListener("abort", cancel, { once: true })
+        if (definition.cancellable && context.signal.aborted) cancel()
+        const result = await invocation.finally(() => context.signal.removeEventListener("abort", cancel))
         if (!result.success) throw new JdpInvocationError(result)
         span.end("ok")
         return result
@@ -107,4 +117,16 @@ export function registerGeneratedJdpTool(
       }
     },
   )
+}
+
+async function cancelRegisteredTask(client: JdpClient, taskId: string): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      await client.cancel(taskId)
+      return
+    } catch (error) {
+      if (!String(error).includes("task_not_found") || attempt === 19) return
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+  }
 }

@@ -143,6 +143,7 @@ export class ToolSettlementPipeline {
       const controller = linkedAbortController(request.signal, tool.descriptor.timeoutMs)
       try {
         const output = await tool.handler(request.input, {
+          executionId: execution.id,
           sessionId: request.sessionId,
           runId: request.runId,
           toolCallId: request.toolCallId,

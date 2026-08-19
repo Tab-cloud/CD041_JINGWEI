@@ -33,6 +33,7 @@ pub struct RequestContext {
     pub invocation_source_id: String,
     pub daemon_instance_id: Option<String>,
     pub daemon_epoch: Option<u64>,
+    pub execution_id: Option<ExecutionId>,
     pub capabilities: BTreeSet<String>,
 }
 
@@ -50,6 +51,7 @@ impl RequestContext {
             invocation_source_id: "local-cli".into(),
             daemon_instance_id: None,
             daemon_epoch: None,
+            execution_id: None,
             capabilities: ["design.read".into(), "design.write".into()]
                 .into_iter()
                 .collect(),
@@ -61,11 +63,13 @@ impl RequestContext {
     pub fn for_daemon_command(
         mut self,
         command_invocation_id: impl Into<String>,
+        execution_id: ExecutionId,
         daemon_instance_id: impl Into<String>,
         daemon_epoch: u64,
     ) -> Self {
         self.invocation_source = InvocationSourceKind::UiCommand;
         self.invocation_source_id = command_invocation_id.into();
+        self.execution_id = Some(execution_id);
         self.daemon_instance_id = Some(daemon_instance_id.into());
         self.daemon_epoch = Some(daemon_epoch);
         self
@@ -734,7 +738,10 @@ impl Kernel {
         meta: CommitMeta<'_>,
         context: &RequestContext,
     ) -> Result<(), KernelError> {
-        let execution_id = ExecutionId::generate();
+        let execution_id = context
+            .execution_id
+            .clone()
+            .unwrap_or_else(ExecutionId::generate);
         let commit_id = CommitId::generate();
         let issued_at = Utc::now();
         let correlation = InvocationCorrelation {
@@ -875,6 +882,12 @@ pub enum KernelError {
     InvalidQuery(String),
     #[error("capability unavailable: {0}")]
     CapabilityUnavailable(String),
+    #[error("durable task does not exist: {0}")]
+    TaskNotFound(String),
+    #[error("durable task cancellation was confirmed: {0}")]
+    TaskCancelled(String),
+    #[error("durable task requires safety reconciliation: {0}")]
+    TaskNeedsReconciliation(String),
     #[error("domain tool failed: {0}")]
     DomainTool(String),
     #[error("project storage is inconsistent: {0}")]

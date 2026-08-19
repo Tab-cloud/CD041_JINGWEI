@@ -23,7 +23,7 @@
 | AUD-003 | P0 | Tauri 文档要求退出不杀 sidecar，但 desktop 实现必须杀进程 | 定义 desktop-owned/attached/headless 三种 owner mode | 本轮设计完成；当前仅 desktop-owned |
 | AUD-004 | P0 | Runtime 正式本地 RPC 未定义，stdio handshake/RPC 与监控混流 | bootstrap 仅走 stdin；正式 Runtime API 使用独立 pipe/UDS 与生成协议 | Slice 1 完成（Windows named pipe） |
 | AUD-005 | P0 | UI 仍直接构造 MockRuntimeClient/MockDesignClient | 建立真实 RuntimeTransport、DesignTransport 与显式 fixture mode | Slice 1 完成；原生 display-list 属 Slice 3 |
-| AUD-006 | P0 | Runtime 已有 reconciliation 抽象，真实 sidecar 却报告 false | 增加 daemon execution reconciliation operation 和真实 adapter | 待实现 |
+| AUD-006 | P0 | Runtime 已有 reconciliation 抽象，真实 sidecar 却报告 false | 增加 daemon execution reconciliation operation 和真实 adapter | Slice 2 完成 |
 | AUD-007 | P0 | Revision metadata 同时承担设计内容、draft/candidate/verified/released/superseded | 分离 RevisionSnapshot、CommitRecord、DraftSession、ChangeProposal/Decision、MaturityAssessment、ReleaseRecord | 本轮设计完成，需 store migration |
 | AUD-008 | P0 | 文档声称所有 ID 都是 UUID，并描述了已过时的 JIR entity shape | wire ID 改为 opaque；Rust schema 是唯一规范源 | 本轮文档收拢 |
 | AUD-009 | P0 | `createdBy`/actor 字符串没有生产身份与角色签名边界 | actor 来自 OS/IAM claims；发布由独立组织 signer 执行 | 本轮设计完成，待身份 adapter |
@@ -49,7 +49,7 @@ P2 的 RF/SI/PI、高压/安规、HDI/BGA、刚挠、多人协作和云端服务
 | Runtime durable input/run/tool/approval/event | Pass（基础） | 42 项 Runtime 测试；商业 provider live test 未执行 |
 | 正式 Rust→TypeScript binding | Pass | reproducible codegen 与真实 daemon integration test |
 | Runtime→daemon trace context | Pass | 正式 binding + Windows named pipe + Rust child span |
-| Runtime→daemon reconciliation | Blocked | sidecar capability 为 `false` |
+| Runtime→daemon reconciliation | Pass（Slice 2） | 正式 sidecar capability 为 `true`；真实 pipe 丢响应后按 executionId/response hash 对账并精确重放 |
 | CLI/Agent/GUI 同一 patch 同 revision | Partial pass | GUI 已使用真实 DesignTransport 并通过真实检查点；同一黄金板 patch 的三入口等价门禁留在 Slice 3 |
 | 真实 Runtime/UI adapter 与事件回放 | Pass（Slice 1） | 独立 Runtime RPC pipe、Tauri native bridge、真实 Runtime/Design clients、显式 fixture、durable replay 与已安装 UI 通过 |
 | JDL/JIR 最小编译与 migration | Pass（Slice 0） | JIR 0.2 canonical identity、显式备份 store migration、newer read-only/downgrade refusal、proposal CAS 和负向测试通过；黄金板 round-trip 仍属 Slice 3 |
@@ -109,6 +109,14 @@ current revision，深浅主题切换和退出零残留均通过。旧 schema v1
 与 replay 通过且没有伪装连接。黄金板图形上的可点击 patch 由 Slice 3 的原生 display-list 验收关闭。
 
 ### Slice 2：跨进程幂等、取消和恢复
+
+状态（2026-08-20）：**Pass**。Runtime ToolExecution ID、JDP executionId、daemon journal/terminal ledger 使用同一
+身份；daemon 在返回前持久化 canonical response hash，`execution.reconcile` 可返回原终态响应。真实 Windows pipe
+故障注入在 commit 写入后主动断开客户端，重连对账并精确重放原响应，未生成第二 revision。`task.get/cancel/wait`
+使用持久 task projection；Runtime abort 会调用同一 taskId 的 out-of-band cancel。内部任务只在确认取消后进入
+`cancelled`，外部进程、请求截止、panic 或 daemon 重启导致终态不明时进入 `needs-reconciliation`，记录原因和修复
+动作并禁止盲重试。正式 sidecar gate 已报告 `reconciliation: true`。详细记录见
+`handoffs/slice-2-reconciliation-recovery-2026-08-20.md`。
 
 目标：关闭 daemon 已提交但 Runtime 未结算的重复副作用风险。
 
@@ -199,5 +207,5 @@ current revision，深浅主题切换和退出零残留均通过。旧 schema v1
 
 ## 6. 下一步
 
-Slice 0 与 Slice 1 已闭合，下一步进入 Slice 2：实现 execution reconciliation、取消与崩溃恢复故障注入，确保
-daemon 已提交但 Runtime 丢失响应时不会产生第二个 revision。
+Slice 0、Slice 1 与 Slice 2 已闭合，下一步进入 Slice 3：以温湿度/RS-485 黄金板打通真实 logical graph、原生
+schematic display-list、KiCad schematic round-trip/equivalence 和安装版人工编辑，不使用 UI fixture。

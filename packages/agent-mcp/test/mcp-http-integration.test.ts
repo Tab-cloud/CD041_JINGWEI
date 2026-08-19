@@ -60,6 +60,7 @@ describe("MCP Streamable HTTP integration", () => {
     const output = await registered?.handler(
       { text: "真实 MCP" },
       {
+        executionId: "execution-1",
         sessionId: "session-1",
         runId: "run-1",
         toolCallId: "call-1",

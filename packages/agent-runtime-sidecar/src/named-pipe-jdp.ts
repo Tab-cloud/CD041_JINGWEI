@@ -7,7 +7,7 @@ import type {
   JdpRequest,
   JdpSuccess,
 } from "@jingwei/agent-protocol"
-import type { GeneratedJdpBinding } from "@jingwei/agent-runtime"
+import { type GeneratedJdpBinding, JdpCommittedWithoutResponseError } from "@jingwei/agent-runtime"
 
 interface BootstrapOptions {
   pipeName: string
@@ -32,24 +32,7 @@ export class NamedPipeJdpBinding implements GeneratedJdpBinding {
   ) {}
 
   static async connect(options: BootstrapOptions): Promise<NamedPipeJdpBinding> {
-    const socket = await connectWithRetry(options.pipeName)
-    const frames = new FrameReader(socket)
-    writeFrame(socket, {
-      protocolVersions: ["0.1"],
-      workspaceId: options.workspaceId,
-      clientName: "jingwei-agent-runtime-sidecar",
-      clientVersion: "0.1.0",
-      sessionToken: options.sessionToken,
-    })
-    const handshakeEnvelope = (await frames.next()) as {
-      Ok?: { protocolVersion?: string }
-      protocolVersion?: string
-    }
-    const handshake = handshakeEnvelope.Ok ?? handshakeEnvelope
-    if (handshake.protocolVersion !== "0.1") {
-      socket.destroy()
-      throw new Error("Rust daemon JDP handshake rejected the runtime sidecar")
-    }
+    const { socket, frames } = await authenticatedConnection(options)
     return new NamedPipeJdpBinding(socket, frames, options)
   }
 
@@ -64,14 +47,21 @@ export class NamedPipeJdpBinding implements GeneratedJdpBinding {
         .filter(([, state]) => state === "available")
         .map(([operation]) => operation)
         .sort(),
-      reconciliation: false,
+      reconciliation: result.data.operations["execution.reconcile"] === "available",
     }
   }
 
   invoke<TInput, TOutput>(request: JdpRequest<TInput>): Promise<JdpSuccess<TOutput> | JdpFailure> {
     return this.exclusive(async () => {
-      writeFrame(this.socket, request)
-      return (await this.frames.next()) as JdpSuccess<TOutput> | JdpFailure
+      try {
+        writeFrame(this.socket, request)
+        return (await this.frames.next()) as JdpSuccess<TOutput> | JdpFailure
+      } catch (error) {
+        if (request.executionId) {
+          throw new JdpCommittedWithoutResponseError(request.executionId, request.idempotencyKey)
+        }
+        throw error
+      }
     })
   }
 
@@ -84,12 +74,21 @@ export class NamedPipeJdpBinding implements GeneratedJdpBinding {
   }
 
   async cancel(taskId: string): Promise<void> {
-    const result = await this.invoke<{ taskId: string }, unknown>(this.request("task.cancel", { taskId }))
+    const result = await this.invokeOutOfBand<{ taskId: string }, unknown>(
+      this.request("task.cancel", { taskId }),
+    )
     if (!result.success) throw new Error(`${result.error.code}: ${result.error.summary}`)
   }
 
   async reconcile(executionId: string, idempotencyKey: string): Promise<ExecutionReconciliation> {
-    return { executionId, idempotencyKey, status: "not-found" }
+    const result = await this.invokeOutOfBand<
+      { executionId: string; idempotencyKey: string },
+      ExecutionReconciliation
+    >(this.request("execution.reconcile", { executionId, idempotencyKey }))
+    if (!result.success) {
+      return { executionId, idempotencyKey, status: "unknown" }
+    }
+    return result.data
   }
 
   close(): void {
@@ -123,6 +122,18 @@ export class NamedPipeJdpBinding implements GeneratedJdpBinding {
     )
     return result
   }
+
+  private async invokeOutOfBand<TInput, TOutput>(
+    request: JdpRequest<TInput>,
+  ): Promise<JdpSuccess<TOutput> | JdpFailure> {
+    const { socket, frames } = await authenticatedConnection(this.options)
+    try {
+      writeFrame(socket, request)
+      return (await frames.next()) as JdpSuccess<TOutput> | JdpFailure
+    } finally {
+      socket.end()
+    }
+  }
 }
 
 class FrameReader {
@@ -132,6 +143,7 @@ class FrameReader {
     resolve(value: unknown): void
     reject(error: Error): void
   }> = []
+  private failure?: Error
 
   constructor(socket: Socket) {
     socket.on("data", (chunk: Buffer) => {
@@ -143,6 +155,7 @@ class FrameReader {
   }
 
   next(): Promise<unknown> {
+    if (this.failure) return Promise.reject(this.failure)
     const value = this.values.shift()
     if (value !== undefined) return Promise.resolve(value)
     return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }))
@@ -165,8 +178,33 @@ class FrameReader {
   }
 
   private fail(error: Error): void {
+    this.failure = error
     for (const waiter of this.waiters.splice(0)) waiter.reject(error)
   }
+}
+
+async function authenticatedConnection(
+  options: BootstrapOptions,
+): Promise<{ socket: Socket; frames: FrameReader }> {
+  const socket = await connectWithRetry(options.pipeName)
+  const frames = new FrameReader(socket)
+  writeFrame(socket, {
+    protocolVersions: ["0.1"],
+    workspaceId: options.workspaceId,
+    clientName: "jingwei-agent-runtime-sidecar",
+    clientVersion: "0.1.0",
+    sessionToken: options.sessionToken,
+  })
+  const handshakeEnvelope = (await frames.next()) as {
+    Ok?: { protocolVersion?: string }
+    protocolVersion?: string
+  }
+  const handshake = handshakeEnvelope.Ok ?? handshakeEnvelope
+  if (handshake.protocolVersion !== "0.1") {
+    socket.destroy()
+    throw new Error("Rust daemon JDP handshake rejected the runtime sidecar")
+  }
+  return { socket, frames }
 }
 
 function writeFrame(socket: Socket, value: unknown): void {

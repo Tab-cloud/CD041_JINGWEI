@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use jingwei_jir::{
-    ArtifactId, CanonicalValue, EdgeId, EntityId, JirEdge, JirEntity, ProjectId, ProposalId,
-    RevisionId, SessionId, TaskId,
+    ArtifactId, CanonicalValue, EdgeId, EntityId, ExecutionId, IdempotencyKey, JirEdge, JirEntity,
+    ProjectId, ProposalId, RevisionId, SessionId, TaskId,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -30,8 +30,10 @@ pub mod operation {
     pub const EDIT_CHECKPOINT: &str = "edit.checkpoint";
     pub const EDIT_PUBLISH: &str = "edit.publish";
     pub const CHANGE_PROPOSAL_DECIDE: &str = "change_proposal.decide";
+    pub const EXECUTION_RECONCILE: &str = "execution.reconcile";
     pub const TASK_GET: &str = "task.get";
     pub const TASK_CANCEL: &str = "task.cancel";
+    pub const TASK_WAIT: &str = "task.wait";
     pub const TASK_EVENTS: &str = "task.events";
     pub const ARTIFACT_GET: &str = "artifact.get";
     pub const WORKSPACE_CAPABILITIES: &str = "workspace.capabilities";
@@ -314,11 +316,57 @@ pub struct TaskRef {
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TaskWaitInput {
+    pub task_id: TaskId,
+    pub timeout_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskState {
     pub task_id: TaskId,
     pub state: String,
     pub cancellable: bool,
     pub terminal: bool,
+    pub execution_id: ExecutionId,
+    pub operation: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quarantine_reason: Option<String>,
+    #[serde(default)]
+    pub repair_actions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionReconcileInput {
+    pub execution_id: ExecutionId,
+    pub idempotency_key: IdempotencyKey,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExecutionStatus {
+    NotFound,
+    Running,
+    Succeeded,
+    Failed,
+    Unknown,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionReconcileOutput {
+    pub execution_id: ExecutionId,
+    pub idempotency_key: IdempotencyKey,
+    pub status: ExecutionStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quarantine_reason: Option<String>,
+    #[serde(default)]
+    pub repair_actions: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]

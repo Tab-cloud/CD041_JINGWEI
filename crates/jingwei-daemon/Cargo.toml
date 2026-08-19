@@ -9,6 +9,7 @@ license.workspace = true
 [dependencies]
 async-trait.workspace = true
 clap.workspace = true
+chrono.workspace = true
 futures-util.workspace = true
 hex.workspace = true
 jingwei-jdp = { path = "../jingwei-jdp" }

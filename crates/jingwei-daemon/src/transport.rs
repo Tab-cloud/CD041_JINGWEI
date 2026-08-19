@@ -306,6 +306,8 @@ mod windows {
                     workspace_id: workspace,
                     project_id: ProjectId::new("project-pipe-capabilities").unwrap(),
                     operation: operation::WORKSPACE_CAPABILITIES.into(),
+                    execution_id: None,
+                    task_id: None,
                     base_revision: None,
                     deadline_ms: Some(5_000),
                     dry_run: false,
@@ -319,7 +321,7 @@ mod windows {
             };
             assert!(matches!(
                 capabilities.data.operations.get(operation::TASK_GET),
-                Some(CapabilityState::CapabilityUnavailable)
+                Some(CapabilityState::Available)
             ));
             drop(client);
             server.await.unwrap().unwrap();
@@ -368,6 +370,8 @@ mod windows {
                         workspace_id: workspace.clone(),
                         project_id: ProjectId::new("project-multiclient").unwrap(),
                         operation: operation::WORKSPACE_CAPABILITIES.into(),
+                        execution_id: None,
+                        task_id: None,
                         base_revision: None,
                         deadline_ms: Some(5_000),
                         dry_run: false,

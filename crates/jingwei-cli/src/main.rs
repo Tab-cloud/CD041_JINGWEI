@@ -395,6 +395,8 @@ where
             workspace_id,
             project_id,
             operation: operation.into(),
+            execution_id: None,
+            task_id: None,
             base_revision,
             deadline_ms: Some(30_000),
             dry_run: false,

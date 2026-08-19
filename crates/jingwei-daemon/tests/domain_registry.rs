@@ -120,6 +120,8 @@ fn request(
         workspace_id: workspace.clone(),
         project_id: project.clone(),
         operation: operation.into(),
+        execution_id: None,
+        task_id: None,
         base_revision: None,
         deadline_ms: Some(10_000),
         dry_run: false,

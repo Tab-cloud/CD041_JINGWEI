@@ -154,6 +154,12 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
             Effect::RevisionWrite,
         ),
         (
+            operation::EXECUTION_RECONCILE,
+            "Read a terminal execution result after a response is lost",
+            Permission::Read,
+            Effect::ReadOnly,
+        ),
+        (
             operation::TASK_GET,
             "Read durable task state",
             Permission::Read,
@@ -164,6 +170,12 @@ pub fn tool_catalog() -> Vec<ToolDescriptor> {
             "Request durable task cancellation",
             Permission::CandidateWrite,
             Effect::TaskControl,
+        ),
+        (
+            operation::TASK_WAIT,
+            "Wait for a durable task to reach a terminal state",
+            Permission::Read,
+            Effect::ReadOnly,
         ),
         (
             operation::TASK_EVENTS,

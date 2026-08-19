@@ -58,6 +58,8 @@ fn request(
         workspace_id,
         project_id: ProjectId::new("project-trace-context").unwrap(),
         operation: operation::WORKSPACE_CAPABILITIES.into(),
+        execution_id: None,
+        task_id: None,
         base_revision: None,
         deadline_ms: Some(5_000),
         dry_run: false,

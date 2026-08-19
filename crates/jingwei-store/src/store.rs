@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use jingwei_jir::{
     ArtifactId, ChangeProposal, CommitId, ExecutionId, IdempotencyKey, InvocationCorrelation,
     ProjectId, ProposalAction, ProposalDecisionRecord, ProposalId, RequestId, RevisionCommitRecord,
-    RevisionId, RevisionSnapshot, SessionId, WorkspaceId,
+    RevisionId, RevisionSnapshot, SessionId, TaskId, WorkspaceId,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -70,6 +70,40 @@ pub struct IdempotencyRecord {
     pub normalized_input_hash: String,
     pub result_revision: RevisionId,
     pub response: Value,
+}
+
+/// Immutable terminal JDP execution ledger used after a response is lost.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionRecord {
+    pub execution_id: ExecutionId,
+    pub project_id: ProjectId,
+    pub idempotency_key: IdempotencyKey,
+    pub operation: String,
+    pub status: String,
+    pub response_hash: String,
+    pub response: Value,
+    pub recorded_at: DateTime<Utc>,
+}
+
+/// Durable task projection. Active tasks are reconciled to a fail-closed state after restart.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DurableTaskRecord {
+    pub task_id: TaskId,
+    pub project_id: ProjectId,
+    pub execution_id: ExecutionId,
+    pub operation: String,
+    pub state: String,
+    pub cancellable: bool,
+    pub external_side_effects: bool,
+    pub terminal: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quarantine_reason: Option<String>,
+    #[serde(default)]
+    pub repair_actions: Vec<String>,
 }
 
 /// Durable event with aggregate-local monotonically increasing sequence.
@@ -548,6 +582,97 @@ impl WorkspaceStore {
         }
     }
 
+    /// Loads the journal written atomically with a committed revision.
+    pub fn operation_journal(
+        &self,
+        project: &ProjectId,
+        execution: &ExecutionId,
+    ) -> Result<Option<OperationJournalRecord>, StoreError> {
+        let path = self
+            .layout
+            .journal(project)
+            .join(format!("{execution}.json"));
+        if path.is_file() {
+            read_json(&path).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Records one immutable terminal response before it is returned to a client.
+    pub fn record_execution(&self, record: &ExecutionRecord) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        fs::create_dir_all(self.layout.executions())?;
+        let path = self.layout.execution(&record.execution_id);
+        if path.is_file() {
+            let existing: ExecutionRecord = read_json(&path)?;
+            if existing.response_hash == record.response_hash
+                && existing.idempotency_key == record.idempotency_key
+                && existing.project_id == record.project_id
+                && existing.operation == record.operation
+            {
+                return Ok(());
+            }
+            return Err(StoreError::ImmutableCollision(path));
+        }
+        write_new_json(&path, record)
+    }
+
+    /// Reads one terminal execution response by its client-visible execution ID.
+    pub fn execution(
+        &self,
+        execution: &ExecutionId,
+    ) -> Result<Option<ExecutionRecord>, StoreError> {
+        let path = self.layout.execution(execution);
+        if path.is_file() {
+            read_json(&path).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Creates or atomically replaces the latest durable task projection.
+    pub fn put_task(&self, record: &DurableTaskRecord) -> Result<(), StoreError> {
+        self.ensure_writable()?;
+        fs::create_dir_all(self.layout.tasks())?;
+        replace_json(&self.layout.task(&record.task_id), record)
+    }
+
+    /// Reads a durable task projection.
+    pub fn task(&self, task: &TaskId) -> Result<Option<DurableTaskRecord>, StoreError> {
+        let path = self.layout.task(task);
+        if path.is_file() {
+            read_json(&path).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Converts tasks interrupted by daemon restart into an explicit safety quarantine.
+    pub fn reconcile_incomplete_tasks(&self) -> Result<usize, StoreError> {
+        self.ensure_writable()?;
+        fs::create_dir_all(self.layout.tasks())?;
+        let mut reconciled = 0;
+        for path in sorted_files(&self.layout.tasks())? {
+            let mut task: DurableTaskRecord = read_json(&path)?;
+            if task.terminal {
+                continue;
+            }
+            task.state = "needs-reconciliation".into();
+            task.terminal = true;
+            task.updated_at = Utc::now();
+            task.quarantine_reason =
+                Some("daemon restarted before the task produced a confirmed terminal state".into());
+            task.repair_actions = vec![
+                "inspect isolated process state and output hashes".into(),
+                "retry only after an authorized operator resolves the quarantine".into(),
+            ];
+            replace_json(&path, &task)?;
+            reconciled += 1;
+        }
+        Ok(reconciled)
+    }
+
     /// Commits a prepared transaction. Pointer creation is the final authoritative step.
     pub fn commit(&self, request: CommitRequest) -> Result<(), StoreError> {
         self.commit_with_crash(request, None)
@@ -931,6 +1056,8 @@ fn create_layout(layout: &Layout) -> Result<(), StoreError> {
         layout.projects(),
         layout.transactions(),
         layout.quarantine(),
+        layout.executions(),
+        layout.tasks(),
         layout.locks(),
         layout.artifacts(),
     ] {

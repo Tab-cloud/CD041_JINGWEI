@@ -124,6 +124,8 @@ export interface JdpRequest<T> {
   workspaceId: OpaqueId;
   projectId: OpaqueId;
   operation: string;
+  executionId?: OpaqueId;
+  taskId?: OpaqueId;
   baseRevision?: OpaqueId;
   deadlineMs?: number;
   dryRun?: boolean;

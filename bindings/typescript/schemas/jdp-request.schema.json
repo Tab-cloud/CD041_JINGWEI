@@ -1,5 +1,9 @@
 {
   "$defs": {
+    "ExecutionId": {
+      "description": "Opaque `ExecutionId` wire identifier.",
+      "type": "string"
+    },
     "IdempotencyKey": {
       "description": "Opaque `IdempotencyKey` wire identifier.",
       "type": "string"
@@ -14,6 +18,10 @@
     },
     "RevisionId": {
       "description": "Opaque `RevisionId` wire identifier.",
+      "type": "string"
+    },
+    "TaskId": {
+      "description": "Opaque `TaskId` wire identifier.",
       "type": "string"
     },
     "TraceContext": {
@@ -69,6 +77,16 @@
       "default": false,
       "type": "boolean"
     },
+    "executionId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExecutionId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "idempotencyKey": {
       "$ref": "#/$defs/IdempotencyKey"
     },
@@ -84,6 +102,16 @@
     },
     "requestId": {
       "$ref": "#/$defs/RequestId"
+    },
+    "taskId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TaskId"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "traceContext": {
       "anyOf": [

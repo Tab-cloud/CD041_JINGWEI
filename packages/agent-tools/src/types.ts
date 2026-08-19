@@ -17,6 +17,7 @@ export interface RuntimeToolDescriptor {
 }
 
 export interface ToolExecutionContext {
+  executionId: string
   sessionId: string
   runId: string
   toolCallId: string

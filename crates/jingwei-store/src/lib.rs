@@ -8,9 +8,9 @@ mod store;
 pub use artifact::{ArtifactRecord, MAX_ARTIFACT_BYTES};
 pub use lock::WriterLease;
 pub use store::{
-    CommitRequest, CrashPoint, IdempotencyRecord, OperationJournalRecord, PointerTarget,
-    ProjectMetadata, RecoveryReport, StoreError, StoreMigrationReport, StoredEvent,
-    WorkspaceMetadata, WorkspaceStore,
+    CommitRequest, CrashPoint, DurableTaskRecord, ExecutionRecord, IdempotencyRecord,
+    OperationJournalRecord, PointerTarget, ProjectMetadata, RecoveryReport, StoreError,
+    StoreMigrationReport, StoredEvent, WorkspaceMetadata, WorkspaceStore,
 };
 
 /// On-disk metadata format version.

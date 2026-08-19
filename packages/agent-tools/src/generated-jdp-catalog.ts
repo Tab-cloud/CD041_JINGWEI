@@ -47,6 +47,7 @@ export function registerRustGeneratedJdpCatalog(
         effects: effectsFor(tool.effect),
         resourceClaims: [...tool.resourceClaimTemplate],
         write: tool.effect === "revision-write" || tool.effect === "draft-write",
+        cancellable: tool.cancellable,
         timeoutMs: tool.defaultTimeoutMs,
       },
       tracer,

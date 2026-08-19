@@ -34,6 +34,8 @@ async fn daemon_epoch_is_durable_and_commit_correlation_names_the_exact_process(
                 workspace_id: workspace.clone(),
                 project_id: project,
                 operation: operation::PROJECT_CREATE.into(),
+                execution_id: None,
+                task_id: None,
                 base_revision: None,
                 deadline_ms: Some(10_000),
                 dry_run: false,

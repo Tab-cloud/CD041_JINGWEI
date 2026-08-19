@@ -234,7 +234,10 @@ export interface ExecutionReconciliation {
   executionId: string
   idempotencyKey: string
   status: "not-found" | "running" | "succeeded" | "failed" | "unknown"
+  responseHash?: string
   result?: JdpSuccess<unknown> | JdpFailure
+  quarantineReason?: string
+  repairActions?: string[]
 }
 
 export interface JdpClient {

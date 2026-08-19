@@ -1,7 +1,9 @@
 //! JDP request, response, and structured-error envelopes.
 
 use async_trait::async_trait;
-use jingwei_jir::{ExecutionId, IdempotencyKey, ProjectId, RequestId, RevisionId, WorkspaceId};
+use jingwei_jir::{
+    ExecutionId, IdempotencyKey, ProjectId, RequestId, RevisionId, TaskId, WorkspaceId,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -49,6 +51,10 @@ pub struct JdpRequest<T> {
     pub project_id: ProjectId,
     pub operation: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_id: Option<ExecutionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<TaskId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_revision: Option<RevisionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deadline_ms: Option<u64>,
@@ -69,6 +75,8 @@ impl<T> JdpRequest<T> {
             workspace_id: self.workspace_id,
             project_id: self.project_id,
             operation: self.operation,
+            execution_id: self.execution_id,
+            task_id: self.task_id,
             base_revision: self.base_revision,
             deadline_ms: self.deadline_ms,
             dry_run: self.dry_run,

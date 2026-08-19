@@ -11,7 +11,7 @@ afterEach(() => {
 })
 
 describe("Runtime production local RPC", () => {
-  test("creates a durable session while a second daemon client commits a real draft patch", async () => {
+  test("creates a durable session and reconciles a committed draft after the response is lost", async () => {
     if (process.platform !== "win32") return
     const build = Bun.spawnSync(["cargo", "build", "-q", "-p", "jingwei-daemon"], {
       cwd: join(import.meta.dir, "..", "..", ".."),
@@ -121,19 +121,68 @@ describe("Runtime production local RPC", () => {
       previewHash: null,
     }
     const preview = await jdp(daemonClient, "edit_command.preview", undefined, group)
-    const committed = await jdp(daemonClient, "edit_command.commit", undefined, {
-      ...group,
-      previewHash: preview.data.previewHash,
-    })
-    expect(committed.success).toBe(true)
-    expect(committed.data.draftRevision).not.toBe(head)
-    const project = await jdp(daemonClient, "project.get", undefined, {})
+    const executionId = `execution-lost-response-${crypto.randomUUID()}`
+    const idempotencyKey = `idem-lost-response-${crypto.randomUUID()}`
+    const commitRequest = {
+      protocolVersion: "0.1",
+      requestId: `request-lost-response-${crypto.randomUUID()}`,
+      idempotencyKey,
+      workspaceId: "ws-desktop",
+      projectId: "project-desktop",
+      operation: "edit_command.commit",
+      executionId,
+      deadlineMs: 10_000,
+      dryRun: false,
+      input: { ...group, previewHash: preview.data.previewHash },
+    }
+    await daemonClient.write(commitRequest)
+    daemonClient.destroy()
+
+    const recoveryClient = await connectedDaemonClient(daemonPipeName, daemonToken)
+    const reconciled = await waitForReconciliation(recoveryClient, executionId, idempotencyKey)
+    expect(reconciled.data.status).toBe("succeeded")
+    expect(reconciled.data.responseHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(reconciled.data.result.executionId).toBe(executionId)
+    expect(reconciled.data.result.data.draftRevision).not.toBe(head)
+
+    const replayed = await recoveryClient.request(commitRequest)
+    expect(replayed).toEqual(reconciled.data.result)
+    const project = await jdp(recoveryClient, "project.get", undefined, {})
     expect(project.data.currentRevision).toBe(head)
 
-    daemonClient.close()
+    recoveryClient.close()
     runtimeRpc.close()
   }, 30_000)
 })
+
+async function connectedDaemonClient(pipeName: string, token: string): Promise<FramedClient> {
+  const client = await FramedClient.connect(pipeName)
+  await client.write({
+    protocolVersions: ["0.1"],
+    workspaceId: "ws-desktop",
+    clientName: "integration-recovery-client",
+    clientVersion: "0.1.0",
+    sessionToken: token,
+  })
+  expect(await client.read()).toMatchObject({ Ok: { protocolVersion: "0.1" } })
+  return client
+}
+
+async function waitForReconciliation(
+  client: FramedClient,
+  executionId: string,
+  idempotencyKey: string,
+): Promise<any> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const response = await jdp(client, "execution.reconcile", undefined, {
+      executionId,
+      idempotencyKey,
+    })
+    if (response.success && response.data.status !== "not-found") return response
+    await Bun.sleep(20)
+  }
+  throw new Error("committed execution did not become reconcilable")
+}
 
 async function jdp(
   client: FramedClient,
@@ -198,6 +247,10 @@ class FramedClient {
 
   close(): void {
     this.socket.end()
+  }
+
+  destroy(): void {
+    this.socket.destroy()
   }
 
   private drain(): void {

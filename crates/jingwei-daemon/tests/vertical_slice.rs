@@ -3,14 +3,15 @@ use std::sync::Arc;
 use jingwei_daemon::{Daemon, InMemoryClient};
 use jingwei_jdp::{
     CompileJdlInput, CompileJdlOutput, EditCommandGroup, EditCommitOutput, EditPreviewOutput,
-    EditPublishOutput, EditSessionInfo, EditSessionOpenInput, EditSessionRef, JDP_PROTOCOL_VERSION,
+    EditPublishOutput, EditSessionInfo, EditSessionOpenInput, EditSessionRef,
+    ExecutionReconcileInput, ExecutionReconcileOutput, ExecutionStatus, JDP_PROTOCOL_VERSION,
     JdpClient, JdpRequest, JdpResponse, PatchApplyInput, PatchInput, PatchOperation, PatchOutput,
     Precondition, ProjectCreateInput, ProjectInfo, ProposalDecisionInput, ProposalDecisionOutput,
     QueryInput, QueryOutput, SemanticEditCommand, operation,
 };
 use jingwei_jir::{
-    CanonicalValue, IdempotencyKey, ProjectId, ProposalAction, ProposalId, RequestId, RevisionId,
-    WorkspaceId,
+    CanonicalValue, ExecutionId, IdempotencyKey, ProjectId, ProposalAction, ProposalId, RequestId,
+    RevisionId, WorkspaceId,
 };
 use jingwei_kernel::ExtensionRegistryBuilder;
 use serde_json::json;
@@ -67,7 +68,8 @@ async fn cli_daemon_style_slice_is_atomic_idempotent_and_conflict_safe() {
             expected_postconditions: vec!["graph.integrity".into()],
         },
     };
-    let apply_request = request(
+    let execution_id = ExecutionId::new("execution-apply-once").unwrap();
+    let mut apply_request = request(
         &workspace,
         &project,
         operation::DESIGN_PATCH_APPLY,
@@ -75,12 +77,52 @@ async fn cli_daemon_style_slice_is_atomic_idempotent_and_conflict_safe() {
         "apply-once",
         patch.clone(),
     );
+    apply_request.execution_id = Some(execution_id.clone());
     let first: JdpResponse<PatchOutput> = client.send(apply_request.clone()).await.unwrap();
     let first_output = success(first);
-    let replay: JdpResponse<PatchOutput> = client.send(apply_request).await.unwrap();
+    let replay: JdpResponse<PatchOutput> = client.send(apply_request.clone()).await.unwrap();
     let replay_output = success(replay);
     assert_eq!(first_output.revision, replay_output.revision);
-    assert!(replay_output.idempotent_replay);
+    assert!(!replay_output.idempotent_replay);
+
+    let reconciled: JdpResponse<ExecutionReconcileOutput> = client
+        .send(request(
+            &workspace,
+            &project,
+            operation::EXECUTION_RECONCILE,
+            None,
+            "reconcile-apply",
+            ExecutionReconcileInput {
+                execution_id: execution_id.clone(),
+                idempotency_key: apply_request.idempotency_key.clone(),
+            },
+        ))
+        .await
+        .unwrap();
+    let reconciled = success(reconciled);
+    assert!(matches!(reconciled.status, ExecutionStatus::Succeeded));
+    assert!(reconciled.response_hash.is_some());
+    assert_eq!(
+        reconciled
+            .result
+            .as_ref()
+            .and_then(|result| result.get("executionId"))
+            .and_then(serde_json::Value::as_str),
+        Some(execution_id.as_str())
+    );
+
+    let idempotent_new_execution: JdpResponse<PatchOutput> = client
+        .send(request(
+            &workspace,
+            &project,
+            operation::DESIGN_PATCH_APPLY,
+            Some(compiled_revision.clone()),
+            "apply-once",
+            patch.clone(),
+        ))
+        .await
+        .unwrap();
+    assert!(success(idempotent_new_execution).idempotent_replay);
 
     let conflicting_patch = PatchApplyInput {
         proposal_id: None,
@@ -430,6 +472,8 @@ fn request<T: Clone>(
         workspace_id: workspace.clone(),
         project_id: project.clone(),
         operation: operation.into(),
+        execution_id: None,
+        task_id: None,
         base_revision,
         deadline_ms: Some(10_000),
         dry_run: false,

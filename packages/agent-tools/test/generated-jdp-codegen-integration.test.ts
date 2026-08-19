@@ -55,6 +55,7 @@ describe("Rust generated JDP binding integration", () => {
     const result = await apply?.handler(
       { baseRevision: "revision-1", operations: [] },
       {
+        executionId: "execution-1",
         sessionId: "session-1",
         runId: "run-1",
         toolCallId: "call-1",
@@ -71,10 +72,12 @@ describe("Rust generated JDP binding integration", () => {
       {
         protocolVersion: "0.1",
         requestId: "call-1",
+        executionId: "execution-1",
         idempotencyKey: "idempotency-1",
         workspaceId: "workspace-1",
         projectId: "project-1",
         operation: "design.patch.apply",
+        deadlineMs: 30_000,
         dryRun: false,
         baseRevision: "revision-1",
         input: { baseRevision: "revision-1", operations: [] },

@@ -207,10 +207,11 @@ base revision 和 effect scope 的短期 `CommandInvocationId`，再携带它提
 幂等和 reconciliation 规则相同；只有 Runtime 的 ToolExecution 结算步骤被客户端自己的 command terminal record
 替代。
 
-对账接口必须返回 `not-found | prepared | committed | failed | quarantined`，以及原 terminal response/response hash。
-Runtime 只在 `not-found` 且工具策略允许时重试；`committed` 直接结算原结果；未知状态进入 quarantine，禁止再次
-提交。当前 Runtime adapter 已有对账语义，但真实 sidecar 报告 `reconciliation: false`，这是 Phase 0 产品退出的
-P0 阻塞项。
+正式对账接口返回 `not-found | running | succeeded | failed | unknown`，以及原 terminal response/response hash；
+task 控制面另行返回 `running | cancel-requested | cancelled | succeeded | failed | needs-reconciliation`。Runtime 只在
+`not-found` 且工具策略明确允许时重试；`succeeded/failed` 直接用原响应结算；`unknown` 或 task
+`needs-reconciliation` 进入隔离，禁止再次提交。Slice 2 已由真实 sidecar 报告 `reconciliation: true`，并通过
+Windows named pipe 丢响应、取消、截止和 daemon 重启故障注入。
 
 ## 8. Sidecar 生命周期与传输
 
@@ -298,7 +299,7 @@ ProductSupportProfile
 sidecar packaging 可以组合运行，但当前仍是 **foundation integration**：
 
 - 工作台已默认使用真实 Runtime/Design transport，fixture 仅显式启用；原生 display-list 仍待 Slice 3；
-- Windows Runtime 生产 named pipe RPC 已完成；OS/IAM actor claims 和真实 JDP reconciliation 尚未完成；
+- Windows Runtime 生产 named pipe RPC 与真实 JDP reconciliation 已完成；OS/IAM actor claims 尚未完成；
 - revision/commit/proposal 与 assessment/release 规范 schema 已完成 Slice 0 迁移；assessment 计算、签名和失效图仍待 Slice 6；
 - 真实 KiCad round-trip import、供应链、DFM、样板和签名发布仍未闭环。
 
