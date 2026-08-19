@@ -1,0 +1,374 @@
+{
+  "schemaVersion": "pcb-candidate-v0.1",
+  "sourceRevision": "logical-golden-rev-001",
+  "candidateRevision": "pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034",
+  "definition": {
+    "outline": {
+      "vertices": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 60000,
+          "y": 0
+        },
+        {
+          "x": 60000,
+          "y": 40000
+        },
+        {
+          "x": 0,
+          "y": 40000
+        }
+      ]
+    },
+    "cutouts": [],
+    "mountingFeatures": [
+      {
+        "id": "mechanical:H1",
+        "center": {
+          "x": 3000,
+          "y": 3000
+        },
+        "drill": 3000,
+        "slotLength": 0,
+        "plated": false,
+        "locked": true
+      },
+      {
+        "id": "mechanical:H2",
+        "center": {
+          "x": 57000,
+          "y": 3000
+        },
+        "drill": 3000,
+        "slotLength": 0,
+        "plated": false,
+        "locked": true
+      },
+      {
+        "id": "mechanical:H3",
+        "center": {
+          "x": 3000,
+          "y": 37000
+        },
+        "drill": 3000,
+        "slotLength": 0,
+        "plated": false,
+        "locked": true
+      },
+      {
+        "id": "mechanical:H4",
+        "center": {
+          "x": 57000,
+          "y": 37000
+        },
+        "drill": 3000,
+        "slotLength": 0,
+        "plated": false,
+        "locked": true
+      }
+    ],
+    "stackup": {
+      "boardThickness": 1600,
+      "layers": [
+        {
+          "id": "layer:F.Cu",
+          "name": "F.Cu",
+          "kind": "copper",
+          "copperThickness": 35
+        },
+        {
+          "id": "layer:B.Cu",
+          "name": "B.Cu",
+          "kind": "copper",
+          "copperThickness": 35
+        },
+        {
+          "id": "layer:F.Mask",
+          "name": "F.Mask",
+          "kind": "solder-mask",
+          "copperThickness": 0
+        },
+        {
+          "id": "layer:B.Mask",
+          "name": "B.Mask",
+          "kind": "solder-mask",
+          "copperThickness": 0
+        },
+        {
+          "id": "layer:F.SilkS",
+          "name": "F.SilkS",
+          "kind": "silkscreen",
+          "copperThickness": 0
+        },
+        {
+          "id": "layer:B.SilkS",
+          "name": "B.SilkS",
+          "kind": "silkscreen",
+          "copperThickness": 0
+        },
+        {
+          "id": "layer:Edge.Cuts",
+          "name": "Edge.Cuts",
+          "kind": "edge-cuts",
+          "copperThickness": 0
+        }
+      ],
+      "surfaceFinish": "HASL lead-free"
+    },
+    "regions": [],
+    "origin": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "version": "jlcpcb-standard-v0@2026-08-19.1",
+    "profileId": "jlcpcb-standard-v0",
+    "minimumTrackWidth": 200,
+    "minimumClearance": 200,
+    "minimumDrill": 300,
+    "minimumAnnularRing": 150,
+    "minimumEdgeClearance": 300,
+    "minimumMaskBridge": 100,
+    "minimumNpth": 500,
+    "maximumArtifactBytes": 16777216,
+    "evidenceRefs": [
+      "manufacturer-source:https://jlcpcb.com/help/article/gerber-files-preparation",
+      "manufacturer-source:https://jlcpcb.com/help/article/advice-for-bom-and-cpl-files-preparation",
+      "manufacturer-source:https://jlcpcb.com/help/article/how-to-generate-the-bom-and-centroid-file-from-kicad"
+    ]
+  },
+  "footprints": [
+    {
+      "id": "pcb-footprint:component:J1",
+      "logicalComponentId": "component:J1",
+      "designator": "J1",
+      "value": "POWER_IN",
+      "manufacturer": "Jingwei Fixture",
+      "mpn": "JW-CONN-2P",
+      "footprintName": "CONN_2P_2.54",
+      "placementRole": "connector",
+      "position": {
+        "x": 5000,
+        "y": 20000
+      },
+      "rotation": 0,
+      "side": "front",
+      "bodySize": [
+        4000,
+        8000
+      ],
+      "courtyardMargin": 250,
+      "height": 6000,
+      "editControl": "locked",
+      "lockedPosition": {
+        "x": 5000,
+        "y": 20000
+      }
+    },
+    {
+      "id": "pcb-footprint:component:R1",
+      "logicalComponentId": "component:R1",
+      "designator": "R1",
+      "value": "1k",
+      "manufacturer": "Yageo",
+      "mpn": "RC0603FR-071KL",
+      "footprintName": "R_0603_1608Metric",
+      "placementRole": "ordinary",
+      "position": {
+        "x": 5000,
+        "y": 5000
+      },
+      "rotation": 0,
+      "side": "front",
+      "bodySize": [
+        1600,
+        800
+      ],
+      "courtyardMargin": 250,
+      "height": 500,
+      "editControl": "ai-editable",
+      "lockedPosition": null
+    }
+  ],
+  "pads": [
+    {
+      "id": "pcb-pad:component:J1:1",
+      "footprintId": "pcb-footprint:component:J1",
+      "number": "1",
+      "offset": {
+        "x": -1000,
+        "y": -2000
+      },
+      "center": {
+        "x": 4000,
+        "y": 18000
+      },
+      "size": [
+        1200,
+        1200
+      ],
+      "drill": 700,
+      "plated": true,
+      "netId": "net:VCC",
+      "maskExpansion": 50
+    },
+    {
+      "id": "pcb-pad:component:J1:2",
+      "footprintId": "pcb-footprint:component:J1",
+      "number": "2",
+      "offset": {
+        "x": 1000,
+        "y": 2000
+      },
+      "center": {
+        "x": 6000,
+        "y": 22000
+      },
+      "size": [
+        1200,
+        1200
+      ],
+      "drill": 700,
+      "plated": true,
+      "netId": "net:GND",
+      "maskExpansion": 50
+    },
+    {
+      "id": "pcb-pad:component:R1:1",
+      "footprintId": "pcb-footprint:component:R1",
+      "number": "1",
+      "offset": {
+        "x": -800,
+        "y": 0
+      },
+      "center": {
+        "x": 4200,
+        "y": 5000
+      },
+      "size": [
+        800,
+        900
+      ],
+      "drill": 0,
+      "plated": false,
+      "netId": "net:VCC",
+      "maskExpansion": 50
+    },
+    {
+      "id": "pcb-pad:component:R1:2",
+      "footprintId": "pcb-footprint:component:R1",
+      "number": "2",
+      "offset": {
+        "x": 800,
+        "y": 0
+      },
+      "center": {
+        "x": 5800,
+        "y": 5000
+      },
+      "size": [
+        800,
+        900
+      ],
+      "drill": 0,
+      "plated": false,
+      "netId": "net:GND",
+      "maskExpansion": 50
+    }
+  ],
+  "nets": {
+    "net:GND": "GND",
+    "net:VCC": "+3V3"
+  },
+  "netPriorities": {
+    "net:GND": 21,
+    "net:VCC": 20
+  },
+  "netClasses": [
+    {
+      "id": "default",
+      "trackWidth": 200,
+      "clearance": 200,
+      "viaDiameter": 600,
+      "viaDrill": 300,
+      "differentialGap": null,
+      "targetLength": null
+    }
+  ],
+  "tracks": [
+    {
+      "id": "track:net:VCC:0",
+      "netId": "net:VCC",
+      "layerId": "F.Cu",
+      "width": 200,
+      "path": {
+        "points": [
+          {
+            "x": 4000,
+            "y": 18000
+          },
+          {
+            "x": 4000,
+            "y": 11500
+          },
+          {
+            "x": 4200,
+            "y": 11500
+          },
+          {
+            "x": 4200,
+            "y": 5000
+          }
+        ]
+      },
+      "provenance": "manhattan-reference-router-v1",
+      "editControl": "ai-editable"
+    },
+    {
+      "id": "track:net:GND:0",
+      "netId": "net:GND",
+      "layerId": "F.Cu",
+      "width": 200,
+      "path": {
+        "points": [
+          {
+            "x": 6000,
+            "y": 22000
+          },
+          {
+            "x": 6000,
+            "y": 14000
+          },
+          {
+            "x": 5800,
+            "y": 14000
+          },
+          {
+            "x": 5800,
+            "y": 5000
+          }
+        ]
+      },
+      "provenance": "manhattan-reference-router-v1",
+      "editControl": "ai-editable"
+    }
+  ],
+  "vias": [],
+  "zones": [],
+  "keepouts": [],
+  "texts": [],
+  "pinPadMap": {
+    "pin:J1:1": "pcb-pad:component:J1:1",
+    "pin:J1:2": "pcb-pad:component:J1:2",
+    "pin:R1:1": "pcb-pad:component:R1:1",
+    "pin:R1:2": "pcb-pad:component:R1:2"
+  },
+  "evidenceRefs": [
+    "fixture:logical-netlist-v0",
+    "profile:jlcpcb-standard-v0"
+  ]
+}

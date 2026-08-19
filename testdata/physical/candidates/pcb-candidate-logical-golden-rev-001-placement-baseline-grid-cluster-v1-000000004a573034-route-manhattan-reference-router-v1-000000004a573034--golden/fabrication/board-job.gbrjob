@@ -1,0 +1,44 @@
+{
+  "FilesAttributes": [
+    {
+      "FileFunction": "gerber-copper-front",
+      "Path": "fabrication/board-F_Cu.gbr"
+    },
+    {
+      "FileFunction": "gerber-copper-back",
+      "Path": "fabrication/board-B_Cu.gbr"
+    },
+    {
+      "FileFunction": "gerber-mask-front",
+      "Path": "fabrication/board-F_Mask.gbr"
+    },
+    {
+      "FileFunction": "gerber-mask-back",
+      "Path": "fabrication/board-B_Mask.gbr"
+    },
+    {
+      "FileFunction": "gerber-silkscreen-front",
+      "Path": "fabrication/board-F_Silkscreen.gbr"
+    },
+    {
+      "FileFunction": "gerber-silkscreen-back",
+      "Path": "fabrication/board-B_Silkscreen.gbr"
+    },
+    {
+      "FileFunction": "gerber-outline",
+      "Path": "fabrication/board-Edge_Cuts.gbr"
+    }
+  ],
+  "GeneralSpecs": {
+    "LayerNumber": 2,
+    "ProjectId": "pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034"
+  },
+  "Header": {
+    "CreationDate": "deterministic-candidate-no-wall-clock",
+    "GenerationSoftware": {
+      "Application": "jingwei-manufacturing",
+      "Vendor": "Jingwei-Agent",
+      "Version": "0.1.0"
+    }
+  }
+}

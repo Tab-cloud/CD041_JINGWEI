@@ -1,0 +1,29 @@
+[package]
+name = "jingwei-manufacturing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Immutable manufacturing-candidate export, manifest and independent verification"
+
+[dependencies]
+hex.workspace = true
+jingwei-drc = { path = "../jingwei-drc" }
+jingwei-geometry = { path = "../jingwei-geometry" }
+jingwei-jdp = { path = "../jingwei-jdp" }
+jingwei-kicad-pcb = { path = "../jingwei-kicad-pcb" }
+jingwei-pcb = { path = "../jingwei-pcb" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml = "0.9.34"
+sha2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+jingwei-placement = { path = "../jingwei-placement" }
+jingwei-routing = { path = "../jingwei-routing" }
+tokio.workspace = true
+tokio-util = { version = "0.7.16", features = ["rt"] }
+
+[lints]
+workspace = true

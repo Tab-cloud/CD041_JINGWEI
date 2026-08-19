@@ -1,0 +1,6 @@
+{
+  "boardSha256": "17e4cda6b8c2e1cf8e6ae6feb5a1de4c06e1545fc68d64b59a841b64e6b8ad57",
+  "candidateRevision": "pcb-candidate:logical-golden-rev-001:placement:baseline-grid-cluster-v1:000000004a573034:route:manhattan-reference-router-v1:000000004a573034",
+  "profile": "jlcpcb-standard-v0@2026-08-19.1",
+  "sourceRevision": "logical-golden-rev-001"
+}

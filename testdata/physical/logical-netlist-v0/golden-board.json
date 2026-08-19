@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "logical-netlist-v0",
+  "sourceRevision": "logical-golden-rev-001",
+  "components": [
+    {
+      "id": "component:J1",
+      "designator": "J1",
+      "value": "POWER_IN",
+      "manufacturer": "Jingwei Fixture",
+      "mpn": "JW-CONN-2P",
+      "footprint": {
+        "libraryId": "jingwei-fixtures-v0",
+        "name": "CONN_2P_2.54",
+        "bodyWidth": 4000,
+        "bodyHeight": 8000,
+        "courtyardMargin": 250,
+        "componentHeight": 6000,
+        "pads": [
+          { "number": "1", "offset": { "x": -1000, "y": -2000 }, "width": 1200, "height": 1200, "drill": 700, "plated": true },
+          { "number": "2", "offset": { "x": 1000, "y": 2000 }, "width": 1200, "height": 1200, "drill": 700, "plated": true }
+        ]
+      },
+      "padMap": { "1": "1", "2": "2" },
+      "placementRole": "connector",
+      "locked": true,
+      "fixedPosition": { "x": 5000, "y": 20000 }
+    },
+    {
+      "id": "component:R1",
+      "designator": "R1",
+      "value": "1k",
+      "manufacturer": "Yageo",
+      "mpn": "RC0603FR-071KL",
+      "footprint": {
+        "libraryId": "jingwei-fixtures-v0",
+        "name": "R_0603_1608Metric",
+        "bodyWidth": 1600,
+        "bodyHeight": 800,
+        "courtyardMargin": 250,
+        "componentHeight": 500,
+        "pads": [
+          { "number": "1", "offset": { "x": -800, "y": 0 }, "width": 800, "height": 900, "drill": 0, "plated": false },
+          { "number": "2", "offset": { "x": 800, "y": 0 }, "width": 800, "height": 900, "drill": 0, "plated": false }
+        ]
+      },
+      "padMap": { "1": "1", "2": "2" },
+      "placementRole": "ordinary",
+      "locked": false,
+      "fixedPosition": null
+    }
+  ],
+  "pins": [
+    { "id": "pin:J1:1", "componentId": "component:J1", "pinNumber": "1", "netId": "net:VCC" },
+    { "id": "pin:J1:2", "componentId": "component:J1", "pinNumber": "2", "netId": "net:GND" },
+    { "id": "pin:R1:1", "componentId": "component:R1", "pinNumber": "1", "netId": "net:VCC" },
+    { "id": "pin:R1:2", "componentId": "component:R1", "pinNumber": "2", "netId": "net:GND" }
+  ],
+  "nets": [
+    { "id": "net:VCC", "name": "+3V3", "classId": "default", "priority": 20 },
+    { "id": "net:GND", "name": "GND", "classId": "default", "priority": 21 }
+  ],
+  "constraints": [],
+  "evidenceRefs": ["fixture:logical-netlist-v0", "profile:jlcpcb-standard-v0"]
+}
