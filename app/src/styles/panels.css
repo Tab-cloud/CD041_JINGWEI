@@ -157,9 +157,18 @@
 .live-test-card.state-skipped { border-left-color: var(--mock); }
 .live-test-card.state-blocked { border-left-color: var(--warning); }
 .live-test-card.state-ready { border-left-color: var(--success); }
+.live-test-card.state-passed { border-left-color: var(--success); }
+.live-test-card.state-failed { border-left-color: var(--danger); }
 .live-test-card h3 { font-size: 12px; margin: 0; }
 .live-test-card > strong { color: var(--text-soft); font-size: 10px; }
 .live-test-card > p, .live-test-card > small { color: var(--text-dim); font-size: 9px; line-height: 1.5; margin: 0; }
+.live-test-evidence { display: grid; gap: 5px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 2px 0 0; }
+.live-test-evidence div { background: var(--bg-3); border: 1px solid var(--line-soft); border-radius: 4px; min-width: 0; padding: 6px 7px; }
+.live-test-evidence dt { color: var(--text-dim); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
+.live-test-evidence dd { color: var(--text); font-size: 9px; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-test-actions { align-items: center; display: flex; gap: 10px; justify-content: space-between; margin-top: 2px; }
+.live-test-actions > small { color: var(--text-dim); font-size: 9px; line-height: 1.45; }
+.connection-test-button { align-items: center; display: inline-flex; flex: 0 0 auto; gap: 5px; }
 .settings-feedback.tone-success { background: var(--success-soft-bg); border-color: var(--success-soft-border); color: var(--success-soft-text); }
 .settings-feedback.tone-warning { background: var(--warning-soft-bg); border-color: var(--warning-soft-border); color: var(--warning-soft-text); }
 .settings-feedback.tone-danger { background: var(--danger-soft-bg); border-color: var(--danger-soft-border); color: var(--danger-soft-text); }

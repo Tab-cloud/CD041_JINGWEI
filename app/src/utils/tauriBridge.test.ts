@@ -5,6 +5,7 @@ import {
   getSidecarStatuses,
   openExternalUrl,
   saveModelConfiguration,
+  testModelConnection,
   validateCredentialReference,
 } from "./tauriBridge";
 
@@ -36,5 +37,6 @@ describe("browser security bridge", () => {
     expect(view.environment.configured).toBe(false);
     await expect(saveModelConfiguration({ provider: "openai-responses", baseUrl: "https://api.openai.com/v1", model: "gpt-example" })).rejects.toThrow("原生桌面应用");
     await expect(deleteModelCredential()).rejects.toThrow("原生桌面应用");
+    await expect(testModelConnection()).rejects.toThrow("原生桌面应用");
   });
 });

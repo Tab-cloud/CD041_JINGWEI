@@ -3,7 +3,8 @@ mod model_configuration;
 
 use model_configuration::{
     model_configuration_delete_credential, model_configuration_get, model_configuration_save,
-    validate_credential_reference,
+    resolve_provider_test_configuration, validate_credential_reference,
+    ResolvedProviderTestConfiguration,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -15,6 +16,7 @@ use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
+use zeroize::Zeroize;
 
 const EXPECTED_PROTOCOL_VERSION: &str = "0.1";
 const MAX_HANDSHAKE_BYTES: usize = 4096;
@@ -214,6 +216,33 @@ async fn runtime_rpc(
     runtime_pipe_request(&bootstrap, &method, params).await
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProviderTestParams<'a> {
+    provider: &'a str,
+    base_url: &'a str,
+    model: &'a str,
+    api_key: &'a str,
+    timeout_ms: u64,
+}
+
+#[derive(Serialize)]
+struct RuntimeRpcEnvelope<'a, T: Serialize> {
+    id: String,
+    token: &'a str,
+    method: &'a str,
+    params: T,
+}
+
+#[tauri::command]
+async fn model_configuration_test(app: AppHandle) -> Result<serde_json::Value, String> {
+    let mut configuration = resolve_provider_test_configuration(&app)?;
+    let bootstrap = app.state::<SidecarSupervisor>().bootstrap(&app)?;
+    let result = runtime_provider_test_request(&bootstrap, &configuration).await;
+    configuration.api_key.zeroize();
+    result
+}
+
 #[tauri::command]
 async fn design_rpc(
     app: AppHandle,
@@ -260,6 +289,40 @@ async fn runtime_pipe_request(
             .pointer("/error/summary")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("Runtime RPC failed")
+            .to_string())
+    }
+}
+
+#[cfg(windows)]
+async fn runtime_provider_test_request(
+    bootstrap: &SidecarBootstrap,
+    configuration: &ResolvedProviderTestConfiguration,
+) -> Result<serde_json::Value, String> {
+    let mut pipe = open_named_pipe(&bootstrap.runtime_pipe_name).await?;
+    let envelope = RuntimeRpcEnvelope {
+        id: format!("provider-test-{}", uuid::Uuid::new_v4()),
+        token: &bootstrap.runtime_bootstrap_token,
+        method: "provider.test",
+        params: ProviderTestParams {
+            provider: &configuration.provider,
+            base_url: &configuration.base_url,
+            model: &configuration.model,
+            api_key: &configuration.api_key,
+            timeout_ms: configuration.timeout_ms,
+        },
+    };
+    write_sensitive_pipe_frame(&mut pipe, &envelope).await?;
+    let response = read_pipe_frame(&mut pipe, 64 * 1024).await?;
+    if response.get("success").and_then(serde_json::Value::as_bool) == Some(true) {
+        Ok(response
+            .get("result")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null))
+    } else {
+        Err(response
+            .pointer("/error/summary")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("Runtime provider test failed")
             .to_string())
     }
 }
@@ -343,6 +406,32 @@ async fn write_pipe_frame(
 }
 
 #[cfg(windows)]
+async fn write_sensitive_pipe_frame<T: Serialize>(
+    pipe: &mut tokio::net::windows::named_pipe::NamedPipeClient,
+    value: &T,
+) -> Result<(), String> {
+    use tokio::io::AsyncWriteExt;
+
+    let mut bytes = serde_json::to_vec(value).map_err(|error| error.to_string())?;
+    if bytes.is_empty() || bytes.len() > 64 * 1024 {
+        bytes.zeroize();
+        return Err("provider test request exceeds frame limit".into());
+    }
+    let result = async {
+        pipe.write_u32_le(u32::try_from(bytes.len()).map_err(|_| "frame length overflow")?)
+            .await
+            .map_err(|error| error.to_string())?;
+        pipe.write_all(&bytes)
+            .await
+            .map_err(|error| error.to_string())?;
+        pipe.flush().await.map_err(|error| error.to_string())
+    }
+    .await;
+    bytes.zeroize();
+    result
+}
+
+#[cfg(windows)]
 async fn read_pipe_frame(
     pipe: &mut tokio::net::windows::named_pipe::NamedPipeClient,
     limit: usize,
@@ -372,6 +461,14 @@ async fn runtime_pipe_request(
     _params: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     Err("Runtime local RPC is currently available only on Windows".into())
+}
+
+#[cfg(not(windows))]
+async fn runtime_provider_test_request(
+    _bootstrap: &SidecarBootstrap,
+    _configuration: &ResolvedProviderTestConfiguration,
+) -> Result<serde_json::Value, String> {
+    Err("Runtime provider test is currently available only on Windows".into())
 }
 
 #[cfg(not(windows))]
@@ -772,6 +869,7 @@ pub fn run() {
             model_configuration_get,
             model_configuration_save,
             model_configuration_delete_credential,
+            model_configuration_test,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build Jingwei workbench");

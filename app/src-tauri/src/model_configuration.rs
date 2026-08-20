@@ -12,6 +12,7 @@ const PROFILE_FILE_NAME: &str = "model-provider.json";
 const CREDENTIAL_ACCOUNT: &str = "jingwei.openai";
 const MAX_PROFILE_BYTES: u64 = 32 * 1024;
 const MAX_API_KEY_BYTES: usize = 2560;
+const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +53,20 @@ pub(crate) struct ModelConfigurationView {
     #[serde(skip_serializing_if = "Option::is_none")]
     credential_store_reason: Option<String>,
     environment: EnvironmentModelConfiguration,
+}
+
+pub(crate) struct ResolvedProviderTestConfiguration {
+    pub(crate) provider: String,
+    pub(crate) base_url: String,
+    pub(crate) model: String,
+    pub(crate) api_key: String,
+    pub(crate) timeout_ms: u64,
+}
+
+impl Drop for ResolvedProviderTestConfiguration {
+    fn drop(&mut self) {
+        self.api_key.zeroize();
+    }
 }
 
 #[tauri::command]
@@ -98,6 +113,60 @@ pub(crate) fn model_configuration_delete_credential(
 pub(crate) fn validate_credential_reference(reference: String) -> Result<String, String> {
     credential_account(&reference)?;
     Ok(reference)
+}
+
+pub(crate) fn resolve_provider_test_configuration(
+    app: &AppHandle,
+) -> Result<ResolvedProviderTestConfiguration, String> {
+    if let Some(profile) = read_profile(app)? {
+        let normalized = normalize_profile(&SaveModelConfigurationInput {
+            provider: profile.provider,
+            base_url: profile.base_url,
+            model: profile.model,
+            api_key: None,
+        })?;
+        if let Some(mut api_key) = credential_store::read()? {
+            if let Err(error) = validate_api_key(&api_key) {
+                api_key.zeroize();
+                return Err(error);
+            }
+            return Ok(ResolvedProviderTestConfiguration {
+                provider: normalized.provider,
+                base_url: normalized.base_url,
+                model: normalized.model,
+                api_key,
+                timeout_ms: 30_000,
+            });
+        }
+    }
+
+    let mut api_key = env::var("OPENAI_API_KEY")
+        .map_err(|_| "缺少可用于连接测试的 OPENAI_API_KEY 或系统凭据".to_string())?;
+    if let Err(error) = validate_api_key(&api_key) {
+        api_key.zeroize();
+        return Err(error);
+    }
+    let model = env::var("JINGWEI_OPENAI_MODEL")
+        .map_err(|_| "缺少可用于连接测试的 JINGWEI_OPENAI_MODEL".to_string())?;
+    let normalized = normalize_profile(&SaveModelConfigurationInput {
+        provider: "openai-responses".into(),
+        base_url: DEFAULT_OPENAI_BASE_URL.into(),
+        model,
+        api_key: None,
+    });
+    match normalized {
+        Ok(profile) => Ok(ResolvedProviderTestConfiguration {
+            provider: profile.provider,
+            base_url: profile.base_url,
+            model: profile.model,
+            api_key,
+            timeout_ms: 30_000,
+        }),
+        Err(error) => {
+            api_key.zeroize();
+            Err(error)
+        }
+    }
 }
 
 fn read_configuration_view(app: &AppHandle) -> Result<ModelConfigurationView, String> {

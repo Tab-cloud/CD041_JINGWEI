@@ -42,6 +42,26 @@ export interface LiveTestReadiness {
   summary: string;
 }
 
+export interface ProviderConnectionTestResult {
+  status: "passed" | "failed";
+  provider: "openai-responses";
+  protocol: "openai-responses";
+  endpointHost: string;
+  model: string;
+  latencyMs: number;
+  testedAt: string;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+  };
+  error?: {
+    code: string;
+    summary: string;
+    retryable: boolean;
+    httpStatus?: number;
+  };
+}
+
 export const EMPTY_MODEL_CONFIGURATION: ModelConfigurationView = {
   credentialConfigured: false,
   credentialStoreAvailable: false,
@@ -113,6 +133,6 @@ export function liveTestReadiness(view: ModelConfigurationView, runtimeAvailable
   }
   return {
     state: "ready",
-    summary: "配置条件已满足；等待 Runtime provider.test 接口执行隔离的连接测试。",
+    summary: "配置条件已满足；可由 Runtime 执行隔离的真实连接测试。",
   };
 }

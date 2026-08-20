@@ -6,7 +6,9 @@
 - Runtime, JDP, solver, schematic/PCB geometry, snap, ERC/DRC, rules, AI patches, and manufacturing state are versioned fixtures. They are not evidence from tasks 01-04.
 - The final NSIS package was installed to an isolated smoke directory and exercised as an installed app. It remains unsigned; release signing, rollback, update, and release provenance gates remain open.
 - Production Release is intentionally blocked in the UI and cannot be promoted from this mock workbench.
-- The Runtime credential broker and `provider.profile.test` operation are not implemented. `OPENAI_API_KEY` and `JINGWEI_OPENAI_MODEL` are absent in the verified environment, so the commercial OpenAI endpoint live test was explicitly skipped.
+- The Runtime credential broker and `provider.test` operation are implemented with a user-facing button and sanitized
+  evidence. Automated tests use an intercepted/local contract and do not send user credentials. The verified build
+  environment still has no approved commercial credentials, so no real paid endpoint is claimed as passed.
 - Native credential persistence is Windows-first. macOS Keychain and Linux Secret Service adapters are not implemented; those builds must report unavailable and must never fall back to plaintext storage.
 
 ## Bounded MVP editing surface

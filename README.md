@@ -88,6 +88,8 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 
 这不代表全部生产可观测性已经完成：collector 部署、高可用采集、长期留存与操作告警仍属于后续运维门禁。
 商业 OpenAI live test 也因当前环境缺少 `OPENAI_API_KEY` 和 `JINGWEI_OPENAI_MODEL` 而明确跳过。
+桌面配置抽屉已提供用户主动触发的“测试连接”：Tauri 从系统凭据库读取密钥，经认证本地管道调用 Runtime
+`provider.test`，前端只接收端点主机、模型、耗时、用量与脱敏失败信息。自动化构建不会擅自使用用户凭据。
 
 ## 3. 文档权威顺序
 

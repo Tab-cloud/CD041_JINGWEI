@@ -25,7 +25,10 @@ export interface OpenAIResponsesProviderOptions {
   structuredOutput?: boolean
   faultDomain?: string
   dataPolicy?: Record<string, string | boolean>
+  fetch?: ProviderFetch
 }
+
+export type ProviderFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
 interface ToolAlias {
   alias: string
@@ -59,6 +62,7 @@ export class OpenAIResponsesProvider implements ProviderAdapter {
       ...(options.project ? { project: options.project } : {}),
       maxRetries: 0,
       timeout: options.timeoutMs ?? 120_000,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
     })
     this.model = options.model
     this.maxOutputTokens = options.outputTokens

@@ -5,12 +5,14 @@ import {
   liveTestReadiness,
   type ModelConfigurationDraft,
   type ModelConfigurationView,
+  type ProviderConnectionTestResult,
   validateModelConfigurationDraft,
 } from "../model/modelConfiguration";
 import {
   deleteModelCredential,
   getModelConfiguration,
   saveModelConfiguration,
+  testModelConnection,
 } from "../utils/tauriBridge";
 import { AlertCircleIcon, CheckCircleIcon, LockIcon, RefreshIcon, XIcon } from "./Icons";
 
@@ -32,8 +34,10 @@ function errorMessage(error: unknown): string {
 export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSettingsDrawerProps) {
   const [configuration, setConfiguration] = useState<ModelConfigurationView>();
   const [draft, setDraft] = useState<ModelConfigurationDraft>(DEFAULT_MODEL_DRAFT);
-  const [busy, setBusy] = useState<"delete" | "save">();
+  const [busy, setBusy] = useState<"delete" | "save" | "test">();
   const [feedback, setFeedback] = useState<Feedback>();
+  const [testResult, setTestResult] = useState<ProviderConnectionTestResult>();
+  const [testCommandError, setTestCommandError] = useState<string>();
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +47,8 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
         if (!active) return;
         setConfiguration(view);
         setDraft(draftFromConfiguration(view));
+        setTestResult(undefined);
+        setTestCommandError(undefined);
       })
       .catch((error: unknown) => {
         if (active) setFeedback({ tone: "danger", message: errorMessage(error) });
@@ -56,6 +62,16 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
     () => configuration ? liveTestReadiness(configuration, runtimeAvailable) : undefined,
     [configuration, runtimeAvailable],
   );
+  const hasUnsavedChanges = useMemo(() => {
+    if (!configuration) return true;
+    const saved = draftFromConfiguration(configuration);
+    return Boolean(
+      draft.apiKey ||
+      draft.provider !== saved.provider ||
+      draft.baseUrl.trim().replace(/\/$/u, "") !== saved.baseUrl.replace(/\/$/u, "") ||
+      draft.model.trim() !== saved.model,
+    );
+  }, [configuration, draft]);
 
   if (!open) return null;
 
@@ -66,6 +82,8 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
 
   const update = (field: keyof ModelConfigurationDraft, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
+    setTestResult(undefined);
+    setTestCommandError(undefined);
   };
 
   const save = async () => {
@@ -85,6 +103,8 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
       });
       setConfiguration(view);
       setDraft(draftFromConfiguration(view));
+      setTestResult(undefined);
+      setTestCommandError(undefined);
       setFeedback({ tone: "success", message: "模型配置已保存；API Key 未返回前端。" });
     } catch (error) {
       setFeedback({ tone: "danger", message: errorMessage(error) });
@@ -101,6 +121,8 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
       const view = await deleteModelCredential();
       setConfiguration(view);
       setDraft((current) => ({ ...current, apiKey: "" }));
+      setTestResult(undefined);
+      setTestCommandError(undefined);
       setFeedback({ tone: "warning", message: "本机 API Key 已从系统凭据库删除。" });
     } catch (error) {
       setFeedback({ tone: "danger", message: errorMessage(error) });
@@ -108,6 +130,38 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
       setBusy(undefined);
     }
   };
+
+  const testConnection = async () => {
+    if (hasUnsavedChanges) {
+      setFeedback({ tone: "warning", message: "请先保存当前配置，再执行连接测试。" });
+      return;
+    }
+    setBusy("test");
+    setFeedback(undefined);
+    setTestResult(undefined);
+    setTestCommandError(undefined);
+    try {
+      setTestResult(await testModelConnection());
+    } catch (error) {
+      setTestCommandError(errorMessage(error));
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  const testState = testResult?.status ?? (testCommandError ? "failed" : readiness?.state ?? "skipped");
+  const testLabel = testResult?.status === "passed"
+    ? "PASS · 已连接"
+    : testResult?.status === "failed" || testCommandError
+      ? "FAILED · 已执行"
+      : readiness?.state === "ready"
+        ? "READY · 未执行"
+        : readiness?.state === "blocked"
+          ? "BLOCKED · 未执行"
+          : "SKIPPED · 未执行";
+  const testSummary = testResult?.status === "passed"
+    ? "模型端点已完成一次真实 Responses 请求。"
+    : testResult?.error?.summary ?? testCommandError ?? readiness?.summary ?? "正在读取 Runtime 与配置状态。";
 
   return (
     <div className="model-settings-layer">
@@ -184,14 +238,40 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
             <div className="credential-security-note"><LockIcon size={15} /><span>凭据引用：<code>{configuration?.profile?.credentialRef ?? "保存后生成"}</code></span></div>
           </section>
 
-          <section className={`live-test-card state-${readiness?.state ?? "skipped"}`} aria-label="商业端点测试状态">
+          <section className={`live-test-card state-${testState}`} aria-label="商业端点测试状态" aria-live="polite">
             <div>
               <span className="eyebrow">COMMERCIAL ENDPOINT</span>
               <h3>连接测试状态</h3>
             </div>
-            <strong>{readiness?.state === "ready" ? "READY · 未执行" : readiness?.state === "blocked" ? "BLOCKED · 未执行" : "SKIPPED · 未执行"}</strong>
-            <p>{readiness?.summary ?? "正在读取 Runtime 与配置状态。"}</p>
-            <small>设置界面不会直接调用商业端点；后续由 Runtime 隔离执行并返回脱敏证据。</small>
+            <strong>{busy === "test" ? "TESTING · 请求中" : testLabel}</strong>
+            <p>{busy === "test" ? "Runtime 正在验证端点、凭据和 Responses 协议兼容性。" : testSummary}</p>
+            {testResult && (
+              <dl className="live-test-evidence">
+                <div><dt>端点</dt><dd>{testResult.endpointHost}</dd></div>
+                <div><dt>模型</dt><dd>{testResult.model}</dd></div>
+                <div><dt>耗时</dt><dd>{testResult.latencyMs} ms</dd></div>
+                <div><dt>测试时间</dt><dd>{new Date(testResult.testedAt).toLocaleTimeString()}</dd></div>
+                {testResult.error?.httpStatus && <div><dt>HTTP</dt><dd>{testResult.error.httpStatus}</dd></div>}
+                {testResult.error && <div><dt>错误代码</dt><dd>{testResult.error.code}</dd></div>}
+                {testResult.error && <div><dt>可重试</dt><dd>{testResult.error.retryable ? "是" : "否"}</dd></div>}
+              </dl>
+            )}
+            <div className="live-test-actions">
+              <small>
+                {hasUnsavedChanges
+                  ? "当前表单有未保存修改；测试只使用已保存配置。"
+                  : "API Key 由桌面端安全读取；前端只接收脱敏测试证据。"}
+              </small>
+              <button
+                className="secondary-button connection-test-button"
+                disabled={readiness?.state !== "ready" || hasUnsavedChanges || Boolean(busy)}
+                onClick={() => void testConnection()}
+                type="button"
+              >
+                {busy === "test" ? <RefreshIcon className="settings-spinner" size={14} /> : null}
+                {busy === "test" ? "测试中…" : testResult || testCommandError ? "重新测试" : "测试连接"}
+              </button>
+            </div>
           </section>
 
           {feedback && (

@@ -2,6 +2,7 @@ import type { SidecarStatus } from "../store/workbenchState";
 import {
   EMPTY_MODEL_CONFIGURATION,
   type ModelConfigurationView,
+  type ProviderConnectionTestResult,
   type SaveModelConfigurationInput,
 } from "../model/modelConfiguration";
 
@@ -95,6 +96,12 @@ export async function deleteModelCredential(): Promise<ModelConfigurationView> {
   if (!isTauriRuntime()) throw new Error("系统凭据只能在原生桌面应用中管理");
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<ModelConfigurationView>("model_configuration_delete_credential");
+}
+
+export async function testModelConnection(): Promise<ProviderConnectionTestResult> {
+  if (!isTauriRuntime()) throw new Error("模型连接测试只能在原生桌面应用中执行");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ProviderConnectionTestResult>("model_configuration_test");
 }
 
 function browserFallbackStatuses(): SidecarStatus[] {

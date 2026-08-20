@@ -76,6 +76,24 @@ describe("Runtime production local RPC", () => {
       params: {},
     })
     expect(health).toMatchObject({ success: true, result: { status: "healthy" } })
+    const providerTestSecret = "runtime-pipe-secret-must-not-return"
+    const providerTest = await runtimeRpc.request({
+      id: "runtime-provider-test",
+      token: runtimeToken,
+      method: "provider.test",
+      params: {
+        provider: "openai-responses",
+        baseUrl: "http://unsafe.example/v1",
+        model: "test-model",
+        apiKey: providerTestSecret,
+        timeoutMs: 10_000,
+      },
+    })
+    expect(providerTest).toMatchObject({
+      success: true,
+      result: { status: "failed", error: { code: "validation-failed" } },
+    })
+    expect(JSON.stringify(providerTest)).not.toContain(providerTestSecret)
     const session = await runtimeRpc.request({
       id: "runtime-session",
       token: runtimeToken,

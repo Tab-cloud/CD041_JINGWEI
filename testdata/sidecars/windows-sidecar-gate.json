@@ -11,7 +11,7 @@
     {
       "kind": "runtime",
       "version": "0.1.0",
-      "sha256": "cb32afbe50f126e19618ad5f8de5ef0f3aa7d3a33e78b177a59cbfd6518ee4b0"
+      "sha256": "6c879d4e7dbb93a1cc199132be2163db0197dc8a90ec36283efa17782c7aad45"
     }
   ],
   "handshakes": {
@@ -26,7 +26,7 @@
       "version": "0.1.0",
       "target": "x86_64-pc-windows-msvc",
       "health": "healthy",
-      "rpcEndpoint": "\\\\.\\pipe\\jingwei-runtime-gate-76f7bc36-d5c1-48e8-8220-b120f9acaf7b"
+      "rpcEndpoint": "\\\\.\\pipe\\jingwei-runtime-gate-8fc8e4f7-1066-416f-bf5c-73556b389a2c"
     }
   },
   "runtimeToDaemon": {

@@ -2,7 +2,8 @@ import { mkdirSync } from "node:fs"
 import { createServer, type Server, type Socket } from "node:net"
 import { dirname } from "node:path"
 import { createInterface } from "node:readline"
-import { createRuntime, GeneratedBindingJdpClient } from "@jingwei/agent-runtime"
+import type { ProviderConnectionTestInput } from "@jingwei/agent-protocol"
+import { createRuntime, GeneratedBindingJdpClient, testProviderConnection } from "@jingwei/agent-runtime"
 import { NamedPipeJdpBinding } from "./named-pipe-jdp.ts"
 
 interface BootstrapConfig {
@@ -88,6 +89,8 @@ async function dispatch(method: string, params: unknown): Promise<unknown> {
     }
     case "artifact.get":
       return runtime.client.getArtifact((params as { artifactId: string }).artifactId)
+    case "provider.test":
+      return testProviderConnection(params as ProviderConnectionTestInput)
     default:
       throw new Error(`Unsupported Runtime RPC method: ${method}`)
   }
@@ -153,7 +156,16 @@ async function handleRpcFrame(socket: Socket, body: Buffer, expectedToken: strin
       success: false,
       error: { code: "runtime-sidecar-error", summary: errorMessage(error) },
     })
+  } finally {
+    scrubProviderTestRequest(request)
+    body.fill(0)
   }
+}
+
+function scrubProviderTestRequest(request: RpcRequest | undefined): void {
+  if (request?.method !== "provider.test" || !request.params || typeof request.params !== "object") return
+  const params = request.params as Record<string, unknown>
+  if (typeof params.apiKey === "string") params.apiKey = ""
 }
 
 function writeFrame(socket: Socket, value: unknown): void {

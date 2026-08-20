@@ -216,6 +216,51 @@ export interface ProviderCapabilities {
   dataPolicy: Record<string, string | boolean>
 }
 
+/**
+ * Internal desktop-to-runtime request used to validate a configured provider.
+ * `apiKey` is transport-only secret material: callers must never persist, log,
+ * emit, or return it.
+ */
+export interface ProviderConnectionTestInput {
+  provider: "openai-responses"
+  baseUrl: string
+  model: string
+  apiKey: string
+  timeoutMs: number
+}
+
+export interface ProviderConnectionTestFailure {
+  code:
+    | "authentication-failed"
+    | "endpoint-not-found"
+    | "network-error"
+    | "provider-unavailable"
+    | "rate-limited"
+    | "request-rejected"
+    | "timeout"
+    | "unsupported-provider"
+    | "validation-failed"
+    | "protocol-error"
+  summary: string
+  retryable: boolean
+  httpStatus?: number
+}
+
+export interface ProviderConnectionTestResult {
+  status: "passed" | "failed"
+  provider: "openai-responses"
+  protocol: "openai-responses"
+  endpointHost: string
+  model: string
+  latencyMs: number
+  testedAt: string
+  usage?: {
+    inputTokens: number
+    outputTokens: number
+  }
+  error?: ProviderConnectionTestFailure
+}
+
 export type FindingSummary = GeneratedFindingSummary
 
 export interface JdpCapabilities {

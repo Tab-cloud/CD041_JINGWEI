@@ -11,3 +11,8 @@ for contracts and fault injection only; neither is silently selected for product
 requires credentials and model limits to be supplied explicitly, disables hidden SDK retries, defaults API-side response
 storage to off, streams text/reasoning/tool calls, and preserves function-call history across continuation turns. The optional
 live contract runs only when both `OPENAI_API_KEY` and `JINGWEI_OPENAI_MODEL` are present.
+
+`testProviderConnection()` backs the desktop `provider.test` RPC. It executes one bounded Responses request with SDK
+retries and provider-side storage disabled, then returns only endpoint host, model, latency, token usage, timestamp, and a
+structured failure classification. It never returns response content, authorization headers, upstream error bodies, or
+credential material.

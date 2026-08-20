@@ -26,6 +26,12 @@ React components consume controller state and commands. They do not import task-
 
 ## Interface-change proposal status
 
-`docs/interface-change-proposals/task-05-model-provider-configuration.md` proposes the Runtime-owned provider profile and live-test contract. The implemented Tauri boundary exposes only non-secret profile metadata, environment-variable presence, and credential-store state to React. A raw API key is accepted only on save, written to Windows Credential Manager, cleared from UI state, and never returned.
+`docs/interface-change-proposals/task-05-model-provider-configuration.md` records the implemented Runtime-owned live-test
+contract. The Tauri boundary exposes only non-secret profile metadata, environment-variable presence, credential-store
+state, and sanitized test evidence to React. A raw API key is accepted only on save, written to Windows Credential Manager,
+cleared from UI state, and never returned.
 
-Task 01 integration must add a credential broker plus `provider.profile.get/apply/test/delete` operations. Only Runtime may resolve the opaque `credentialRef`; JDP and the EDA daemon must not receive provider credentials. Until this contract is implemented, the settings drawer reports live test as skipped or blocked and never calls the commercial endpoint directly.
+The dedicated `model_configuration_test` command resolves the key natively and calls `provider.test` through the
+authenticated local Runtime pipe. React cannot call that internal RPC with arbitrary parameters. Runtime executes the
+Responses request and returns content-free evidence; JDP and the EDA daemon never receive provider credentials. A future
+multi-profile implementation may add profile lifecycle operations without weakening this boundary.
