@@ -5,17 +5,22 @@
 
 ## 输出
 
-干净、已提交的独立 Git 工作树运行 `scripts/package-windows-alpha.ps1` 后，在 `dist/` 生成：
+干净、已提交的独立 Git 工作树运行 `scripts/package-windows-alpha.ps1` 后，只生成一个用户交付文件：
 
-- `Jingwei-Agent_0.1.0_x64-setup.exe`；
-- `jingwei-agent.cdx.json`（CycloneDX 1.5 SBOM）；
-- `THIRD_PARTY_NOTICES.md`；
-- `build-provenance.json`（commit、工具版本、材料哈希和安装包哈希）；
-- `windows-sidecar-gate.json`；
-- `windows-alpha-package-gate.json`。
+- `dist/v0.1.0/Jingwei-Agent_0.1.0_x64-setup.exe`。
+
+自动化验证证据写入忽略的 `target/package-evidence/v0.1.0/`，不与用户交付包混放。
 
 打包前必须验证 manifest 固定的 Runtime/daemon 二进制哈希、协议握手和真实 Runtime→daemon operation 目录。
 脚本拒绝 dirty worktree；Tauri 构建不在打包时重建或替换已固定 sidecar，避免来源证明与提交内容漂移。
+
+## 安装与卸载占用处理
+
+- NSIS 在复制或删除文件前探测 Workbench、Runtime 和 Daemon 三个已安装 EXE 是否被占用。
+- 发现占用时，先提示用户保存编辑并请求 Workbench 正常退出，让 Tauri 生命周期处理器清理两个 sidecar。
+- 对旧版本遗留的孤儿 sidecar 先尝试非强制退出，等待后才清理仍残留的精卫专属进程。
+- 清理完成后再次验证三个文件均已释放；仍被占用时只能重试或取消，禁止忽略文件继续安装。
+- 静默安装执行相同的清理与释放校验，无法完成时以失败退出。
 
 ## 当前发布边界
 

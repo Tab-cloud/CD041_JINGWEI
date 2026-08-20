@@ -1,16 +1,19 @@
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = '',
-    [string]$Version = '0.1.1'
+    [string]$Version = '0.1.0'
 )
 
 $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 }
+if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+    throw "Invalid release version: $Version"
+}
 $repository = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $gitDirectory = Join-Path $repository '.git'
-if (-not (Test-Path -LiteralPath $gitDirectory)) {
+if (-not (Test-Path -LiteralPath $gitDirectory -PathType Container)) {
     throw "Packaging root is not the independent Jingwei Git repository: $repository"
 }
 
@@ -18,32 +21,46 @@ Push-Location $repository
 try {
     $dirty = @(git status --porcelain)
     if ($LASTEXITCODE -ne 0 -or $dirty.Count -ne 0) {
-        throw 'Release provenance requires a clean committed worktree before packaging'
+        throw 'Release packaging requires a clean committed worktree'
     }
-    $commit = (git rev-parse HEAD).Trim()
-    if ($LASTEXITCODE -ne 0) { throw 'Unable to resolve release commit' }
 
-    $dist = Join-Path $repository 'dist'
-    New-Item -ItemType Directory -Path $dist -Force | Out-Null
-    $staleInstalledGatePath = Join-Path $dist 'windows-installed-app-gate.json'
-    $resolvedDist = (Resolve-Path -LiteralPath $dist).Path
-    $resolvedStaleGateParent = (Resolve-Path -LiteralPath (Split-Path -Parent $staleInstalledGatePath)).Path
-    if ($resolvedStaleGateParent -ne $resolvedDist) {
-        throw 'Installed-app gate cleanup escaped the package dist directory'
+    $distRoot = Join-Path $repository 'dist'
+    New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
+    $resolvedDistRoot = (Resolve-Path -LiteralPath $distRoot).Path
+    $versionDist = Join-Path $resolvedDistRoot "v$Version"
+    New-Item -ItemType Directory -Path $versionDist -Force | Out-Null
+    $resolvedVersionDist = (Resolve-Path -LiteralPath $versionDist).Path
+    if ((Split-Path -Parent $resolvedVersionDist) -ne $resolvedDistRoot) {
+        throw 'Versioned package directory escaped dist'
     }
-    if (Test-Path -LiteralPath $staleInstalledGatePath -PathType Leaf) {
-        Remove-Item -LiteralPath $staleInstalledGatePath -Force
-    }
-    Get-ChildItem -LiteralPath $dist -Filter 'Jingwei-Agent_*_x64-setup.exe' -File |
-        Where-Object { $_.Name -ne "Jingwei-Agent_${Version}_x64-setup.exe" } |
-        ForEach-Object {
-            if ((Resolve-Path -LiteralPath $_.DirectoryName).Path -ne $resolvedDist) {
-                throw 'Installer cleanup escaped the package dist directory'
-            }
-            Remove-Item -LiteralPath $_.FullName -Force
+
+    # Remove legacy top-level package outputs and stale files for this exact
+    # version. This leaves dist/v<version> with one user-facing EXE only.
+    foreach ($file in @(Get-ChildItem -LiteralPath $resolvedDistRoot -File)) {
+        if ((Resolve-Path -LiteralPath $file.DirectoryName).Path -ne $resolvedDistRoot) {
+            throw 'Top-level package cleanup escaped dist'
         }
-    $sidecarGatePath = Join-Path $dist 'windows-sidecar-gate.json'
-    & (Join-Path $repository 'scripts\verify-windows-sidecars.ps1') -RepositoryRoot $repository -ReportPath $sidecarGatePath
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+    foreach ($file in @(Get-ChildItem -LiteralPath $resolvedVersionDist -File)) {
+        if ((Resolve-Path -LiteralPath $file.DirectoryName).Path -ne $resolvedVersionDist) {
+            throw 'Version package cleanup escaped its owned directory'
+        }
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+    if (@(Get-ChildItem -LiteralPath $resolvedVersionDist -Directory -Force).Count -ne 0) {
+        throw 'Versioned package directory contains unexpected subdirectories'
+    }
+
+    & (Join-Path $repository 'scripts\verify-windows-installer-hooks.ps1') `
+        -RepositoryRoot $repository -ExpectedVersion $Version
+    if ($LASTEXITCODE -ne 0) { throw 'Windows installer lifecycle hook verification failed' }
+
+    $evidenceDirectory = Join-Path $repository "target\package-evidence\v$Version"
+    New-Item -ItemType Directory -Path $evidenceDirectory -Force | Out-Null
+    $sidecarGatePath = Join-Path $evidenceDirectory 'windows-sidecar-gate.json'
+    & (Join-Path $repository 'scripts\verify-windows-sidecars.ps1') `
+        -RepositoryRoot $repository -ReportPath $sidecarGatePath
     if ($LASTEXITCODE -ne 0) { throw 'Pinned sidecar verification failed' }
 
     Push-Location (Join-Path $repository 'app')
@@ -64,160 +81,18 @@ try {
     if ($installers.Count -ne 1) {
         throw "Expected exactly one NSIS installer for version $Version, found $($installers.Count)"
     }
-    $installer = $installers[0]
-    $distInstaller = Join-Path $dist "Jingwei-Agent_${Version}_x64-setup.exe"
-    Copy-Item -LiteralPath $installer.FullName -Destination $distInstaller -Force
 
-    $rootMetadata = cargo metadata --format-version 1 --locked
-    if ($LASTEXITCODE -ne 0) { throw 'Root Cargo metadata collection failed' }
-    $tauriMetadata = cargo metadata --format-version 1 --locked --manifest-path (Join-Path $repository 'app\src-tauri\Cargo.toml')
-    if ($LASTEXITCODE -ne 0) { throw 'Tauri Cargo metadata collection failed' }
-    $pnpmLicenses = pnpm licenses list --json --prod
-    if ($LASTEXITCODE -ne 0) { throw 'pnpm license inventory failed' }
+    $distInstaller = Join-Path $resolvedVersionDist "Jingwei-Agent_${Version}_x64-setup.exe"
+    Copy-Item -LiteralPath $installers[0].FullName -Destination $distInstaller -Force
+    $versionInfo = (Get-Item -LiteralPath $distInstaller).VersionInfo
+    if ($versionInfo.FileVersion -ne $Version -or $versionInfo.ProductVersion -ne $Version) {
+        throw "Installer version metadata does not match $Version"
+    }
+    $outputs = @(Get-ChildItem -LiteralPath $resolvedVersionDist -Force)
+    if ($outputs.Count -ne 1 -or $outputs[0].FullName -ne $distInstaller -or $outputs[0].Extension -ne '.exe') {
+        throw 'Versioned dist must contain exactly one installer EXE'
+    }
 
-    $components = [Collections.Generic.List[object]]::new()
-    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    foreach ($metadataText in @($rootMetadata, $tauriMetadata)) {
-        $metadata = $metadataText | ConvertFrom-Json
-        foreach ($package in $metadata.packages) {
-            $key = "cargo:$($package.name)@$($package.version)"
-            if ($seen.Add($key)) {
-                $components.Add([ordered]@{
-                    type = 'library'
-                    name = $package.name
-                    version = $package.version
-                    purl = "pkg:cargo/$($package.name)@$($package.version)"
-                    licenses = @([ordered]@{ license = [ordered]@{ name = if ($package.license) { $package.license } else { 'NOASSERTION' } } })
-                })
-            }
-        }
-    }
-    $licenseGroups = $pnpmLicenses | ConvertFrom-Json
-    foreach ($licenseProperty in $licenseGroups.PSObject.Properties) {
-        foreach ($package in $licenseProperty.Value) {
-            foreach ($packageVersion in $package.versions) {
-                $key = "npm:$($package.name)@$packageVersion"
-                if ($seen.Add($key)) {
-                    $components.Add([ordered]@{
-                        type = 'library'
-                        name = $package.name
-                        version = $packageVersion
-                        purl = "pkg:npm/$([Uri]::EscapeDataString($package.name))@$packageVersion"
-                        licenses = @([ordered]@{ license = [ordered]@{ name = $licenseProperty.Name } })
-                    })
-                }
-            }
-        }
-    }
-    $orderedComponents = @($components | Sort-Object name, version, purl)
-    $timestamp = [DateTime]::UtcNow.ToString('o')
-    $sbom = [ordered]@{
-        bomFormat = 'CycloneDX'
-        specVersion = '1.5'
-        serialNumber = "urn:uuid:$([Guid]::NewGuid())"
-        version = 1
-        metadata = [ordered]@{
-            timestamp = $timestamp
-            component = [ordered]@{ type = 'application'; name = 'Jingwei Agent'; version = $Version }
-        }
-        components = $orderedComponents
-    }
-    $sbomPath = Join-Path $dist 'jingwei-agent.cdx.json'
-    $sbom | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $sbomPath -Encoding utf8
-
-    $noticeLines = [Collections.Generic.List[string]]::new()
-    $noticeLines.Add('# Jingwei Agent third-party dependency notice')
-    $noticeLines.Add('')
-    $noticeLines.Add("Generated from locked Cargo and pnpm dependency metadata for $commit.")
-    $noticeLines.Add('This inventory identifies declared licenses; the corresponding upstream license texts remain authoritative.')
-    $noticeLines.Add('')
-    foreach ($component in $orderedComponents) {
-        $licenseId = $component.licenses[0].license.name
-        $noticeLines.Add("- $($component.name) $($component.version) — $licenseId")
-    }
-    $noticePath = Join-Path $dist 'THIRD_PARTY_NOTICES.md'
-    $noticeLines | Set-Content -LiteralPath $noticePath -Encoding utf8
-
-    $signature = Get-AuthenticodeSignature -LiteralPath $distInstaller
-    $installerHash = (Get-FileHash -LiteralPath $distInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
-    $sidecarManifestPath = Join-Path $repository 'app\src-tauri\sidecars\manifest.json'
-    $materials = @(
-        'Cargo.lock',
-        'pnpm-lock.yaml',
-        'app/src-tauri/Cargo.lock',
-        'app/src-tauri/sidecars/manifest.json'
-    ) | ForEach-Object {
-        $path = Join-Path $repository ($_ -replace '/', '\')
-        [ordered]@{
-            path = $_
-            sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
-        }
-    }
-    $provenance = [ordered]@{
-        schemaVersion = 'jingwei-build-provenance/0.1'
-        subject = @([ordered]@{
-            name = (Split-Path -Leaf $distInstaller)
-            sha256 = $installerHash
-            sizeBytes = (Get-Item -LiteralPath $distInstaller).Length
-        })
-        build = [ordered]@{
-            gitCommit = $commit
-            gitWorktreeClean = $true
-            target = 'x86_64-pc-windows-msvc'
-            generatedAt = $timestamp
-            rustc = (rustc --version)
-            cargo = (cargo --version)
-            node = (node --version)
-            pnpm = (pnpm --version)
-            bun = (bun --version)
-        }
-        materials = $materials
-        sidecarManifestSha256 = (Get-FileHash -LiteralPath $sidecarManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        authenticode = [ordered]@{
-            status = $signature.Status.ToString()
-            signer = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { $null }
-        }
-        productionRelease = $false
-        openGates = @(
-            'Authenticode organization signing certificate is not configured',
-            'signed updater and rollback channel are not configured',
-            'manufacturer DFM and physical prototype evidence are not available',
-            'organization Production Release signature is not available'
-        )
-    }
-    $provenancePath = Join-Path $dist 'build-provenance.json'
-    $provenance | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $provenancePath -Encoding utf8
-
-    $gate = [ordered]@{
-        schemaVersion = 'jingwei-windows-alpha-package-gate/0.1'
-        installer = [ordered]@{
-            path = (Split-Path -Leaf $distInstaller)
-            sha256 = $installerHash
-            sizeBytes = (Get-Item -LiteralPath $distInstaller).Length
-            authenticode = $signature.Status.ToString()
-        }
-        sbom = [ordered]@{
-            path = (Split-Path -Leaf $sbomPath)
-            componentCount = $orderedComponents.Count
-            sha256 = (Get-FileHash -LiteralPath $sbomPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        }
-        thirdPartyNotices = [ordered]@{
-            path = (Split-Path -Leaf $noticePath)
-            sha256 = (Get-FileHash -LiteralPath $noticePath -Algorithm SHA256).Hash.ToLowerInvariant()
-        }
-        provenance = [ordered]@{
-            path = (Split-Path -Leaf $provenancePath)
-            gitCommit = $commit
-        }
-        sidecarGate = 'passed'
-        commercialOpenAiLiveTest = [ordered]@{
-            status = 'skipped'
-            reason = 'OPENAI_API_KEY and JINGWEI_OPENAI_MODEL are not set'
-        }
-        productionRelease = $false
-    }
-    $gatePath = Join-Path $dist 'windows-alpha-package-gate.json'
-    $gate | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $gatePath -Encoding utf8
     Write-Output $distInstaller
 }
 finally {
