@@ -20,6 +20,7 @@ use zeroize::Zeroize;
 
 const EXPECTED_PROTOCOL_VERSION: &str = "0.1";
 const MAX_HANDSHAKE_BYTES: usize = 4096;
+const MAX_SIDECAR_DIAGNOSTIC_CHARS: usize = 512;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -565,6 +566,7 @@ fn start_sidecar(
     let runtime_pipe_name = bootstrap.runtime_pipe_name.clone();
     tauri::async_runtime::spawn(async move {
         let mut handshake_complete = false;
+        let mut stderr_diagnostic = String::new();
         while let Some(event) = events.recv().await {
             match event {
                 CommandEvent::Stdout(bytes) if !handshake_complete => {
@@ -602,11 +604,18 @@ fn start_sidecar(
                         }
                     }
                 }
+                CommandEvent::Stderr(bytes) => {
+                    append_sidecar_diagnostic(&mut stderr_diagnostic, &bytes);
+                }
                 CommandEvent::Terminated(payload) => {
-                    let reason = format!(
+                    let mut reason = format!(
                         "进程退出 code={:?} signal={:?}",
                         payload.code, payload.signal
                     );
+                    if !stderr_diagnostic.is_empty() {
+                        reason.push_str("; diagnostic=");
+                        reason.push_str(&stderr_diagnostic);
+                    }
                     fail_sidecar(&monitor_app, &entry, &reason, "crashed");
                     break;
                 }
@@ -615,6 +624,22 @@ fn start_sidecar(
         }
     });
     Ok(())
+}
+
+fn append_sidecar_diagnostic(current: &mut String, bytes: &[u8]) {
+    let incoming = String::from_utf8_lossy(bytes);
+    let combined = if current.is_empty() {
+        incoming.into_owned()
+    } else {
+        format!("{current} {incoming}")
+    };
+    *current = combined
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(MAX_SIDECAR_DIAGNOSTIC_CHARS)
+        .collect();
 }
 
 fn fail_sidecar(app: &AppHandle, entry: &SidecarEntry, reason: &str, state: &str) {
@@ -940,6 +965,16 @@ mod tests {
         assert_eq!(mismatch.reason.as_deref(), Some("bad handshake"));
         assert_eq!(crashed.state, "crashed");
         assert_eq!(crashed.reason.as_deref(), Some("exit code 9"));
+    }
+
+    #[test]
+    fn sidecar_diagnostics_are_single_line_and_bounded() {
+        let mut diagnostic = String::new();
+        append_sidecar_diagnostic(&mut diagnostic, b"owner lease\n");
+        append_sidecar_diagnostic(&mut diagnostic, &vec![b'x'; 600]);
+        assert!(diagnostic.starts_with("owner lease "));
+        assert!(!diagnostic.contains('\n'));
+        assert_eq!(diagnostic.chars().count(), MAX_SIDECAR_DIAGNOSTIC_CHARS);
     }
 
     #[test]

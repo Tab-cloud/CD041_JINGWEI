@@ -5,6 +5,7 @@ import { createInterface } from "node:readline"
 import type { ProviderConnectionTestInput } from "@jingwei/agent-protocol"
 import { createRuntime, GeneratedBindingJdpClient, testProviderConnection } from "@jingwei/agent-runtime"
 import { NamedPipeJdpBinding } from "./named-pipe-jdp.ts"
+import { recoverWhenOwnerLeaseAvailable } from "./runtime-startup.ts"
 
 interface BootstrapConfig {
   bootstrapToken: string
@@ -42,7 +43,7 @@ const runtime = await createRuntime({
   jdpClient: new GeneratedBindingJdpClient(binding),
   policyRules: [],
 })
-await runtime.recovery.recover()
+await recoverWhenOwnerLeaseAvailable(runtime.recovery)
 const heartbeat = setInterval(() => runtime.recovery.heartbeat(), 5_000)
 
 const server = createServer((socket) => serveRpcConnection(socket, bootstrap.bootstrapToken))

@@ -13,6 +13,21 @@ afterEach(() => {
 })
 
 describe("restart reconciliation", () => {
+  test("clean disposal releases the owner lease for an immediate restart", async () => {
+    const path = tempDatabase()
+    const first = await runtimeKit(path)
+    const second = await runtimeKit(path)
+    await first.recovery.recover()
+    await expect(second.recovery.recover()).rejects.toThrow("Another live runtime process")
+
+    first[Symbol.dispose]()
+    try {
+      expect(await second.recovery.recover()).toEqual([])
+    } finally {
+      second[Symbol.dispose]()
+    }
+  })
+
   test("discards unfinished provider streams and requeues their root run", async () => {
     const kit = await runtimeKit()
     try {

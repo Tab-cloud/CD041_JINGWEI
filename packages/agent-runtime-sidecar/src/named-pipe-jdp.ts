@@ -217,7 +217,7 @@ function writeFrame(socket: Socket, value: unknown): void {
 
 async function connectWithRetry(pipeName: string): Promise<Socket> {
   let lastError: unknown
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     try {
       return await new Promise<Socket>((resolve, reject) => {
         const socket = createConnection(pipeName)
@@ -226,7 +226,7 @@ async function connectWithRetry(pipeName: string): Promise<Socket> {
       })
     } catch (error) {
       lastError = error
-      await Bun.sleep(50)
+      await Bun.sleep(100)
     }
   }
   throw new Error(`Rust daemon named pipe unavailable: ${String(lastError)}`)

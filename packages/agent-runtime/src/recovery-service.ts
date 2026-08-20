@@ -24,6 +24,13 @@ export interface RecoveryDependencies {
   resumeRecorded?: (execution: ToolExecutionView) => Promise<void>
 }
 
+export class RuntimeOwnerLeaseConflictError extends Error {
+  constructor(message = "Another live runtime process owns the recovery lease") {
+    super(message)
+    this.name = "RuntimeOwnerLeaseConflictError"
+  }
+}
+
 export class RecoveryService {
   readonly processEpoch = crypto.randomUUID()
 
@@ -34,7 +41,7 @@ export class RecoveryService {
 
   async recover(): Promise<RecoveryAction[]> {
     if (!this.dependencies.repository.acquireOwnerLease(this.processEpoch, this.leaseTtlMs)) {
-      throw new Error("Another live runtime process owns the recovery lease")
+      throw new RuntimeOwnerLeaseConflictError()
     }
     const actions: RecoveryAction[] = []
     this.dependencies.events.append({
@@ -114,5 +121,9 @@ export class RecoveryService {
 
   heartbeat(): boolean {
     return this.dependencies.repository.heartbeatOwnerLease(this.processEpoch, this.leaseTtlMs)
+  }
+
+  release(): boolean {
+    return this.dependencies.repository.releaseOwnerLease(this.processEpoch)
   }
 }

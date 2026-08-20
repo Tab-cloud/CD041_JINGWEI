@@ -131,6 +131,31 @@ try {
         if ($required -notin $operations) { throw "Integrated daemon capability missing from Runtime: $required" }
     }
 
+    # Reproduce the installed-app upgrade path: the installer may have to kill
+    # a wedged Runtime, leaving its durable owner lease valid for a few seconds.
+    # A replacement Runtime must wait for that lease rather than exit code 1.
+    $runtime.Kill($true)
+    if (-not $runtime.WaitForExit(5000)) { throw 'Unable to stop the first Runtime sidecar for restart verification' }
+    $runtime.Dispose()
+    $runtime = $null
+    $runtimeToken = "runtime-$([Guid]::NewGuid())-$([Guid]::NewGuid())"
+    $runtimePipeName = "\\.\pipe\jingwei-runtime-restart-$([Guid]::NewGuid())"
+    $bootstrap.bootstrapToken = $runtimeToken
+    $bootstrap.runtimePipeName = $runtimePipeName
+    $restartTimer = [Diagnostics.Stopwatch]::StartNew()
+    $runtime = New-RedirectedProcess $runtimePath @()
+    $runtime.StandardInput.WriteLine(($bootstrap | ConvertTo-Json -Compress))
+    $runtime.StandardInput.Flush()
+    $restartHandshake = Read-JsonLine $runtime 'runtime persistent restart'
+    $restartTimer.Stop()
+    if ($restartHandshake.health -ne 'healthy' -or
+        $restartHandshake.protocolVersion -ne $manifest.protocolVersion -or
+        $restartHandshake.rpcEndpoint -ne $runtimePipeName) {
+        throw 'Runtime failed to recover its persistent database after a killed predecessor'
+    }
+    $restartCapabilities = Invoke-RuntimePipeRpc $runtimePipeName $runtimeToken 'capabilities'
+    if (-not $restartCapabilities.success) { throw 'Restarted Runtime capabilities RPC failed' }
+
     $evidence = [ordered]@{
         schemaVersion = 'jingwei-windows-sidecar-gate-v0.1'
         target = $manifest.target
@@ -152,6 +177,12 @@ try {
                 'workspace.capabilities'
             )
             reconciliation = $capabilityResponse.result.jdp.reconciliation
+        }
+        killedRuntimePersistentRestart = [ordered]@{
+            status = 'passed'
+            elapsedMs = $restartTimer.ElapsedMilliseconds
+            sameDatabase = $true
+            handshake = $restartHandshake
         }
         commercialOpenAiLiveTest = [ordered]@{
             status = 'skipped'

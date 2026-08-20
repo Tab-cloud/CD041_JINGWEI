@@ -13,6 +13,9 @@
 !ifndef JINGWEI_DAEMON_IMAGE
   !define JINGWEI_DAEMON_IMAGE "jingwei-daemon-x86_64-pc-windows-msvc.exe"
 !endif
+!ifndef JINGWEI_LEGACY_UNINSTALL_KEY
+  !define JINGWEI_LEGACY_UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Jingwei Agent Dev"
+!endif
 
 Function JingweiInstalledExecutablesLocked
   Push $R0
@@ -110,6 +113,51 @@ jingwei_ready:
   StrCpy $R1 "0"
 
 jingwei_ensure_done:
+  StrCpy $R0 $R1
+  Pop $R1
+  Exch $R0
+FunctionEnd
+
+Function JingweiRemoveLegacyDevInstallation
+  Push $R0
+  Push $R1
+
+jingwei_legacy_probe:
+  ClearErrors
+  ReadRegStr $R0 HKCU "${JINGWEI_LEGACY_UNINSTALL_KEY}" "UninstallString"
+  StrCmp $R0 "" jingwei_legacy_ready
+
+  IfSilent jingwei_legacy_run
+  MessageBox MB_OKCANCEL|MB_ICONINFORMATION \
+    "检测到旧版 Jingwei Agent Dev。安装程序将先卸载旧版并移除其快捷方式，然后安装 Jingwei Agent；模型非敏感配置会按既有迁移规则保留。" \
+    IDOK jingwei_legacy_run IDCANCEL jingwei_legacy_cancelled
+
+jingwei_legacy_run:
+  ; The legacy package may live in a different directory, so the target-file
+  ; lock probe above cannot see it. Stop only Jingwei-owned image names before
+  ; invoking its uninstaller.
+  Call JingweiStopInstalledProcesses
+  ClearErrors
+  ExecWait '$R0 /S' $R1
+  Sleep 1000
+  ReadRegStr $R0 HKCU "${JINGWEI_LEGACY_UNINSTALL_KEY}" "UninstallString"
+  StrCmp $R0 "" jingwei_legacy_ready
+
+  IfSilent jingwei_legacy_cancelled
+  MessageBox MB_RETRYCANCEL|MB_ICONSTOP \
+    "旧版 Jingwei Agent Dev 未能完整卸载。请关闭旧版程序后重试；安装不会创建第二套并存软件。" \
+    IDRETRY jingwei_legacy_probe IDCANCEL jingwei_legacy_cancelled
+
+jingwei_legacy_cancelled:
+  StrCpy $R1 "1"
+  Goto jingwei_legacy_done
+
+jingwei_legacy_ready:
+  Delete "$DESKTOP\Jingwei Agent Dev.lnk"
+  Delete "$SMPROGRAMS\Jingwei Agent Dev.lnk"
+  StrCpy $R1 "0"
+
+jingwei_legacy_done:
   StrCpy $R0 $R1
   Pop $R1
   Exch $R0
@@ -218,6 +266,7 @@ FunctionEnd
 
 !macro NSIS_HOOK_PREINSTALL
   !insertmacro JINGWEI_ENSURE_STOPPED_OR_ABORT JingweiEnsureInstalledProcessesStopped
+  !insertmacro JINGWEI_ENSURE_STOPPED_OR_ABORT JingweiRemoveLegacyDevInstallation
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL

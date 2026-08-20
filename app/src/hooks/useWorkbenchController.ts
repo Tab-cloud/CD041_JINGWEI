@@ -14,7 +14,7 @@ import type {
 } from "../clients/contracts";
 import { createWorkbenchClients } from "../clients/clientFactory";
 import { loadRecovery, saveRecovery } from "../store/recovery";
-import { initialWorkbenchState, type ToolMode, workbenchReducer } from "../store/workbenchState";
+import { initialWorkbenchState, type SidecarStatus, type ToolMode, workbenchReducer } from "../store/workbenchState";
 import { chooseProjectFolder, ensureSidecars, getSidecarStatuses } from "../utils/tauriBridge";
 import type { CanvasIntent } from "../components/SemanticCanvas";
 
@@ -71,12 +71,9 @@ export function useWorkbenchController() {
     const initialize = async () => {
       try {
         const recovery = loadRecovery();
-        let sidecars = clients.mode === "real" ? await ensureSidecars() : await getSidecarStatuses();
-        for (const delayMs of [100, 250, 500, 1_000, 2_000]) {
-          if (sidecars.every((sidecar) => sidecar.state !== "starting")) break;
-          await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
-          sidecars = await getSidecarStatuses();
-        }
+        const sidecars = clients.mode === "real"
+          ? await waitForSidecarSettlement(ensureSidecars, getSidecarStatuses)
+          : await getSidecarStatuses();
         if (clients.mode === "real" && !sidecars.every((sidecar) => sidecar.state === "healthy")) {
           throw new Error(sidecars.map((sidecar) => `${sidecar.kind}: ${sidecar.reason ?? sidecar.state}`).join("；"));
         }
@@ -378,14 +375,8 @@ export function useWorkbenchController() {
 
   const refreshSidecars = useCallback(async () => {
     try {
-      let sidecars = await ensureSidecars();
+      const sidecars = await waitForSidecarSettlement(ensureSidecars, getSidecarStatuses);
       dispatch({ type: "set-sidecars", sidecars });
-      for (const delayMs of [250, 750, 1_500]) {
-        if (sidecars.every((sidecar) => sidecar.state !== "starting")) break;
-        await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
-        sidecars = await getSidecarStatuses();
-        dispatch({ type: "set-sidecars", sidecars });
-      }
       const allHealthy = sidecars.length > 0 && sidecars.every((sidecar) => sidecar.state === "healthy");
       dispatch({
         type: "notice",
@@ -479,4 +470,33 @@ export async function waitForTransportReadiness(runtime: RuntimeClient, design: 
     }
   }
   throw new Error(`真实 transport 启动超时：${errorMessage(lastError)}`);
+}
+
+interface SidecarSettlementOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+  now?: () => number;
+  sleep?: (milliseconds: number) => Promise<void>;
+}
+
+export async function waitForSidecarSettlement(
+  start: () => Promise<SidecarStatus[]>,
+  refresh: () => Promise<SidecarStatus[]>,
+  options: SidecarSettlementOptions = {},
+): Promise<SidecarStatus[]> {
+  const timeoutMs = options.timeoutMs ?? 35_000;
+  const pollIntervalMs = options.pollIntervalMs ?? 250;
+  const now = options.now ?? Date.now;
+  const sleep = options.sleep
+    ?? ((milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds)));
+  const deadline = now() + timeoutMs;
+  let sidecars = await start();
+
+  while (sidecars.some((sidecar) => sidecar.state === "starting")) {
+    const remaining = deadline - now();
+    if (remaining <= 0) break;
+    await sleep(Math.min(pollIntervalMs, remaining));
+    sidecars = await refresh();
+  }
+  return sidecars;
 }

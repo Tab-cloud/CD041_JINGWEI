@@ -7,14 +7,14 @@
       "kind": "runtime",
       "relativePath": "bin/jingwei-agent-runtime-x86_64-pc-windows-msvc.exe",
       "version": "0.1.0",
-      "sha256": "6c879d4e7dbb93a1cc199132be2163db0197dc8a90ec36283efa17782c7aad45",
+      "sha256": "525cc4f15eb820260c4be9a129ec3c25a27bd638101760cf5a1f4b142558fdd6",
       "bundled": true
     },
     {
       "kind": "daemon",
       "relativePath": "bin/jingwei-daemon-x86_64-pc-windows-msvc.exe",
       "version": "0.1.0",
-      "sha256": "9d705cb27b156be122881516201e0582f84092ebfc1ba43516718c79717eb12e",
+      "sha256": "2ee846eb3f112569e8007f6270d1c0e2e7a22c910aba1bf54bda703d9984d37e",
       "bundled": true
     }
   ]

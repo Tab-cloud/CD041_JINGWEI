@@ -55,6 +55,9 @@ try {
     & (Join-Path $repository 'scripts\verify-windows-installer-hooks.ps1') `
         -RepositoryRoot $repository -ExpectedVersion $Version
     if ($LASTEXITCODE -ne 0) { throw 'Windows installer lifecycle hook verification failed' }
+    & (Join-Path $repository 'scripts\test-windows-installer-lock-cleanup.ps1') `
+        -RepositoryRoot $repository
+    if ($LASTEXITCODE -ne 0) { throw 'Windows installer lifecycle live test failed' }
 
     $evidenceDirectory = Join-Path $repository "target\package-evidence\v$Version"
     New-Item -ItemType Directory -Path $evidenceDirectory -Force | Out-Null

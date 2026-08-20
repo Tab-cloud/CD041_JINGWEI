@@ -1,12 +1,33 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DesignClient, RuntimeClient } from "../clients/contracts";
-import { waitForTransportReadiness } from "./useWorkbenchController";
+import { waitForSidecarSettlement, waitForTransportReadiness } from "./useWorkbenchController";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("installed workbench transport readiness", () => {
+  it("allows a killed Runtime lease to expire before declaring startup failure", async () => {
+    let clock = 0;
+    const refresh = vi.fn()
+      .mockResolvedValueOnce([{ kind: "runtime", state: "starting" }])
+      .mockResolvedValueOnce([{ kind: "runtime", state: "healthy" }]);
+
+    const sidecars = await waitForSidecarSettlement(
+      async () => [{ kind: "runtime", state: "starting" }],
+      refresh,
+      {
+        timeoutMs: 20_000,
+        pollIntervalMs: 5_000,
+        now: () => clock,
+        sleep: async (milliseconds) => { clock += milliseconds; },
+      },
+    );
+
+    expect(sidecars).toEqual([{ kind: "runtime", state: "healthy" }]);
+    expect(clock).toBe(10_000);
+  });
+
   it("retries read-only capability probes before any project or session mutation", async () => {
     vi.useFakeTimers();
     const runtimeCapabilities = vi.fn()

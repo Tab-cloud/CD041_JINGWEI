@@ -53,6 +53,7 @@ export interface RuntimeRepository {
   listIncompleteAttempts(): ModelAttemptRecord[]
   acquireOwnerLease(processEpoch: string, ttlMs: number): boolean
   heartbeatOwnerLease(processEpoch: string, ttlMs: number): boolean
+  releaseOwnerLease(processEpoch: string): boolean
 }
 
 export class SqliteRuntimeRepository implements RuntimeRepository, Disposable {
@@ -352,6 +353,13 @@ export class SqliteRuntimeRepository implements RuntimeRepository, Disposable {
          WHERE singleton = 1 AND process_epoch = ?`,
       )
       .run(now + ttlMs, now, processEpoch)
+    return result.changes === 1
+  }
+
+  releaseOwnerLease(processEpoch: string): boolean {
+    const result = this.database
+      .query("DELETE FROM runtime_owner_lease WHERE singleton = 1 AND process_epoch = ?")
+      .run(processEpoch)
     return result.changes === 1
   }
 

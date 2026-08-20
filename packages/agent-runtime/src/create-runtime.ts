@@ -92,6 +92,7 @@ export async function createRuntime(options: RuntimeFactoryOptions): Promise<Run
     repository,
     executions,
     [Symbol.dispose]: () => {
+      recovery.release()
       artifacts.close()
       executions.close()
       approvalRepository.close()
