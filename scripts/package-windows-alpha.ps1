@@ -25,6 +25,15 @@ try {
 
     $dist = Join-Path $repository 'dist'
     New-Item -ItemType Directory -Path $dist -Force | Out-Null
+    $staleInstalledGatePath = Join-Path $dist 'windows-installed-app-gate.json'
+    $resolvedDist = (Resolve-Path -LiteralPath $dist).Path
+    $resolvedStaleGateParent = (Resolve-Path -LiteralPath (Split-Path -Parent $staleInstalledGatePath)).Path
+    if ($resolvedStaleGateParent -ne $resolvedDist) {
+        throw 'Installed-app gate cleanup escaped the package dist directory'
+    }
+    if (Test-Path -LiteralPath $staleInstalledGatePath -PathType Leaf) {
+        Remove-Item -LiteralPath $staleInstalledGatePath -Force
+    }
     $sidecarGatePath = Join-Path $dist 'windows-sidecar-gate.json'
     & (Join-Path $repository 'scripts\verify-windows-sidecars.ps1') -RepositoryRoot $repository -ReportPath $sidecarGatePath
     if ($LASTEXITCODE -ne 0) { throw 'Pinned sidecar verification failed' }

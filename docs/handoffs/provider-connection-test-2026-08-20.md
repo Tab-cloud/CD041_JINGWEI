@@ -40,6 +40,8 @@ credential-bearing internal request. JDP and `jingwei-daemon` are not involved.
 - Runtime `provider.test`: success, sanitized 401 failure, unsafe endpoint rejection, authenticated pipe dispatch, and secret
   non-return assertions passed.
 - Light and dark model-drawer layouts were visually checked at the desktop breakpoint.
+- Alpha packaging removes any previous `windows-installed-app-gate.json`; installed-app evidence is build-specific and must
+  not survive into a package produced from a different installer hash or Git commit.
 
 ## Truthful remaining gate
 
