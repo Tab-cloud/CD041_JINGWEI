@@ -16,6 +16,7 @@ export default function App() {
   const { theme, toggleTheme } = useTheme();
   const sidecarsHealthy = state.sidecars.length > 0 && state.sidecars.every((sidecar) => sidecar.state === "healthy");
   const realData = state.runtimeCapabilities?.mode === "real" && state.designCapabilities?.mode === "real";
+  const providerReady = (state.runtimeCapabilities?.providers.length ?? 0) > 0;
 
   if (state.loading) {
     return (
@@ -57,6 +58,7 @@ export default function App() {
         theme={theme}
         undoAvailable={state.undoAvailable}
         realData={realData}
+        providerReady={providerReady}
       />
 
       <div className="connection-ribbon">
@@ -117,6 +119,7 @@ export default function App() {
         onTabChange={actions.setBottomTab}
         project={state.project}
         proposal={state.patchProposal}
+        providerReady={providerReady}
         run={state.run}
       />
 
@@ -124,6 +127,7 @@ export default function App() {
       <ModelSettingsDrawer
         onClose={() => setModelSettingsOpen(false)}
         open={modelSettingsOpen}
+        onProviderApplied={() => void actions.refreshRuntimeCapabilities()}
         runtimeAvailable={state.sidecars.some((sidecar) => sidecar.kind === "runtime" && sidecar.state === "healthy")}
       />
 

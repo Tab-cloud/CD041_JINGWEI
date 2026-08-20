@@ -1,4 +1,4 @@
-export type ModelProviderId = "openai-responses";
+export type ModelProviderId = "openai-responses" | "openai-chat-completions";
 
 export interface ModelProviderProfile {
   schemaVersion: string;
@@ -44,8 +44,8 @@ export interface LiveTestReadiness {
 
 export interface ProviderConnectionTestResult {
   status: "passed" | "failed";
-  provider: "openai-responses";
-  protocol: "openai-responses";
+  provider: ModelProviderId;
+  protocol: ModelProviderId;
   endpointHost: string;
   model: string;
   latencyMs: number;
@@ -60,6 +60,11 @@ export interface ProviderConnectionTestResult {
     retryable: boolean;
     httpStatus?: number;
   };
+}
+
+export interface ProviderApplicationResult {
+  configured: boolean;
+  providers: Array<{ provider: string; model: string }>;
 }
 
 export const EMPTY_MODEL_CONFIGURATION: ModelConfigurationView = {
@@ -90,7 +95,9 @@ export function draftFromConfiguration(view: ModelConfigurationView): ModelConfi
 }
 
 export function validateModelConfigurationDraft(draft: ModelConfigurationDraft): string | undefined {
-  if (draft.provider !== "openai-responses") return "当前版本只支持 OpenAI Responses provider";
+  if (!(["openai-responses", "openai-chat-completions"] as string[]).includes(draft.provider)) {
+    return "请选择受支持的模型接口协议";
+  }
   const model = draft.model.trim();
   if (!model || model.length > 128 || !/^[-A-Za-z0-9._/:]+$/u.test(model)) {
     return "请输入有效的模型 ID";
@@ -114,6 +121,21 @@ export function validateModelConfigurationDraft(draft: ModelConfigurationDraft):
   const hasNonAsciiCharacter = apiKeyCharacters.some((character) => (character.codePointAt(0) ?? 0) > 127);
   if (draft.apiKey && (draft.apiKey !== draft.apiKey.trim() || draft.apiKey.length < 8 || draft.apiKey.length > 2560 || hasControlCharacter || hasNonAsciiCharacter)) {
     return "API Key 格式无效";
+  }
+  return undefined;
+}
+
+export function providerCompatibilityHint(draft: ModelConfigurationDraft): string | undefined {
+  try {
+    const host = new URL(draft.baseUrl.trim()).hostname.toLowerCase();
+    if (host === "api.minimaxi.com" && draft.provider === "openai-responses") {
+      return "MiniMax 官方 OpenAI 兼容端点使用 Chat Completions；请选择 OpenAI-compatible Chat Completions。";
+    }
+    if (host === "api.minimaxi.com" && draft.model.trim().toLowerCase() === "minimax-m3" && draft.model.trim() !== "MiniMax-M3") {
+      return "MiniMax 模型 ID 区分大小写；请使用官方模型 ID MiniMax-M3。";
+    }
+  } catch {
+    return undefined;
   }
   return undefined;
 }

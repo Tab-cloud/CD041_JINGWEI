@@ -314,12 +314,26 @@ export function useWorkbenchController() {
 
   const submitAgentInput = useCallback(async (text: string, delivery: "steer" | "queue") => {
     try {
+      const runtimeCapabilities = await runtime.capabilities();
+      dispatch({ type: "set-runtime-capabilities", runtimeCapabilities });
+      if (runtimeCapabilities.providers.length === 0) {
+        throw new Error("尚未配置可用的模型 Provider；请先在“模型与 API 凭据”中保存并测试连接。");
+      }
       await runtime.admitInput({ sessionId: runtimeSessionId.current, text, attachmentRefs: [], delivery, clientRequestId: crypto.randomUUID() });
       const run = await runtime.resumeRun(runtimeSessionId.current);
       dispatch({ type: "set-run", run });
       void replayRuntimeEvents(stateRef.current.lastRuntimeSequence);
     } catch (error) { dispatch({ type: "error", error: errorMessage(error) }); }
   }, [replayRuntimeEvents, runtime]);
+
+  const refreshRuntimeCapabilities = useCallback(async () => {
+    try {
+      const runtimeCapabilities = await runtime.capabilities();
+      dispatch({ type: "set-runtime-capabilities", runtimeCapabilities });
+    } catch (error) {
+      dispatch({ type: "error", error: errorMessage(error) });
+    }
+  }, [runtime]);
 
   const cancelRun = useCallback(async () => {
     const run = stateRef.current.run;
@@ -413,6 +427,7 @@ export function useWorkbenchController() {
       createProject,
       openProject,
       refreshSidecars,
+      refreshRuntimeCapabilities,
       setBottomTab: (bottomTab: typeof state.bottomTab) => dispatch({ type: "set-bottom-tab", bottomTab }),
       clearNotice: () => dispatch({ type: "notice", notice: undefined }),
       clearError: () => dispatch({ type: "error", error: undefined }),

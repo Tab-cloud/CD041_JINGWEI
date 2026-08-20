@@ -130,6 +130,7 @@ export interface RuntimeCapabilities {
   state: ConnectionState;
   replay: boolean;
   approvals: boolean;
+  providers: Array<{ provider: string; model: string }>;
   reason?: string;
 }
 

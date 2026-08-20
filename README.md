@@ -90,6 +90,9 @@ Jingwei-Agent 不是“画图机器人”或传统 EDA 的鼠标自动化外挂�
 商业 OpenAI live test 也因当前环境缺少 `OPENAI_API_KEY` 和 `JINGWEI_OPENAI_MODEL` 而明确跳过。
 桌面配置抽屉已提供用户主动触发的“测试连接”：Tauri 从系统凭据库读取密钥，经认证本地管道调用 Runtime
 `provider.test`，前端只接收端点主机、模型、耗时、用量与脱敏失败信息。自动化构建不会擅自使用用户凭据。
+保存配置后，Tauri 还会通过独立的敏感本地管道调用 `provider.configure`，在 Runtime 内原子替换已配置模型；
+Runtime 重启时会从桌面配置与系统凭据库自动恢复。当前明确支持 OpenAI Responses 与 OpenAI-compatible Chat
+Completions 两种协议，MiniMax `api.minimaxi.com` 应选择 Chat Completions，并使用区分大小写的官方模型 ID。
 
 ## 3. 文档权威顺序
 

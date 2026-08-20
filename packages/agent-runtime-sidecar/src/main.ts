@@ -2,8 +2,13 @@ import { mkdirSync } from "node:fs"
 import { createServer, type Server, type Socket } from "node:net"
 import { dirname } from "node:path"
 import { createInterface } from "node:readline"
-import type { ProviderConnectionTestInput } from "@jingwei/agent-protocol"
-import { createRuntime, GeneratedBindingJdpClient, testProviderConnection } from "@jingwei/agent-runtime"
+import type { ProviderConfigurationInput, ProviderConnectionTestInput } from "@jingwei/agent-protocol"
+import {
+  createConfiguredProvider,
+  createRuntime,
+  GeneratedBindingJdpClient,
+  testProviderConnection,
+} from "@jingwei/agent-runtime"
 import { NamedPipeJdpBinding } from "./named-pipe-jdp.ts"
 import { recoverWhenOwnerLeaseAvailable } from "./runtime-startup.ts"
 
@@ -90,6 +95,14 @@ async function dispatch(method: string, params: unknown): Promise<unknown> {
     }
     case "artifact.get":
       return runtime.client.getArtifact((params as { artifactId: string }).artifactId)
+    case "provider.configure": {
+      const provider = createConfiguredProvider(params as ProviderConfigurationInput)
+      runtime.providers.replaceConfigured(provider)
+      return { configured: true, providers: runtime.providers.capabilities() }
+    }
+    case "provider.clear":
+      runtime.providers.clearConfigured()
+      return { configured: false, providers: [] }
     case "provider.test":
       return testProviderConnection(params as ProviderConnectionTestInput)
     default:
@@ -158,13 +171,19 @@ async function handleRpcFrame(socket: Socket, body: Buffer, expectedToken: strin
       error: { code: "runtime-sidecar-error", summary: errorMessage(error) },
     })
   } finally {
-    scrubProviderTestRequest(request)
+    scrubSensitiveProviderRequest(request)
     body.fill(0)
   }
 }
 
-function scrubProviderTestRequest(request: RpcRequest | undefined): void {
-  if (request?.method !== "provider.test" || !request.params || typeof request.params !== "object") return
+function scrubSensitiveProviderRequest(request: RpcRequest | undefined): void {
+  if (
+    !request ||
+    !["provider.configure", "provider.test"].includes(request.method) ||
+    !request.params ||
+    typeof request.params !== "object"
+  )
+    return
   const params = request.params as Record<string, unknown>
   if (typeof params.apiKey === "string") params.apiKey = ""
 }

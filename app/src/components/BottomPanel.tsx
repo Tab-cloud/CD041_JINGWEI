@@ -18,6 +18,7 @@ interface BottomPanelProps {
   onFocusFinding: (finding: FindingView) => void;
   onGeneratePatch: (instruction: string) => void;
   onApplyPatch: (accepted: string[], rejected: string[]) => void;
+  providerReady: boolean;
 }
 
 const tabs: Array<{ id: BottomTab; label: string }> = [
@@ -28,7 +29,7 @@ const tabs: Array<{ id: BottomTab; label: string }> = [
   { id: "history", label: "历史 / 恢复" },
 ];
 
-export function BottomPanel({ activeTab, run, project, events, proposal, onTabChange, onSubmit, onFocusFinding, onGeneratePatch, onApplyPatch }: BottomPanelProps) {
+export function BottomPanel({ activeTab, run, project, events, proposal, onTabChange, onSubmit, onFocusFinding, onGeneratePatch, onApplyPatch, providerReady }: BottomPanelProps) {
   return (
     <section className="bottom-panel" aria-label="Agent、验证和历史">
       <div className="bottom-tabs" role="tablist">
@@ -43,7 +44,7 @@ export function BottomPanel({ activeTab, run, project, events, proposal, onTabCh
         ))}
       </div>
       <div className="bottom-content" role="tabpanel">
-        {activeTab === "agent" && <AgentPanel onSubmit={onSubmit} run={run} />}
+        {activeTab === "agent" && <AgentPanel onSubmit={onSubmit} providerReady={providerReady} run={run} />}
         {activeTab === "timeline" && <TimelinePanel run={run} />}
         {activeTab === "findings" && <FindingsPanel findings={project?.findings ?? []} onFocus={onFocusFinding} />}
         {activeTab === "diff" && <PatchReviewPanel onApply={onApplyPatch} onGenerate={onGeneratePatch} proposal={proposal} />}

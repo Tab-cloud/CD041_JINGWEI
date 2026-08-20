@@ -5,10 +5,12 @@ import {
   liveTestReadiness,
   type ModelConfigurationDraft,
   type ModelConfigurationView,
+  providerCompatibilityHint,
   type ProviderConnectionTestResult,
   validateModelConfigurationDraft,
 } from "../model/modelConfiguration";
 import {
+  applyModelConfiguration,
   deleteModelCredential,
   getModelConfiguration,
   saveModelConfiguration,
@@ -20,6 +22,7 @@ interface ModelSettingsDrawerProps {
   open: boolean;
   runtimeAvailable: boolean;
   onClose: () => void;
+  onProviderApplied?: () => void;
 }
 
 interface Feedback {
@@ -31,7 +34,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSettingsDrawerProps) {
+export function ModelSettingsDrawer({ open, runtimeAvailable, onClose, onProviderApplied }: ModelSettingsDrawerProps) {
   const [configuration, setConfiguration] = useState<ModelConfigurationView>();
   const [draft, setDraft] = useState<ModelConfigurationDraft>(DEFAULT_MODEL_DRAFT);
   const [busy, setBusy] = useState<"delete" | "save" | "test">();
@@ -63,6 +66,7 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
     [configuration, runtimeAvailable],
   );
   const desktopConfigurationReady = Boolean(configuration?.profile && configuration.credentialConfigured);
+  const compatibilityHint = useMemo(() => providerCompatibilityHint(draft), [draft]);
   const hasUnsavedChanges = useMemo(() => {
     if (!configuration) return true;
     const saved = draftFromConfiguration(configuration);
@@ -106,7 +110,18 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
       setDraft(draftFromConfiguration(view));
       setTestResult(undefined);
       setTestCommandError(undefined);
-      setFeedback({ tone: "success", message: "模型配置已保存；API Key 未返回前端。" });
+      if (runtimeAvailable) {
+        try {
+          const application = await applyModelConfiguration();
+          if (!application.configured) throw new Error("Runtime 未返回已配置 Provider");
+          onProviderApplied?.();
+          setFeedback({ tone: "success", message: "模型配置已保存并应用到 Runtime；API Key 未返回前端。" });
+        } catch (error) {
+          setFeedback({ tone: "danger", message: `配置已保存，但 Runtime 应用失败：${errorMessage(error)}` });
+        }
+      } else {
+        setFeedback({ tone: "warning", message: "模型配置已保存；Runtime 下次启动时会自动应用。" });
+      }
     } catch (error) {
       setFeedback({ tone: "danger", message: errorMessage(error) });
     } finally {
@@ -124,7 +139,17 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
       setDraft((current) => ({ ...current, apiKey: "" }));
       setTestResult(undefined);
       setTestCommandError(undefined);
-      setFeedback({ tone: "warning", message: "本机 API Key 已从系统凭据库删除。" });
+      if (runtimeAvailable) {
+        try {
+          await applyModelConfiguration();
+          onProviderApplied?.();
+          setFeedback({ tone: "warning", message: "本机 API Key 已删除，Runtime Provider 已清除。" });
+        } catch (error) {
+          setFeedback({ tone: "danger", message: `本机 API Key 已删除，但 Runtime 清理失败：${errorMessage(error)}` });
+        }
+      } else {
+        setFeedback({ tone: "warning", message: "本机 API Key 已从系统凭据库删除。" });
+      }
     } catch (error) {
       setFeedback({ tone: "danger", message: errorMessage(error) });
     } finally {
@@ -208,11 +233,21 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
           </section>
 
           <section className="model-provider-form" aria-label="模型配置表单">
-            <div className="settings-section-heading"><div><span className="eyebrow">LOCAL PROFILE</span><h3>OpenAI Responses</h3></div></div>
+            <div className="settings-section-heading"><div><span className="eyebrow">LOCAL PROFILE</span><h3>OpenAI 兼容模型</h3></div></div>
             <label>
               <span>Provider</span>
-              <select aria-label="Provider" onChange={(event) => update("provider", event.target.value)} value={draft.provider}>
+              <select
+                aria-label="Provider"
+                onChange={(event) => update(
+                  "provider",
+                  event.target.value === "openai-chat-completions"
+                    ? "openai-chat-completions"
+                    : "openai-responses",
+                )}
+                value={draft.provider}
+              >
                 <option value="openai-responses">OpenAI Responses API</option>
+                <option value="openai-chat-completions">OpenAI-compatible Chat Completions</option>
               </select>
             </label>
             <label>
@@ -220,6 +255,7 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
               <input aria-label="API Base URL" autoCapitalize="none" onChange={(event) => update("baseUrl", event.target.value)} spellCheck={false} value={draft.baseUrl} />
               <small>仅接受 HTTPS，禁止在 URL 中嵌入用户名、密码或查询参数。</small>
             </label>
+            {compatibilityHint && <p className="settings-inline-warning"><AlertCircleIcon size={14} />{compatibilityHint}</p>}
             <label>
               <span>模型 ID</span>
               <input aria-label="模型 ID" autoCapitalize="none" onChange={(event) => update("model", event.target.value)} placeholder="输入账号可用的模型 ID" spellCheck={false} value={draft.model} />
@@ -246,9 +282,10 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
               <h3>连接测试状态</h3>
             </div>
             <strong>{busy === "test" ? "TESTING · 请求中" : testLabel}</strong>
-            <p>{busy === "test" ? "Runtime 正在验证端点、凭据和 Responses 协议兼容性。" : testSummary}</p>
+            <p>{busy === "test" ? "Runtime 正在验证端点、凭据和所选 OpenAI 协议。" : testSummary}</p>
             {testResult && (
               <dl className="live-test-evidence">
+                <div><dt>协议</dt><dd>{testResult.protocol === "openai-responses" ? "Responses" : "Chat Completions"}</dd></div>
                 <div><dt>端点</dt><dd>{testResult.endpointHost}</dd></div>
                 <div><dt>模型</dt><dd>{testResult.model}</dd></div>
                 <div><dt>耗时</dt><dd>{testResult.latencyMs} ms</dd></div>

@@ -33,6 +33,7 @@ interface TopBarProps {
   onToggleTheme: () => void;
   theme: Theme;
   realData: boolean;
+  providerReady: boolean;
 }
 
 const maturityLabels: Record<ProjectView["maturity"], string> = {
@@ -61,6 +62,7 @@ export function TopBar({
   onToggleTheme,
   theme,
   realData,
+  providerReady,
 }: TopBarProps) {
   return (
     <header className="top-bar">
@@ -117,7 +119,7 @@ export function TopBar({
         {runActive ? (
           <button className="primary-button danger" onClick={onCancel}><StopIcon size={15} />取消</button>
         ) : (
-          <button className="primary-button" onClick={onRun}><PlayIcon size={15} />运行</button>
+          <button className="primary-button" disabled={!providerReady} onClick={onRun} title={providerReady ? "运行 Agent" : "请先配置并应用模型 Provider"}><PlayIcon size={15} />运行</button>
         )}
       </nav>
     </header>

@@ -57,6 +57,32 @@ describe("provider connection test", () => {
     expect(JSON.stringify(result)).not.toContain("is invalid")
   })
 
+  test("uses the explicitly selected Chat Completions protocol", async () => {
+    let requestBody: Record<string, unknown> | undefined
+    const result = await testProviderConnection(
+      { ...input, provider: "openai-chat-completions" },
+      {
+        fetch: async (request, init) => {
+          const resolved = new Request(request, init)
+          expect(resolved.url).toBe("https://compatible.example/v1/chat/completions")
+          requestBody = (await resolved.json()) as Record<string, unknown>
+          return chatSse([chatChunk({ content: "JINGWEI_PROVIDER_TEST_OK" }, "stop")])
+        },
+      },
+    )
+
+    expect(result).toMatchObject({
+      status: "passed",
+      provider: "openai-chat-completions",
+      protocol: "openai-chat-completions",
+      endpointHost: "compatible.example",
+      model: "model-example-1",
+    })
+    expect(requestBody).toMatchObject({ model: "model-example-1", stream: true })
+    expect(JSON.stringify(result)).not.toContain("unit-test-secret")
+    expect(JSON.stringify(result)).not.toContain("JINGWEI_PROVIDER_TEST_OK")
+  })
+
   test("rejects unsafe endpoints before attempting a network request", async () => {
     let called = false
     const result = await testProviderConnection(
@@ -93,6 +119,23 @@ function completedEvent(inputTokens: number, outputTokens: number) {
 }
 
 function sse(events: unknown[]): Response {
+  return new Response(
+    `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")}data: [DONE]\n\n`,
+    { headers: { "content-type": "text/event-stream" } },
+  )
+}
+
+function chatChunk(delta: Record<string, unknown>, finishReason: string | null = null) {
+  return {
+    id: "chatcmpl-test",
+    object: "chat.completion.chunk",
+    created: 1,
+    model: "model-example-1",
+    choices: [{ index: 0, delta, finish_reason: finishReason }],
+  }
+}
+
+function chatSse(events: unknown[]): Response {
   return new Response(
     `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")}data: [DONE]\n\n`,
     { headers: { "content-type": "text/event-stream" } },

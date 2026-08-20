@@ -7,7 +7,7 @@
       "kind": "runtime",
       "relativePath": "bin/jingwei-agent-runtime-x86_64-pc-windows-msvc.exe",
       "version": "0.1.0",
-      "sha256": "525cc4f15eb820260c4be9a129ec3c25a27bd638101760cf5a1f4b142558fdd6",
+      "sha256": "e1ff23a465e228e29769de9ac8f5ce1ab156286f92f64dc3dd80146d5d2590a2",
       "bundled": true
     },
     {

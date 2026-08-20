@@ -3,7 +3,8 @@ mod model_configuration;
 
 use model_configuration::{
     model_configuration_delete_credential, model_configuration_get, model_configuration_save,
-    resolve_provider_test_configuration, validate_credential_reference,
+    resolve_provider_runtime_configuration, resolve_provider_test_configuration,
+    validate_credential_reference,
     ResolvedProviderTestConfiguration,
 };
 use serde::{Deserialize, Serialize};
@@ -245,6 +246,23 @@ async fn model_configuration_test(app: AppHandle) -> Result<serde_json::Value, S
 }
 
 #[tauri::command]
+async fn model_configuration_apply(app: AppHandle) -> Result<serde_json::Value, String> {
+    sync_runtime_provider_configuration(&app).await
+}
+
+async fn sync_runtime_provider_configuration(
+    app: &AppHandle,
+) -> Result<serde_json::Value, String> {
+    let bootstrap = app.state::<SidecarSupervisor>().bootstrap(app)?;
+    let Some(mut configuration) = resolve_provider_runtime_configuration(app)? else {
+        return runtime_pipe_request(&bootstrap, "provider.clear", serde_json::json!({})).await;
+    };
+    let result = runtime_provider_configuration_request(&bootstrap, &configuration).await;
+    configuration.api_key.zeroize();
+    result
+}
+
+#[tauri::command]
 async fn design_rpc(
     app: AppHandle,
     request: serde_json::Value,
@@ -416,7 +434,7 @@ async fn write_sensitive_pipe_frame<T: Serialize>(
     let mut bytes = serde_json::to_vec(value).map_err(|error| error.to_string())?;
     if bytes.is_empty() || bytes.len() > 64 * 1024 {
         bytes.zeroize();
-        return Err("provider test request exceeds frame limit".into());
+        return Err("provider sensitive request exceeds frame limit".into());
     }
     let result = async {
         pipe.write_u32_le(u32::try_from(bytes.len()).map_err(|_| "frame length overflow")?)
@@ -470,6 +488,14 @@ async fn runtime_provider_test_request(
     _configuration: &ResolvedProviderTestConfiguration,
 ) -> Result<serde_json::Value, String> {
     Err("Runtime provider test is currently available only on Windows".into())
+}
+
+#[cfg(not(windows))]
+async fn runtime_provider_configuration_request(
+    _bootstrap: &SidecarBootstrap,
+    _configuration: &ResolvedProviderTestConfiguration,
+) -> Result<serde_json::Value, String> {
+    Err("Runtime provider configuration is currently available only on Windows".into())
 }
 
 #[cfg(not(windows))]
@@ -589,13 +615,32 @@ fn start_sidecar(
                     match parsed {
                         Ok(()) => {
                             handshake_complete = true;
+                            let provider_reason = if entry.kind == "runtime" {
+                                match sync_runtime_provider_configuration(&monitor_app).await {
+                                    Ok(result)
+                                        if result
+                                            .get("configured")
+                                            .and_then(serde_json::Value::as_bool)
+                                            == Some(false) =>
+                                    {
+                                        Some("模型 Provider 尚未配置".to_string())
+                                    }
+                                    Ok(_) => None,
+                                    Err(error) => Some(format!(
+                                        "模型 Provider 未能应用: {}",
+                                        error.chars().take(240).collect::<String>()
+                                    )),
+                                }
+                            } else {
+                                None
+                            };
                             monitor_app
                                 .state::<SidecarSupervisor>()
                                 .set_status(SidecarStatus {
                                     kind: entry.kind.clone(),
                                     state: "healthy".into(),
                                     version: Some(entry.version.clone()),
-                                    reason: None,
+                                    reason: provider_reason,
                                 });
                         }
                         Err(reason) => {
@@ -624,6 +669,40 @@ fn start_sidecar(
         }
     });
     Ok(())
+}
+
+#[cfg(windows)]
+async fn runtime_provider_configuration_request(
+    bootstrap: &SidecarBootstrap,
+    configuration: &ResolvedProviderTestConfiguration,
+) -> Result<serde_json::Value, String> {
+    let mut pipe = open_named_pipe(&bootstrap.runtime_pipe_name).await?;
+    let envelope = RuntimeRpcEnvelope {
+        id: format!("provider-configure-{}", uuid::Uuid::new_v4()),
+        token: &bootstrap.runtime_bootstrap_token,
+        method: "provider.configure",
+        params: ProviderTestParams {
+            provider: &configuration.provider,
+            base_url: &configuration.base_url,
+            model: &configuration.model,
+            api_key: &configuration.api_key,
+            timeout_ms: configuration.timeout_ms,
+        },
+    };
+    write_sensitive_pipe_frame(&mut pipe, &envelope).await?;
+    let response = read_pipe_frame(&mut pipe, 64 * 1024).await?;
+    if response.get("success").and_then(serde_json::Value::as_bool) == Some(true) {
+        Ok(response
+            .get("result")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null))
+    } else {
+        Err(response
+            .pointer("/error/summary")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("Runtime provider configuration failed")
+            .to_string())
+    }
 }
 
 fn append_sidecar_diagnostic(current: &mut String, bytes: &[u8]) {
@@ -895,6 +974,7 @@ pub fn run() {
             model_configuration_save,
             model_configuration_delete_credential,
             model_configuration_test,
+            model_configuration_apply,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build Jingwei workbench");

@@ -133,6 +133,7 @@ export class RuntimeTransportClient implements RuntimeClient {
       durableEvents: boolean;
       approvalScopes: boolean;
       jdp: { reconciliation: boolean };
+      providers: Array<{ provider: string; model: string }>;
     }>("capabilities");
     if (capabilities.protocolVersion !== "0.1") {
       return {
@@ -141,6 +142,7 @@ export class RuntimeTransportClient implements RuntimeClient {
         state: "version-mismatch",
         replay: false,
         approvals: false,
+        providers: [],
         reason: `Runtime protocol ${capabilities.protocolVersion} is unsupported`,
       };
     }
@@ -150,6 +152,7 @@ export class RuntimeTransportClient implements RuntimeClient {
       state: "connected",
       replay: capabilities.durableEvents,
       approvals: capabilities.approvalScopes,
+      providers: capabilities.providers.map(({ provider, model }) => ({ provider, model })),
       reason: capabilities.jdp.reconciliation
         ? "真实 Runtime RPC 与 daemon reconciliation 已连接"
         : "真实 Runtime RPC 已连接；daemon reconciliation 尚未闭合",

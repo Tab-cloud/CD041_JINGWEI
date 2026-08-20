@@ -3,6 +3,7 @@ import {
   DEFAULT_MODEL_DRAFT,
   liveTestReadiness,
   type ModelConfigurationView,
+  providerCompatibilityHint,
   validateModelConfigurationDraft,
 } from "./modelConfiguration";
 
@@ -34,6 +35,15 @@ describe("model configuration policy", () => {
   it("rejects unsafe API key shapes before the native bridge", () => {
     expect(validateModelConfigurationDraft({ ...DEFAULT_MODEL_DRAFT, model: "gpt-example", apiKey: " short " })).toContain("API Key");
     expect(validateModelConfigurationDraft({ ...DEFAULT_MODEL_DRAFT, model: "gpt-example", apiKey: "valid-test-key" })).toBeUndefined();
+  });
+
+  it("supports explicit Chat Completions and warns about a mismatched MiniMax protocol", () => {
+    const minimax = { ...DEFAULT_MODEL_DRAFT, model: "MiniMax-M2.7", baseUrl: "https://api.minimaxi.com/v1" };
+    expect(providerCompatibilityHint(minimax)).toContain("Chat Completions");
+    const compatible = { ...minimax, provider: "openai-chat-completions" as const };
+    expect(validateModelConfigurationDraft(compatible)).toBeUndefined();
+    expect(providerCompatibilityHint({ ...compatible, model: "minimax-m3" })).toContain("MiniMax-M3");
+    expect(providerCompatibilityHint({ ...compatible, model: "MiniMax-M3" })).toBeUndefined();
   });
 
   it("reports the commercial endpoint test as skipped when Runtime is unavailable", () => {

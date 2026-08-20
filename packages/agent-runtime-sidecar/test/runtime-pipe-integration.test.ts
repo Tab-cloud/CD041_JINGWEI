@@ -94,6 +94,67 @@ describe("Runtime production local RPC", () => {
       result: { status: "failed", error: { code: "validation-failed" } },
     })
     expect(JSON.stringify(providerTest)).not.toContain(providerTestSecret)
+    const configured = await runtimeRpc.request({
+      id: "runtime-provider-configure",
+      token: runtimeToken,
+      method: "provider.configure",
+      params: {
+        provider: "openai-chat-completions",
+        baseUrl: "https://compatible.example/v1",
+        model: "chat-model-example",
+        apiKey: providerTestSecret,
+        timeoutMs: 10_000,
+      },
+    })
+    expect(configured).toMatchObject({
+      success: true,
+      result: {
+        configured: true,
+        providers: [{ provider: "openai-chat-completions", model: "chat-model-example" }],
+      },
+    })
+    expect(JSON.stringify(configured)).not.toContain(providerTestSecret)
+    const capabilitiesAfterConfigure = await runtimeRpc.request({
+      id: "runtime-capabilities-configured",
+      token: runtimeToken,
+      method: "capabilities",
+      params: {},
+    })
+    expect(capabilitiesAfterConfigure).toMatchObject({
+      success: true,
+      result: { providers: [{ provider: "openai-chat-completions", model: "chat-model-example" }] },
+    })
+    const rejectedReplacement = await runtimeRpc.request({
+      id: "runtime-provider-invalid-replacement",
+      token: runtimeToken,
+      method: "provider.configure",
+      params: {
+        provider: "openai-chat-completions",
+        baseUrl: "http://unsafe.example/v1",
+        model: "replacement-model",
+        apiKey: providerTestSecret,
+        timeoutMs: 10_000,
+      },
+    })
+    expect(rejectedReplacement).toMatchObject({ success: false })
+    expect(JSON.stringify(rejectedReplacement)).not.toContain(providerTestSecret)
+    const capabilitiesAfterRejectedReplacement = await runtimeRpc.request({
+      id: "runtime-capabilities-atomic",
+      token: runtimeToken,
+      method: "capabilities",
+      params: {},
+    })
+    expect(capabilitiesAfterRejectedReplacement).toMatchObject({
+      success: true,
+      result: { providers: [{ provider: "openai-chat-completions", model: "chat-model-example" }] },
+    })
+    const cleared = await runtimeRpc.request({
+      id: "runtime-provider-clear",
+      token: runtimeToken,
+      method: "provider.clear",
+      params: {},
+    })
+    expect(cleared).toMatchObject({ success: true, result: { configured: false, providers: [] } })
     const session = await runtimeRpc.request({
       id: "runtime-session",
       token: runtimeToken,

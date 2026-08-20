@@ -4,10 +4,11 @@ import { BotIcon, SendIcon } from "../Icons";
 
 interface AgentPanelProps {
   run?: RunView;
+  providerReady: boolean;
   onSubmit: (text: string, delivery: "steer" | "queue") => void;
 }
 
-export function AgentPanel({ run, onSubmit }: AgentPanelProps) {
+export function AgentPanel({ run, onSubmit, providerReady }: AgentPanelProps) {
   const [text, setText] = useState("检查当前 candidate 的阻塞项，并给出可审查的局部修复计划");
   const [delivery, setDelivery] = useState<"steer" | "queue">("queue");
   const submit = () => {
@@ -27,6 +28,7 @@ export function AgentPanel({ run, onSubmit }: AgentPanelProps) {
         </div>
       </div>
       <div className="composer-area">
+        {!providerReady && <p className="settings-inline-warning" role="status">模型 Provider 尚未应用。请先打开右上角“模型与 API 凭据”，保存配置并测试连接。</p>}
         <div className="quick-prompts">
           <button onClick={() => setText("解释当前选中 finding，并给出两个候选")}>解释 finding</button>
           <button onClick={() => setText("只修改选中对象，不修改锁定对象")}>局部修复</button>
@@ -39,7 +41,7 @@ export function AgentPanel({ run, onSubmit }: AgentPanelProps) {
           <div className="composer-actions">
             <label>投递方式<select onChange={(event) => setDelivery(event.target.value as "steer" | "queue")} value={delivery}><option value="queue">Queue</option><option value="steer">Steer</option></select></label>
             <span>附件仅保存 artifact reference</span>
-            <button className="send-button" disabled={!text.trim()} onClick={submit}><SendIcon size={14} />提交</button>
+            <button className="send-button" disabled={!text.trim() || !providerReady} onClick={submit}><SendIcon size={14} />提交</button>
           </div>
         </div>
       </div>

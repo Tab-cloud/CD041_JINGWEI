@@ -4,6 +4,7 @@ import type { ModelConfigurationView } from "../model/modelConfiguration";
 import { ModelSettingsDrawer } from "./ModelSettingsDrawer";
 
 const bridge = vi.hoisted(() => ({
+  applyModelConfiguration: vi.fn(),
   deleteModelCredential: vi.fn(),
   getModelConfiguration: vi.fn(),
   saveModelConfiguration: vi.fn(),
@@ -36,6 +37,10 @@ const savedView: ModelConfigurationView = {
 
 describe("ModelSettingsDrawer", () => {
   beforeEach(() => {
+    bridge.applyModelConfiguration.mockReset().mockResolvedValue({
+      configured: true,
+      providers: [{ provider: "openai", model: "gpt-example-1" }],
+    });
     bridge.getModelConfiguration.mockReset().mockResolvedValue(emptyView);
     bridge.saveModelConfiguration.mockReset().mockResolvedValue(savedView);
     bridge.deleteModelCredential.mockReset().mockResolvedValue(emptyView);
@@ -73,7 +78,23 @@ describe("ModelSettingsDrawer", () => {
       apiKey: "secret-test-key",
     }));
     await waitFor(() => expect(screen.getByLabelText("API Key")).toHaveValue(""));
-    expect(screen.getByText("模型配置已保存；API Key 未返回前端。")).toBeInTheDocument();
+    expect(screen.getByText("模型配置已保存；Runtime 下次启动时会自动应用。")).toBeInTheDocument();
+  });
+
+  it("offers Chat Completions and warns when a MiniMax endpoint uses Responses", async () => {
+    bridge.getModelConfiguration.mockResolvedValue({
+      ...savedView,
+      profile: { ...savedView.profile!, baseUrl: "https://api.minimaxi.com/v1" },
+    });
+    render(<ModelSettingsDrawer onClose={vi.fn()} open runtimeAvailable />);
+
+    expect(await screen.findByText(/MiniMax 官方 OpenAI 兼容端点使用 Chat Completions/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "openai-chat-completions" } });
+    expect(screen.queryByText(/MiniMax 官方 OpenAI 兼容端点使用 Chat Completions/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+
+    await waitFor(() => expect(bridge.applyModelConfiguration).toHaveBeenCalledOnce());
+    expect(screen.getByText(/模型配置已保存并应用到 Runtime/)).toBeInTheDocument();
   });
 
   it("runs the saved profile through Runtime and renders sanitized evidence", async () => {

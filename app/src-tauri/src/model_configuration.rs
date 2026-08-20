@@ -120,6 +120,15 @@ pub(crate) fn validate_credential_reference(reference: String) -> Result<String,
 pub(crate) fn resolve_provider_test_configuration(
     app: &AppHandle,
 ) -> Result<ResolvedProviderTestConfiguration, String> {
+    resolve_provider_runtime_configuration(app)?.ok_or_else(|| {
+        "缺少可用于模型调用的桌面 API 凭据，且 OPENAI_API_KEY/JINGWEI_OPENAI_MODEL 未完整配置"
+            .to_string()
+    })
+}
+
+pub(crate) fn resolve_provider_runtime_configuration(
+    app: &AppHandle,
+) -> Result<Option<ResolvedProviderTestConfiguration>, String> {
     if let Some(profile) = read_profile(app)? {
         let normalized = normalize_profile(&SaveModelConfigurationInput {
             provider: profile.provider,
@@ -132,24 +141,27 @@ pub(crate) fn resolve_provider_test_configuration(
                 api_key.zeroize();
                 return Err(error);
             }
-            return Ok(ResolvedProviderTestConfiguration {
+            return Ok(Some(ResolvedProviderTestConfiguration {
                 provider: normalized.provider,
                 base_url: normalized.base_url,
                 model: normalized.model,
                 api_key,
-                timeout_ms: 30_000,
-            });
+                timeout_ms: 60_000,
+            }));
         }
     }
 
-    let mut api_key = env::var("OPENAI_API_KEY")
-        .map_err(|_| "缺少可用于连接测试的 OPENAI_API_KEY 或系统凭据".to_string())?;
+    let Ok(mut api_key) = env::var("OPENAI_API_KEY") else {
+        return Ok(None);
+    };
     if let Err(error) = validate_api_key(&api_key) {
         api_key.zeroize();
         return Err(error);
     }
-    let model = env::var("JINGWEI_OPENAI_MODEL")
-        .map_err(|_| "缺少可用于连接测试的 JINGWEI_OPENAI_MODEL".to_string())?;
+    let Ok(model) = env::var("JINGWEI_OPENAI_MODEL") else {
+        api_key.zeroize();
+        return Ok(None);
+    };
     let normalized = normalize_profile(&SaveModelConfigurationInput {
         provider: "openai-responses".into(),
         base_url: DEFAULT_OPENAI_BASE_URL.into(),
@@ -157,13 +169,13 @@ pub(crate) fn resolve_provider_test_configuration(
         api_key: None,
     });
     match normalized {
-        Ok(profile) => Ok(ResolvedProviderTestConfiguration {
+        Ok(profile) => Ok(Some(ResolvedProviderTestConfiguration {
             provider: profile.provider,
             base_url: profile.base_url,
             model: profile.model,
             api_key,
-            timeout_ms: 30_000,
-        }),
+            timeout_ms: 60_000,
+        })),
         Err(error) => {
             api_key.zeroize();
             Err(error)
@@ -195,8 +207,11 @@ fn read_configuration_view(app: &AppHandle) -> Result<ModelConfigurationView, St
 }
 
 fn normalize_profile(input: &SaveModelConfigurationInput) -> Result<ModelProviderProfile, String> {
-    if input.provider != "openai-responses" {
-        return Err("当前版本只支持 OpenAI Responses provider".into());
+    if !matches!(
+        input.provider.as_str(),
+        "openai-responses" | "openai-chat-completions"
+    ) {
+        return Err("当前版本只支持 Responses 或 OpenAI-compatible Chat Completions".into());
     }
 
     let model = input.model.trim();
@@ -386,6 +401,16 @@ mod tests {
         assert!(profile.credential_ref.starts_with("credential://"));
         let serialized = serde_json::to_string(&profile).unwrap();
         assert!(!serialized.contains("apiKey"));
+    }
+
+    #[test]
+    fn accepts_explicit_chat_completions_protocol() {
+        let mut input = valid_input();
+        input.provider = "openai-chat-completions".into();
+        input.base_url = "https://api.minimaxi.com/v1/".into();
+        let profile = normalize_profile(&input).unwrap();
+        assert_eq!(profile.provider, "openai-chat-completions");
+        assert_eq!(profile.base_url, "https://api.minimaxi.com/v1");
     }
 
     #[test]

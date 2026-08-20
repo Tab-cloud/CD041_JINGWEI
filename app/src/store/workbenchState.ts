@@ -74,6 +74,7 @@ export type WorkbenchAction =
   | { type: "set-bottom-tab"; bottomTab: BottomTab }
   | { type: "set-patch"; patchProposal?: PatchProposalView }
   | { type: "set-sidecars"; sidecars: SidecarStatus[] }
+  | { type: "set-runtime-capabilities"; runtimeCapabilities: RuntimeCapabilities }
   | { type: "notice"; notice?: string }
   | { type: "error"; error?: string }
   | { type: "boot-error"; error: string };
@@ -167,6 +168,8 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       return { ...state, patchProposal: action.patchProposal, bottomTab: action.patchProposal ? "diff" : state.bottomTab };
     case "set-sidecars":
       return { ...state, sidecars: action.sidecars };
+    case "set-runtime-capabilities":
+      return { ...state, runtimeCapabilities: action.runtimeCapabilities };
     case "notice":
       return { ...state, notice: action.notice, error: undefined };
     case "error":

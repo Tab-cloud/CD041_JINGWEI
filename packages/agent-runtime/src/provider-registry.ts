@@ -19,6 +19,14 @@ export class ProviderRegistry {
     this.providers.push(provider)
   }
 
+  replaceConfigured(provider: ProviderAdapter): void {
+    this.providers.splice(0, this.providers.length, provider)
+  }
+
+  clearConfigured(): void {
+    this.providers.splice(0, this.providers.length)
+  }
+
   candidates(requirements: ProviderRequirements = {}): ProviderAdapter[] {
     return this.providers.filter((provider) => supports(provider.capabilities, requirements))
   }

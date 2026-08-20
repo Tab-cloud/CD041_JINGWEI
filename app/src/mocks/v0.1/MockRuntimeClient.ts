@@ -162,9 +162,9 @@ export class MockRuntimeClient implements RuntimeClient {
 
   async capabilities(): Promise<RuntimeCapabilities> {
     if (this.scenario === "unavailable") {
-      return { contractVersion: "0.1", mode: "mock", state: "unavailable", replay: true, approvals: true, reason: "mock runtime unavailable scenario" };
+      return { contractVersion: "0.1", mode: "mock", state: "unavailable", replay: true, approvals: true, providers: [], reason: "mock runtime unavailable scenario" };
     }
-    return { contractVersion: "0.1", mode: "mock", state: "connected", replay: true, approvals: true, reason: "versioned development fixture" };
+    return { contractVersion: "0.1", mode: "mock", state: "connected", replay: true, approvals: true, providers: [{ provider: "fixture", model: "mock-runtime" }], reason: "versioned development fixture" };
   }
 
   private appendEvent(sessionId: string, type: string, data: unknown): DurableEvent {

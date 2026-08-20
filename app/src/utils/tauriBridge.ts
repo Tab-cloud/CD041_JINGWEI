@@ -2,6 +2,7 @@ import type { SidecarStatus } from "../store/workbenchState";
 import {
   EMPTY_MODEL_CONFIGURATION,
   type ModelConfigurationView,
+  type ProviderApplicationResult,
   type ProviderConnectionTestResult,
   type SaveModelConfigurationInput,
 } from "../model/modelConfiguration";
@@ -102,6 +103,12 @@ export async function testModelConnection(): Promise<ProviderConnectionTestResul
   if (!isTauriRuntime()) throw new Error("模型连接测试只能在原生桌面应用中执行");
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<ProviderConnectionTestResult>("model_configuration_test");
+}
+
+export async function applyModelConfiguration(): Promise<ProviderApplicationResult> {
+  if (!isTauriRuntime()) throw new Error("模型配置只能应用到原生 Runtime");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ProviderApplicationResult>("model_configuration_apply");
 }
 
 function browserFallbackStatuses(): SidecarStatus[] {

@@ -23,7 +23,7 @@ describe("workbenchReducer", () => {
     const loaded = workbenchReducer(initialWorkbenchState, {
       type: "loaded",
       project,
-      runtimeCapabilities: { contractVersion: "0.1", mode: "mock", state: "connected", replay: true, approvals: true },
+      runtimeCapabilities: { contractVersion: "0.1", mode: "mock", state: "connected", replay: true, approvals: true, providers: [{ provider: "fixture", model: "mock-runtime" }] },
       designCapabilities: { contractVersion: "0.1", mode: "mock", state: "connected" },
       approvals: [],
       editSession: { id: "edit", baseRevision: "candidate-1", draftRevision: "draft-1", leaseExpiresAt: "later", recovered: false },

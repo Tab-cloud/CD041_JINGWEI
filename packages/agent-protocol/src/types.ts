@@ -216,18 +216,22 @@ export interface ProviderCapabilities {
   dataPolicy: Record<string, string | boolean>
 }
 
+export type OpenAIProviderProtocol = "openai-responses" | "openai-chat-completions"
+
 /**
- * Internal desktop-to-runtime request used to validate a configured provider.
- * `apiKey` is transport-only secret material: callers must never persist, log,
- * emit, or return it.
+ * Internal desktop-to-runtime provider configuration. `apiKey` is
+ * transport-only secret material: callers must never persist, log, emit, or
+ * return it.
  */
-export interface ProviderConnectionTestInput {
-  provider: "openai-responses"
+export interface ProviderConfigurationInput {
+  provider: OpenAIProviderProtocol
   baseUrl: string
   model: string
   apiKey: string
   timeoutMs: number
 }
+
+export type ProviderConnectionTestInput = ProviderConfigurationInput
 
 export interface ProviderConnectionTestFailure {
   code:
@@ -248,8 +252,8 @@ export interface ProviderConnectionTestFailure {
 
 export interface ProviderConnectionTestResult {
   status: "passed" | "failed"
-  provider: "openai-responses"
-  protocol: "openai-responses"
+  provider: OpenAIProviderProtocol
+  protocol: OpenAIProviderProtocol
   endpointHost: string
   model: string
   latencyMs: number

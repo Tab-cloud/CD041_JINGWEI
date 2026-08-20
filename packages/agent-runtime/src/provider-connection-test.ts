@@ -3,14 +3,15 @@ import type {
   ProviderConnectionTestInput,
   ProviderConnectionTestResult,
 } from "@jingwei/agent-protocol"
+import { OpenAIChatCompletionsProvider } from "./openai-chat-completions-provider.ts"
 import { OpenAIResponsesProvider, type ProviderFetch } from "./openai-responses-provider.ts"
-import { collectProviderTurn } from "./provider.ts"
+import { collectProviderTurn, type ProviderAdapter } from "./provider.ts"
 
 const MIN_TIMEOUT_MS = 5_000
 const MAX_TIMEOUT_MS = 60_000
 
 /**
- * Performs a bounded, side-effect-free Responses request. The credential is
+ * Performs a bounded, content-free request using the explicitly selected protocol. The credential is
  * constructor-only and the returned evidence is deliberately content-free.
  */
 export async function testProviderConnection(
@@ -21,8 +22,8 @@ export async function testProviderConnection(
   const testedAt = new Date().toISOString()
   const endpoint = validateEndpoint(input.baseUrl)
   const evidence = {
-    provider: "openai-responses" as const,
-    protocol: "openai-responses" as const,
+    provider: input.provider,
+    protocol: input.provider,
     endpointHost: endpoint?.host ?? "invalid-endpoint",
     model: safeModel(input.model),
     testedAt,
@@ -39,19 +40,10 @@ export async function testProviderConnection(
   }
 
   try {
-    const provider = new OpenAIResponsesProvider({
-      apiKey: input.apiKey,
-      model: input.model,
-      baseURL: endpoint.toString().replace(/\/$/u, ""),
-      contextTokens: 8_192,
+    const provider = createProvider(input, endpoint, {
+      purpose: "provider-connection-test",
       outputTokens: 32,
-      timeoutMs: input.timeoutMs,
-      store: false,
       reasoning: false,
-      image: false,
-      pdf: false,
-      structuredOutput: false,
-      dataPolicy: { purpose: "provider-connection-test", responseContentReturned: false },
       ...(dependencies.fetch ? { fetch: dependencies.fetch } : {}),
     })
     const completed = await collectProviderTurn(provider, {
@@ -76,12 +68,70 @@ export async function testProviderConnection(
   }
 }
 
+export function createConfiguredProvider(
+  input: ProviderConnectionTestInput,
+  dependencies: { fetch?: ProviderFetch } = {},
+): ProviderAdapter {
+  const endpoint = validateEndpoint(input.baseUrl)
+  const validationFailure = validateInput(input, endpoint)
+  if (validationFailure || !endpoint) {
+    throw new Error(validationFailure?.summary ?? "API Base URL 无效。")
+  }
+  return createProvider(input, endpoint, {
+    purpose: "agent-runtime",
+    outputTokens: input.provider === "openai-chat-completions" ? 2_048 : 8_192,
+    reasoning: true,
+    ...(dependencies.fetch ? { fetch: dependencies.fetch } : {}),
+  })
+}
+
+interface ProviderConstructionOptions {
+  purpose: "provider-connection-test" | "agent-runtime"
+  outputTokens: number
+  reasoning: boolean
+  fetch?: ProviderFetch
+}
+
+function createProvider(
+  input: ProviderConnectionTestInput,
+  endpoint: URL,
+  options: ProviderConstructionOptions,
+): ProviderAdapter {
+  const common = {
+    apiKey: input.apiKey,
+    model: input.model,
+    baseURL: endpoint.toString().replace(/\/$/u, ""),
+    contextTokens: 128_000,
+    outputTokens: options.outputTokens,
+    timeoutMs: input.timeoutMs,
+    store: false,
+    reasoning: options.reasoning,
+    dataPolicy: {
+      purpose: options.purpose,
+      responseContentReturned: options.purpose !== "provider-connection-test",
+    },
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  }
+  return input.provider === "openai-chat-completions"
+    ? new OpenAIChatCompletionsProvider(common)
+    : new OpenAIResponsesProvider({
+        ...common,
+        image: options.purpose === "agent-runtime",
+        pdf: options.purpose === "agent-runtime",
+        structuredOutput: options.purpose === "agent-runtime",
+      })
+}
+
 function validateInput(
   input: ProviderConnectionTestInput,
   endpoint: URL | undefined,
 ): ProviderConnectionTestFailure | undefined {
-  if (input.provider !== "openai-responses") {
-    return failure("unsupported-provider", "当前 Runtime 只支持 OpenAI Responses 连接测试。", false)
+  if (!matchesProvider(input.provider)) {
+    return failure(
+      "unsupported-provider",
+      "当前 Runtime 只支持 Responses 或 OpenAI-compatible Chat Completions。",
+      false,
+    )
   }
   if (!endpoint) {
     return failure("validation-failed", "API Base URL 必须是无凭据、无查询参数的 HTTPS 地址。", false)
@@ -105,6 +155,10 @@ function validateInput(
     return failure("validation-failed", "连接测试超时必须在 5–60 秒之间。", false)
   }
   return undefined
+}
+
+function matchesProvider(value: string): value is ProviderConnectionTestInput["provider"] {
+  return value === "openai-responses" || value === "openai-chat-completions"
 }
 
 function validateEndpoint(value: string): URL | undefined {
@@ -142,14 +196,14 @@ function classifyFailure(error: unknown): ProviderConnectionTestFailure {
   if (status === 400 || status === 409 || status === 422) {
     return failure(
       "request-rejected",
-      "端点拒绝了 Responses 测试请求；请确认该服务兼容 Responses API。",
+      "端点拒绝了连接测试请求；请确认所选协议、Base URL 与模型 ID 相互兼容。",
       false,
       status,
     )
   }
   if (isNetworkError(error))
     return failure("network-error", "无法连接模型端点；请检查网络、代理与 DNS。", true)
-  return failure("protocol-error", "端点未返回有效的 OpenAI Responses 流。", false, status)
+  return failure("protocol-error", "端点未返回所选 OpenAI 兼容协议的有效流。", false, status)
 }
 
 function httpStatus(error: unknown): number | undefined {
