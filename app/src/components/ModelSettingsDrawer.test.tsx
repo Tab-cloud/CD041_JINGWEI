@@ -82,6 +82,8 @@ describe("ModelSettingsDrawer", () => {
 
     const button = await screen.findByRole("button", { name: "测试连接" });
     expect(button).toBeEnabled();
+    expect(screen.getByText("可选 · 未使用")).toBeInTheDocument();
+    expect(screen.getByText("已由桌面应用配置接管，无需设置系统环境变量。")).toBeInTheDocument();
     fireEvent.click(button);
 
     await waitFor(() => expect(bridge.testModelConnection).toHaveBeenCalledOnce());

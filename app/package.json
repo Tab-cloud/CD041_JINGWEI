@@ -1,6 +1,6 @@
 {
   "name": "@jingwei-agent/workbench",
-  "version": "0.1.0-dev.1",
+  "version": "0.1.1",
   "private": true,
   "description": "Jingwei Agent native semantic workbench with authenticated local transports",
   "type": "module",

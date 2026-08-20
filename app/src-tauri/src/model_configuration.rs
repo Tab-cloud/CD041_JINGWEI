@@ -2,7 +2,7 @@ use crate::credential_store;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 use url::Url;
 use zeroize::Zeroize;
@@ -10,6 +10,8 @@ use zeroize::Zeroize;
 const PROFILE_SCHEMA_VERSION: &str = "0.1";
 const PROFILE_FILE_NAME: &str = "model-provider.json";
 const CREDENTIAL_ACCOUNT: &str = "jingwei.openai";
+const CURRENT_APP_IDENTIFIER: &str = "com.jingweiagent.workbench";
+const LEGACY_APP_IDENTIFIER: &str = "com.jingweiagent.workbench.dev";
 const MAX_PROFILE_BYTES: u64 = 32 * 1024;
 const MAX_API_KEY_BYTES: usize = 2560;
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
@@ -257,7 +259,27 @@ fn environment_configuration() -> EnvironmentModelConfiguration {
 
 fn read_profile(app: &AppHandle) -> Result<Option<ModelProviderProfile>, String> {
     let path = profile_path(app)?;
-    let metadata = match fs::metadata(&path) {
+    if let Some(profile) = read_profile_from_path(&path)? {
+        return Ok(Some(profile));
+    }
+    let Some(legacy_path) = legacy_profile_path(&path) else {
+        return Ok(None);
+    };
+    let Some(legacy_profile) = read_profile_from_path(&legacy_path)? else {
+        return Ok(None);
+    };
+    let migrated = normalize_profile(&SaveModelConfigurationInput {
+        provider: legacy_profile.provider,
+        base_url: legacy_profile.base_url,
+        model: legacy_profile.model,
+        api_key: None,
+    })?;
+    write_profile(app, &migrated)?;
+    Ok(Some(migrated))
+}
+
+fn read_profile_from_path(path: &Path) -> Result<Option<ModelProviderProfile>, String> {
+    let metadata = match fs::metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err("无法读取本机模型配置元数据".into()),
@@ -272,6 +294,19 @@ fn read_profile(app: &AppHandle) -> Result<Option<ModelProviderProfile>, String>
         return Err("本机模型配置版本不兼容".into());
     }
     Ok(Some(profile))
+}
+
+fn legacy_profile_path(current_profile_path: &Path) -> Option<PathBuf> {
+    let current_directory = current_profile_path.parent()?;
+    if current_directory.file_name()?.to_str()? != CURRENT_APP_IDENTIFIER {
+        return None;
+    }
+    Some(
+        current_directory
+            .parent()?
+            .join(LEGACY_APP_IDENTIFIER)
+            .join(PROFILE_FILE_NAME),
+    )
 }
 
 fn write_profile(app: &AppHandle, profile: &ModelProviderProfile) -> Result<(), String> {
@@ -380,5 +415,22 @@ mod tests {
         );
         assert!(credential_account("credential://windows/UPPER").is_err());
         assert!(credential_account("secret-value").is_err());
+    }
+
+    #[test]
+    fn locates_only_the_known_legacy_profile_sibling() {
+        let current = PathBuf::from("C:/Users/example/AppData/Roaming")
+            .join(CURRENT_APP_IDENTIFIER)
+            .join(PROFILE_FILE_NAME);
+        assert_eq!(
+            legacy_profile_path(&current),
+            Some(
+                PathBuf::from("C:/Users/example/AppData/Roaming")
+                    .join(LEGACY_APP_IDENTIFIER)
+                    .join(PROFILE_FILE_NAME)
+            )
+        );
+        let unrelated = PathBuf::from("C:/temp/another-app").join(PROFILE_FILE_NAME);
+        assert!(legacy_profile_path(&unrelated).is_none());
     }
 }

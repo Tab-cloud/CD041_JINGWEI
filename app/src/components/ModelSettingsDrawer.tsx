@@ -62,6 +62,7 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
     () => configuration ? liveTestReadiness(configuration, runtimeAvailable) : undefined,
     [configuration, runtimeAvailable],
   );
+  const desktopConfigurationReady = Boolean(configuration?.profile && configuration.credentialConfigured);
   const hasUnsavedChanges = useMemo(() => {
     if (!configuration) return true;
     const saved = draftFromConfiguration(configuration);
@@ -184,12 +185,13 @@ export function ModelSettingsDrawer({ open, runtimeAvailable, onClose }: ModelSe
             </div>
             <div className="configuration-status-grid">
               <div className="configuration-status-card">
-                <span>环境变量</span>
-                <strong className={configuration?.environment.configured ? "status-good" : "status-warning"}>
-                  {configuration?.environment.configured ? "可用" : "缺少配置"}
+                <span>环境变量（可选）</span>
+                <strong className={configuration?.environment.configured || desktopConfigurationReady ? "status-good" : "status-warning"}>
+                  {configuration?.environment.configured ? "可用" : desktopConfigurationReady ? "可选 · 未使用" : "缺少配置"}
                 </strong>
                 <small><code>OPENAI_API_KEY</code> {configuration?.environment.apiKeyPresent ? "已设置" : "未设置"}</small>
                 <small><code>JINGWEI_OPENAI_MODEL</code> {configuration?.environment.modelPresent ? `已设置${configuration.environment.model ? ` · ${configuration.environment.model}` : ""}` : "未设置"}</small>
+                {desktopConfigurationReady && !configuration?.environment.configured && <small>已由桌面应用配置接管，无需设置系统环境变量。</small>}
               </div>
               <div className="configuration-status-card">
                 <span>桌面应用配置</span>

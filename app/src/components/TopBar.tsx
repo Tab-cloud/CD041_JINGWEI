@@ -1,6 +1,7 @@
 import type { ProjectView } from "../clients/contracts";
 import type { SidecarStatus } from "../store/workbenchState";
 import type { Theme } from "../theme/theme";
+import appPackage from "../../package.json";
 import {
   FolderOpenIcon,
   PlayIcon,
@@ -74,6 +75,7 @@ export function TopBar({
       <div className="project-identity">
         <div className="project-title-row">
           <strong>{project?.name ?? "尚未打开项目"}</strong>
+          <StatusBadge tone="neutral">APP {appPackage.version}</StatusBadge>
           <StatusBadge tone={realData ? "info" : "mock"}>{realData ? "LOCAL JIR 0.2" : "FIXTURE 0.1"}</StatusBadge>
           {project && <StatusBadge tone={project.maturity === "production-released" ? "success" : "warning"}>{maturityLabels[project.maturity]}</StatusBadge>}
         </div>

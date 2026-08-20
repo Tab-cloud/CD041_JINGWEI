@@ -48,3 +48,12 @@ credential-bearing internal request. JDP and `jingwei-daemon` are not involved.
 No approved commercial credential was provided to the automated build environment, so this delivery does not claim a paid
 OpenAI or OpenAI-compatible endpoint passed. The installed user can initiate that test explicitly from the drawer. The
 unsigned Alpha release and the broader Production Release gates remain unchanged.
+
+## 0.1.1 stale-build correction
+
+The user screenshot that followed this handoff was produced by `D:\Tools\Jingwei Agent Dev\jingwei-workbench.exe`, an older
+`com.jingweiagent.workbench.dev` build that still displayed `MOCK 0.1 · DEV`. Release 0.1.1 therefore adds three explicit
+guards: a visible `APP 0.1.1` badge, a uniquely named installer, and one-way migration of the validated non-secret provider
+profile from the legacy Dev configuration sibling. The Windows credential remains in Credential Manager and is never copied
+to a file. When the desktop profile and credential are available, missing process environment variables are now labelled
+“可选 · 未使用” instead of implying that duplicate environment configuration is required.

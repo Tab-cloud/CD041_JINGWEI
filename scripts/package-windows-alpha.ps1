@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = '',
-    [string]$Version = '0.1.0'
+    [string]$Version = '0.1.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,6 +34,14 @@ try {
     if (Test-Path -LiteralPath $staleInstalledGatePath -PathType Leaf) {
         Remove-Item -LiteralPath $staleInstalledGatePath -Force
     }
+    Get-ChildItem -LiteralPath $dist -Filter 'Jingwei-Agent_*_x64-setup.exe' -File |
+        Where-Object { $_.Name -ne "Jingwei-Agent_${Version}_x64-setup.exe" } |
+        ForEach-Object {
+            if ((Resolve-Path -LiteralPath $_.DirectoryName).Path -ne $resolvedDist) {
+                throw 'Installer cleanup escaped the package dist directory'
+            }
+            Remove-Item -LiteralPath $_.FullName -Force
+        }
     $sidecarGatePath = Join-Path $dist 'windows-sidecar-gate.json'
     & (Join-Path $repository 'scripts\verify-windows-sidecars.ps1') -RepositoryRoot $repository -ReportPath $sidecarGatePath
     if ($LASTEXITCODE -ne 0) { throw 'Pinned sidecar verification failed' }
